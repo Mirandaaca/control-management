@@ -1,0 +1,268 @@
+using ControlGestion.API.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
+namespace ControlGestion.API.Data;
+
+public class AppDbContext : IdentityDbContext<ApplicationUser>
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    public DbSet<Zona> Zonas { get; set; }
+    public DbSet<Producto> Productos { get; set; }
+    public DbSet<AuditoriaLog> AuditoriaLogs { get; set; }
+    public DbSet<ConfiguracionGeneral> ConfiguracionesGenerales { get; set; }
+
+    // Fase 2
+    public DbSet<EstadoCliente> EstadosCliente { get; set; }
+    public DbSet<Cliente> Clientes { get; set; }
+    public DbSet<InventarioProducto> InventariosProducto { get; set; }
+    public DbSet<MovimientoInventario> MovimientosInventario { get; set; }
+    public DbSet<HojaPedido> HojasPedido { get; set; }
+    public DbSet<DetalleHP> DetallesHP { get; set; }
+
+    // Fase 3
+    public DbSet<EstadoPedido> EstadosPedido { get; set; }
+    public DbSet<Pedido> Pedidos { get; set; }
+    public DbSet<DetallePedido> DetallesPedido { get; set; }
+    public DbSet<HistorialEstadoPedido> HistorialEstadosPedido { get; set; }
+    public DbSet<TipoEvento> TiposEvento { get; set; }
+    public DbSet<Evento> Eventos { get; set; }
+    public DbSet<Anexo> Anexos { get; set; }
+
+    // Fase 4
+    public DbSet<Cobranza> Cobranzas { get; set; }
+    public DbSet<PagoCobranza> PagosCobranza { get; set; }
+
+    // Fase 5
+    public DbSet<Ruta> Rutas { get; set; }
+    public DbSet<RutaDetalle> RutasDetalle { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
+
+        builder.Entity<Zona>()
+            .HasOne(z => z.Supervisor)
+            .WithMany()
+            .HasForeignKey(z => z.IdSupervisor)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Cliente
+        builder.Entity<Cliente>()
+            .HasOne(c => c.Zona).WithMany().HasForeignKey(c => c.ZonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Cliente>()
+            .HasOne(c => c.EstadoCliente).WithMany().HasForeignKey(c => c.EstadoClienteId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Cliente>()
+            .HasOne(c => c.Promotor).WithMany().HasForeignKey(c => c.PromotorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Cliente>()
+            .HasOne(c => c.CreadoPor).WithMany().HasForeignKey(c => c.CreadoPorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Cliente>()
+            .HasIndex(c => c.Codigo).IsUnique();
+        builder.Entity<Cliente>()
+            .Property(c => c.Latitud).HasPrecision(10, 8);
+        builder.Entity<Cliente>()
+            .Property(c => c.Longitud).HasPrecision(11, 8);
+        builder.Entity<Cliente>()
+            .Property(c => c.LimiteCredito).HasPrecision(18, 2);
+        builder.Entity<Cliente>()
+            .Property(c => c.SaldoPendiente).HasPrecision(18, 2);
+
+        // InventarioProducto
+        builder.Entity<InventarioProducto>()
+            .HasOne(i => i.Producto).WithMany().HasForeignKey(i => i.ProductoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<InventarioProducto>()
+            .HasIndex(i => i.ProductoId).IsUnique();
+        builder.Entity<InventarioProducto>()
+            .Property(i => i.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+        builder.Entity<InventarioProducto>()
+            .Property(i => i.StockActual).HasPrecision(10, 3);
+        builder.Entity<InventarioProducto>()
+            .Property(i => i.StockMinimo).HasPrecision(10, 3);
+        builder.Entity<InventarioProducto>()
+            .Property(i => i.StockMaximo).HasPrecision(10, 3);
+
+        // MovimientoInventario
+        builder.Entity<MovimientoInventario>()
+            .HasOne(m => m.Producto).WithMany().HasForeignKey(m => m.ProductoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<MovimientoInventario>()
+            .HasOne(m => m.Usuario).WithMany().HasForeignKey(m => m.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<MovimientoInventario>()
+            .Property(m => m.Cantidad).HasPrecision(10, 3);
+        builder.Entity<MovimientoInventario>()
+            .Property(m => m.StockAnterior).HasPrecision(10, 3);
+        builder.Entity<MovimientoInventario>()
+            .Property(m => m.StockResultante).HasPrecision(10, 3);
+
+        // HojaPedido
+        builder.Entity<HojaPedido>()
+            .HasOne(h => h.Cliente).WithMany().HasForeignKey(h => h.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<HojaPedido>()
+            .HasOne(h => h.Promotor).WithMany().HasForeignKey(h => h.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<HojaPedido>()
+            .HasOne(h => h.Zona).WithMany().HasForeignKey(h => h.ZonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<HojaPedido>()
+            .HasOne(h => h.AnuladoPor).WithMany().HasForeignKey(h => h.AnuladoPorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<HojaPedido>()
+            .HasIndex(h => h.Numero).IsUnique();
+        builder.Entity<HojaPedido>()
+            .Property(h => h.Latitud).HasPrecision(10, 8);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.Longitud).HasPrecision(11, 8);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.SubTotal).HasPrecision(18, 2);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.Descuento).HasPrecision(18, 2);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.Total).HasPrecision(18, 2);
+
+        // DetalleHP
+        builder.Entity<DetalleHP>()
+            .HasOne(d => d.HojaPedido).WithMany(h => h.Detalles).HasForeignKey(d => d.HojaPedidoId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<DetalleHP>()
+            .HasOne(d => d.Producto).WithMany().HasForeignKey(d => d.ProductoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<DetalleHP>()
+            .Property(d => d.Cantidad).HasPrecision(10, 3);
+        builder.Entity<DetalleHP>()
+            .Property(d => d.PrecioUnitario).HasPrecision(18, 2);
+        builder.Entity<DetalleHP>()
+            .Property(d => d.Descuento).HasPrecision(18, 2);
+        builder.Entity<DetalleHP>()
+            .Property(d => d.Subtotal).HasPrecision(18, 2);
+
+        // Pedido
+        builder.Entity<Pedido>()
+            .HasOne(p => p.Cliente).WithMany().HasForeignKey(p => p.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
+            .HasOne(p => p.Promotor).WithMany().HasForeignKey(p => p.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
+            .HasOne(p => p.Repartidor).WithMany().HasForeignKey(p => p.RepartidorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Pedido>()
+            .HasOne(p => p.Zona).WithMany().HasForeignKey(p => p.ZonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
+            .HasOne(p => p.HojaPedido).WithMany().HasForeignKey(p => p.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Pedido>()
+            .HasOne(p => p.EstadoPedido).WithMany().HasForeignKey(p => p.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
+            .HasIndex(p => p.Numero).IsUnique();
+        builder.Entity<Pedido>().Property(p => p.SubTotal).HasPrecision(18, 2);
+        builder.Entity<Pedido>().Property(p => p.Descuento).HasPrecision(18, 2);
+        builder.Entity<Pedido>().Property(p => p.Total).HasPrecision(18, 2);
+        builder.Entity<Pedido>().Property(p => p.LatitudEntrega).HasPrecision(10, 8);
+        builder.Entity<Pedido>().Property(p => p.LongitudEntrega).HasPrecision(11, 8);
+
+        // DetallePedido
+        builder.Entity<DetallePedido>()
+            .HasOne(d => d.Pedido).WithMany(p => p.Detalles).HasForeignKey(d => d.PedidoId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<DetallePedido>()
+            .HasOne(d => d.Producto).WithMany().HasForeignKey(d => d.ProductoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<DetallePedido>().Property(d => d.Cantidad).HasPrecision(10, 3);
+        builder.Entity<DetallePedido>().Property(d => d.PrecioUnitario).HasPrecision(18, 2);
+        builder.Entity<DetallePedido>().Property(d => d.Descuento).HasPrecision(18, 2);
+        builder.Entity<DetallePedido>().Property(d => d.Subtotal).HasPrecision(18, 2);
+        builder.Entity<DetallePedido>().Property(d => d.CantidadEntregada).HasPrecision(10, 3);
+
+        // HistorialEstadoPedido
+        builder.Entity<HistorialEstadoPedido>()
+            .HasOne(h => h.Pedido).WithMany(p => p.Historial).HasForeignKey(h => h.PedidoId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<HistorialEstadoPedido>()
+            .HasOne(h => h.EstadoPedido).WithMany().HasForeignKey(h => h.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<HistorialEstadoPedido>()
+            .HasOne(h => h.Usuario).WithMany().HasForeignKey(h => h.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<HistorialEstadoPedido>().Property(h => h.LatitudCambio).HasPrecision(10, 8);
+        builder.Entity<HistorialEstadoPedido>().Property(h => h.LongitudCambio).HasPrecision(11, 8);
+
+        // Evento
+        builder.Entity<Evento>()
+            .HasOne(e => e.TipoEvento).WithMany().HasForeignKey(e => e.TipoEventoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Evento>()
+            .HasOne(e => e.Cliente).WithMany().HasForeignKey(e => e.ClienteId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Evento>()
+            .HasOne(e => e.Pedido).WithMany().HasForeignKey(e => e.PedidoId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Evento>()
+            .HasOne(e => e.Promotor).WithMany().HasForeignKey(e => e.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Evento>()
+            .HasOne(e => e.ResueltoPor).WithMany().HasForeignKey(e => e.ResueltoPorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Evento>()
+            .HasIndex(e => e.Numero).IsUnique();
+        builder.Entity<Evento>().Property(e => e.Latitud).HasPrecision(10, 8);
+        builder.Entity<Evento>().Property(e => e.Longitud).HasPrecision(11, 8);
+
+        // Anexo
+        builder.Entity<Anexo>()
+            .HasOne(a => a.SubidoPor).WithMany().HasForeignKey(a => a.SubidoPorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Anexo>()
+            .HasOne(a => a.Evento).WithMany(e => e.Anexos).HasForeignKey(a => a.EventoId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Anexo>().Property(a => a.Latitud).HasPrecision(10, 8);
+        builder.Entity<Anexo>().Property(a => a.Longitud).HasPrecision(11, 8);
+
+        // Cobranza
+        builder.Entity<Cobranza>()
+            .HasOne(c => c.Cliente).WithMany().HasForeignKey(c => c.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Cobranza>()
+            .HasOne(c => c.HojaPedido).WithMany().HasForeignKey(c => c.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<Cobranza>()
+            .HasOne(c => c.Promotor).WithMany().HasForeignKey(c => c.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Cobranza>()
+            .HasIndex(c => c.Numero).IsUnique();
+        builder.Entity<Cobranza>().Property(c => c.MontoTotal).HasPrecision(18, 2);
+        builder.Entity<Cobranza>().Property(c => c.MontoPagado).HasPrecision(18, 2);
+        builder.Entity<Cobranza>().Ignore(c => c.SaldoPendiente);
+
+        // PagoCobranza
+        builder.Entity<PagoCobranza>()
+            .HasOne(p => p.Cobranza).WithMany(c => c.Pagos).HasForeignKey(p => p.CobranzaId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PagoCobranza>()
+            .HasOne(p => p.RegistradoPor).WithMany().HasForeignKey(p => p.RegistradoPorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PagoCobranza>()
+            .HasOne(p => p.Comprobante).WithMany().HasForeignKey(p => p.AnexoId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<PagoCobranza>().Property(p => p.Monto).HasPrecision(18, 2);
+
+        // Ruta
+        builder.Entity<Ruta>()
+            .HasOne(r => r.Promotor).WithMany().HasForeignKey(r => r.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Ruta>()
+            .HasOne(r => r.Zona).WithMany().HasForeignKey(r => r.ZonaId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Ruta>()
+            .HasIndex(r => r.Numero).IsUnique();
+
+        // RutaDetalle
+        builder.Entity<RutaDetalle>()
+            .HasOne(d => d.Ruta).WithMany(r => r.Detalles).HasForeignKey(d => d.RutaId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<RutaDetalle>()
+            .HasOne(d => d.Cliente).WithMany().HasForeignKey(d => d.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<RutaDetalle>().Property(d => d.Latitud).HasPrecision(10, 8);
+        builder.Entity<RutaDetalle>().Property(d => d.Longitud).HasPrecision(11, 8);
+
+        // Seed estados de pedido
+        builder.Entity<EstadoPedido>().HasData(
+            new EstadoPedido { Id = 1, Nombre = "Pendiente",     Orden = 1, Color = "#f59e0b", PermiteTransicion = "[2,5]" },
+            new EstadoPedido { Id = 2, Nombre = "En Proceso",    Orden = 2, Color = "#3b82f6", PermiteTransicion = "[3,5]" },
+            new EstadoPedido { Id = 3, Nombre = "En Ruta",       Orden = 3, Color = "#8b5cf6", PermiteTransicion = "[4,5]" },
+            new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 4, Color = "#10b981", PermiteTransicion = "[]", EsEstadoFinal = true },
+            new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 5, Color = "#ef4444", PermiteTransicion = "[]", EsEstadoFinal = true }
+        );
+
+        // Seed tipos de evento
+        builder.Entity<TipoEvento>().HasData(
+            new TipoEvento { Id = 1, Nombre = "Cliente Ausente",        RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Medio },
+            new TipoEvento { Id = 2, Nombre = "Entrega No Realizada",   RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Alto  },
+            new TipoEvento { Id = 3, Nombre = "Problema de Acceso",     RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Medio },
+            new TipoEvento { Id = 4, Nombre = "Incidencia de Cobro",    RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Alto  },
+            new TipoEvento { Id = 5, Nombre = "Otro",                   RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Bajo  }
+        );
+
+        // Seed estados de cliente
+        builder.Entity<EstadoCliente>().HasData(
+            new EstadoCliente { Id = 1, Nombre = "Activo", Color = "#10b981", Descripcion = "Cliente activo y disponible" },
+            new EstadoCliente { Id = 2, Nombre = "Disponible para Re-visita", Color = "#f59e0b", Descripcion = "Ha pasado el período de re-visita" },
+            new EstadoCliente { Id = 3, Nombre = "Con Deuda Vencida", Color = "#ef4444", Descripcion = "Tiene cobranzas vencidas pendientes" },
+            new EstadoCliente { Id = 4, Nombre = "Inactivo", Color = "#6b7280", Descripcion = "Cliente inactivo o dado de baja" }
+        );
+    }
+}

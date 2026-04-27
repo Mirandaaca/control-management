@@ -1,0 +1,32 @@
+# ── Backend .NET ──────────────────────────────────────────────────────────────
+ControlGestion.API/bin/
+ControlGestion.API/obj/
+ControlGestion.API/.vs/
+
+# Configuraciones con credenciales — NUNCA subir
+ControlGestion.API/appsettings.Development.json
+ControlGestion.API/appsettings.Production.json
+ControlGestion.API/**/*.user
+ControlGestion.API/**/*.suo
+
+# ── Frontend React ────────────────────────────────────────────────────────────
+control-gestion-ui/node_modules/
+control-gestion-ui/dist/
+control-gestion-ui/.env
+control-gestion-ui/.env.local
+control-gestion-ui/.env.*.local
+control-gestion-ui/.vite/
+
+# ── Sistema operativo ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editores ──────────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/

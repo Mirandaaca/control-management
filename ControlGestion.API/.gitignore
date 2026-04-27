@@ -1,0 +1,50 @@
+## .NET / ASP.NET Core
+
+# Carpetas de compilación
+bin/
+obj/
+
+# Archivos de usuario de Visual Studio
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Archivos de publicación
+publish/
+**/publish/
+*.pubxml
+*.pubxml.user
+
+# Configuración local (contiene contraseñas y JWT keys — NUNCA subir)
+appsettings.Development.json
+appsettings.Production.json
+
+# Secretos de desarrollo
+**/secrets.json
+**/.env
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/repositories.config
+
+# Diagnóstico y cobertura
+*.coveragexml
+TestResults/
+coverage/
+
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+# macOS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
