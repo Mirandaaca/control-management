@@ -269,6 +269,12 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<DateTime?>("UltimaVisita")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
                     b.Property<int>("ZonaId")
                         .HasColumnType("int");
 
@@ -334,6 +340,12 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("PromotorId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.HasKey("Id");
 
@@ -878,6 +890,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<int?>("AnexoId")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("ClaveIdempotencia")
+                        .HasColumnType("char(36)");
+
                     b.Property<int>("CobranzaId")
                         .HasColumnType("int");
 
@@ -906,6 +921,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AnexoId");
+
+                    b.HasIndex("ClaveIdempotencia")
+                        .IsUnique();
 
                     b.HasIndex("CobranzaId");
 
@@ -1122,6 +1140,20 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasIndex("RutaId");
 
                     b.ToTable("RutasDetalle");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.Secuencia", b =>
+                {
+                    b.Property<string>("Clave")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Ultimo")
+                        .HasColumnType("int");
+
+                    b.HasKey("Clave");
+
+                    b.ToTable("Secuencias");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.TipoEvento", b =>

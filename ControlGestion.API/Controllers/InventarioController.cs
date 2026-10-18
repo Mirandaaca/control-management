@@ -1,4 +1,5 @@
 using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -60,6 +61,9 @@ public class InventarioController : ControllerBase
     [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> Ajustar(int productoId, [FromBody] AjusteStockDTO dto)
     {
+        if (!await _db.Productos.AnyAsync(p => p.Id == productoId))
+            throw new NoEncontradoException("No se encontró el producto.");
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await _inventario.AjustarStock(productoId, dto.Cantidad, userId, dto.Observacion);
         return Ok(new { mensaje = "Stock ajustado correctamente." });

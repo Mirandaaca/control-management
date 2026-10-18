@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -23,27 +24,28 @@ export default function Clientes() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchClientes = async () => {
-    setLoading(true);
+  const fetchClientes = () => {
     const params = {};
     if (filtros.zonaId) params.zonaId = filtros.zonaId;
     if (filtros.estadoId) params.estadoId = filtros.estadoId;
     if (filtros.soloRevisita) params.soloRevisita = true;
-    const r = await api.get('/clientes', { params });
-    setClientes(r.data);
-    setLoading(false);
+    return api.get('/clientes', { params }).then((r) => {
+      setClientes(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
     Promise.all([
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/clientes/estados').then(r => setEstados(r.data)),
-      api.get('/usuarios/activos').then(r => setPromotores(r.data)).catch(() => {}),
+      api.get('/usuarios/activos').then(r => setPromotores(r.data))
+        .catch(err => setError(mensajeDeError(err, 'No se pudo cargar la lista de promotores.'))),
     ]);
     fetchClientes();
   }, []);
 
-  const handleFiltrar = (e) => { e.preventDefault(); fetchClientes(); };
+  const handleFiltrar = (e) => { e.preventDefault(); setLoading(true); fetchClientes(); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,7 +71,7 @@ export default function Clientes() {
       setEditId(null);
       fetchClientes();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al guardar el cliente.');
+      setError(mensajeDeError(err, 'Error al guardar el cliente.'));
     } finally {
       setSaving(false);
     }

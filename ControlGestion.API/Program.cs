@@ -1,15 +1,29 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Middleware;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
+using ControlGestion.API.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// La cadena de conexión es secreta: vive en user-secrets (desarrollo) o en la variable
+// de entorno ConnectionStrings__DefaultConnection (producción), nunca en appsettings.json.
 var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connStr))
+    throw new InvalidOperationException(ConfiguracionFaltante.Mensaje(
+        "ConnectionStrings:DefaultConnection",
+        "Server=<host>;Port=<puerto>;Database=control;User=<usuario>;Password=<contraseña>"));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
@@ -21,35 +35,68 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireUppercase = false;
 })
 .AddEntityFrameworkStores<AppDbContext>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddErrorDescriber<IdentityErroresEnEspanol>();
 
-var jwtKey = builder.Configuration["Jwt:Key"]!;
+// JWT: la sección "Jwt" se valida con JwtOptionsValidator (clave presente y de al menos 32 bytes).
+builder.Services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection(JwtOptions.Seccion));
+builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-});
+.AddJwtBearer();
 
-builder.Services.AddAuthorization();
-builder.Services.AddControllers()
+// El JWT Bearer valida los tokens con las mismas JwtOptions que AuthController usa para firmarlos.
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
+    {
+        var jwt = jwtOptions.Value;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            // Un token dura 8 h: sin esta consulta, un usuario desactivado o borrado seguiría entrando hasta que venza.
+            OnTokenValidated = async contexto =>
+            {
+                var usuarioId = contexto.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var db = contexto.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var activo = usuarioId != null && await db.Users.AnyAsync(u => u.Id == usuarioId && u.Activo);
+                if (!activo)
+                    contexto.Fail("El usuario no existe o está inactivo.");
+            }
+        };
+    });
+
+// Política de respaldo: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige sesión.
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = RespuestasDeError.Personalizar);
+builder.Services.AddExceptionHandler<ManejadorDeExcepciones>();
+builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeEnlace(options.ModelBindingMessageProvider))
+    .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = RespuestasDeError.Validacion)
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler =
             System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // Ningún usuario anidado sale con los campos internos de Identity (passwordHash, securityStamp…).
+        options.JsonSerializerOptions.Converters.Add(new ApplicationUserJsonConverter());
     });
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUsuarioActual, UsuarioActual>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
+builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
@@ -62,6 +109,10 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Pedir las JwtOptions ejecuta JwtOptionsValidator. Se hace aquí, antes de migrar y sembrar,
+// para que una clave faltante o corta detenga la API sin tocar la base.
+_ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
 
 using (var scope = app.Services.CreateScope())
 {
@@ -76,24 +127,63 @@ using (var scope = app.Services.CreateScope())
     }
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-    if (await userManager.FindByEmailAsync("admin@control.com") == null)
+
+    // La contraseña del admin sale de Seed:AdminPassword (user-secrets o variable de entorno Seed__AdminPassword).
+    await SembrarUsuarioAsync(userManager, app.Logger, "admin@control.com", "Administrador del Sistema", "Admin",
+        app.Configuration["Seed:AdminPassword"], "Seed:AdminPassword");
+
+    if (app.Environment.IsDevelopment())
     {
-        var admin = new ApplicationUser
-        {
-            UserName = "admin@control.com",
-            Email = "admin@control.com",
-            NombreCompleto = "Administrador del Sistema"
-        };
-        await userManager.CreateAsync(admin, "Admin123!");
-        await userManager.AddToRoleAsync(admin, "Admin");
+        var demoPassword = app.Configuration["Seed:DemoPassword"];
+        await SembrarUsuarioAsync(userManager, app.Logger, "supervisor@control.com", "Supervisor del Sistema", "Supervisor",
+            demoPassword, "Seed:DemoPassword");
+        await SembrarUsuarioAsync(userManager, app.Logger, "promotor@control.com", "Promotor del Sistema", "Promotor",
+            demoPassword, "Seed:DemoPassword");
     }
 }
 
+// La bitácora va por fuera del manejador de excepciones: así ve el código final de cada respuesta, también el de los errores.
+app.UseMiddleware<AuditoriaMiddleware>();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseCors("FrontendPolicy");
 app.UseStaticFiles();
 app.UseAuthentication();
-app.UseMiddleware<AuditoriaMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Crea un usuario con su rol si todavía no existe. Si ya existe, no cambia su contraseña.
+// Los mensajes del log nunca incluyen la contraseña.
+static async Task SembrarUsuarioAsync(UserManager<ApplicationUser> userManager, ILogger logger,
+    string email, string nombreCompleto, string rol, string? password, string claveConfig)
+{
+    if (await userManager.FindByEmailAsync(email) != null)
+    {
+        logger.LogInformation("Siembra: {Email} ya existe; no se cambia su contraseña.", email);
+        return;
+    }
+
+    if (string.IsNullOrWhiteSpace(password))
+    {
+        logger.LogWarning("Siembra: no se creó {Email}. {Detalle}", email,
+            ConfiguracionFaltante.Mensaje(claveConfig, "<contraseña>"));
+        return;
+    }
+
+    var usuario = new ApplicationUser { UserName = email, Email = email, NombreCompleto = nombreCompleto };
+    var resultado = await userManager.CreateAsync(usuario, password);
+    if (!resultado.Succeeded)
+    {
+        logger.LogError("Siembra: no se pudo crear {Email}: {Errores}", email,
+            string.Join(" ", resultado.Errors.Select(e => e.Description)));
+        return;
+    }
+
+    await userManager.AddToRoleAsync(usuario, rol);
+    logger.LogInformation("Siembra: se creó {Email} con el rol {Rol}.", email, rol);
+}
+
+// WebApplicationFactory<Program> necesita poder referenciar esta clase desde ControlGestion.API.Tests.
+public partial class Program { }

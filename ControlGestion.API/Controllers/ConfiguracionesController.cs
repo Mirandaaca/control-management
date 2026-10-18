@@ -1,4 +1,5 @@
 using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +27,7 @@ public class ConfiguracionesController : ControllerBase
     public async Task<IActionResult> GetByClave(string clave)
     {
         var config = await _context.ConfiguracionesGenerales.FindAsync(clave);
-        return config == null ? NotFound() : Ok(config);
+        return Ok(config ?? throw new NoEncontradoException("No se encontró la configuración."));
     }
 
     [HttpPut("{clave}")]
@@ -47,7 +48,7 @@ public class ConfiguracionesController : ControllerBase
     public async Task<IActionResult> Delete(string clave)
     {
         var config = await _context.ConfiguracionesGenerales.FindAsync(clave);
-        if (config == null) return NotFound();
+        if (config == null) throw new NoEncontradoException("No se encontró la configuración.");
         _context.ConfiguracionesGenerales.Remove(config);
         await _context.SaveChangesAsync();
         return NoContent();

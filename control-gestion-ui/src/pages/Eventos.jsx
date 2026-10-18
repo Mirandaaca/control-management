@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -23,16 +24,16 @@ export default function Eventos() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchEventos = async () => {
-    setLoading(true);
+  const fetchEventos = () => {
     const params = {};
     if (filtros.tipoEventoId) params.tipoEventoId = filtros.tipoEventoId;
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/eventos', { params });
-    setEventos(r.data);
-    setLoading(false);
+    return api.get('/eventos', { params }).then((r) => {
+      setEventos(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function Eventos() {
       setForm({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
       setArchivo(null);
       fetchEventos();
-    } catch (err) { setError(err.response?.data?.mensaje ?? 'Error al registrar el evento.'); }
+    } catch (err) { setError(mensajeDeError(err, 'Error al registrar el evento.')); }
     finally { setSaving(false); }
   };
 
@@ -127,7 +128,7 @@ export default function Eventos() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchEventos} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchEventos(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 

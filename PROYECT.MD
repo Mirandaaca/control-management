@@ -203,7 +203,7 @@ Control de acceso y trazabilidad.
 ```bash
 # Base de datos Docker
 docker run -d --name control-db \
-  -e MYSQL_ROOT_PASSWORD=sistemas \
+  -e MYSQL_ROOT_PASSWORD=<contraseña-root> \
   -e MYSQL_DATABASE=control \
   -p 3306:3306 mysql:8.0
 
@@ -225,5 +225,5 @@ npm run dev                         # Puerto 5173
 
 ## 10. Credenciales de acceso inicial
 - **Email:** `admin@control.com`
-- **Password:** `Admin123!`
+- **Password:** la que se configuró en `Seed:AdminPassword`
 - **Rol:** Admin

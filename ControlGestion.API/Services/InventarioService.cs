@@ -52,9 +52,13 @@ public class InventarioService
 
     public async Task AjustarStock(int productoId, decimal cantidad, string usuarioId, string observacion)
     {
-        var inventario = await _db.InventariosProducto
-            .FirstOrDefaultAsync(i => i.ProductoId == productoId)
-            ?? throw new InvalidOperationException("Inventario no encontrado para este producto.");
+        var inventario = await _db.InventariosProducto.FirstOrDefaultAsync(i => i.ProductoId == productoId);
+        if (inventario == null)
+        {
+            // Productos dados de alta antes de que el alta creara su fila de inventario.
+            inventario = new InventarioProducto { ProductoId = productoId };
+            _db.InventariosProducto.Add(inventario);
+        }
 
         var stockAnterior = inventario.StockActual;
         inventario.StockActual += cantidad;

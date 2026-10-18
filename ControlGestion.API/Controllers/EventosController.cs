@@ -1,6 +1,8 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +17,13 @@ public class EventosController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly NumeradorService _numerador;
 
-    public EventosController(AppDbContext db, IWebHostEnvironment env)
+    public EventosController(AppDbContext db, IWebHostEnvironment env, NumeradorService numerador)
     {
         _db = db;
         _env = env;
+        _numerador = numerador;
     }
 
     [HttpGet]
@@ -58,7 +62,7 @@ public class EventosController : ControllerBase
             .Include(e => e.Anexos)
             .FirstOrDefaultAsync(e => e.Id == id);
 
-        return evento == null ? NotFound() : Ok(evento);
+        return Ok(evento ?? throw new NoEncontradoException("No se encontró el evento."));
     }
 
     [HttpGet("tipos")]
@@ -69,11 +73,10 @@ public class EventosController : ControllerBase
     public async Task<IActionResult> Create([FromBody] EventoCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var contador = await _db.Eventos.CountAsync() + 1;
 
         var evento = new Evento
         {
-            Numero = $"EVT-{DateTime.UtcNow:yyyy}-{contador:D5}",
+            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Evento),
             TipoEventoId = dto.TipoEventoId,
             ClienteId = dto.ClienteId,
             PedidoId = dto.PedidoId,
@@ -96,7 +99,7 @@ public class EventosController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var evento = await _db.Eventos.FindAsync(id);
-        if (evento == null) return NotFound();
+        if (evento == null) throw new NoEncontradoException("No se encontró el evento.");
 
         evento.EstadoEvento = EstadoEvento.Resuelto;
         evento.ResueltoPorId = userId;
@@ -111,14 +114,14 @@ public class EventosController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var evento = await _db.Eventos.FindAsync(id);
-        if (evento == null) return NotFound();
+        if (evento == null) throw new NoEncontradoException("No se encontró el evento.");
 
         if (archivo == null || archivo.Length == 0)
-            return BadRequest(new { mensaje = "Archivo requerido." });
+            throw new ReglaDeNegocioException("archivo_requerido", "Archivo requerido.");
 
         var tiposPermitidos = new[] { "image/jpeg", "image/png", "image/webp", "application/pdf" };
         if (!tiposPermitidos.Contains(archivo.ContentType))
-            return BadRequest(new { mensaje = "Tipo de archivo no permitido." });
+            throw new ReglaDeNegocioException("tipo_archivo_no_permitido", "Tipo de archivo no permitido.");
 
         var carpeta = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads",
             DateTime.UtcNow.Year.ToString(), DateTime.UtcNow.Month.ToString("D2"), "eventos");

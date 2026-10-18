@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth';
+import { mensajeDeError } from '../api/errores';
 
 export default function Login() {
   const { login } = useAuth();
@@ -16,8 +17,8 @@ export default function Login() {
     try {
       await login(form.email, form.password);
       navigate('/dashboard');
-    } catch {
-      setError('Credenciales incorrectas o usuario inactivo.');
+    } catch (err) {
+      setError(mensajeDeError(err, 'No se pudo iniciar sesión.'));
     } finally {
       setLoading(false);
     }

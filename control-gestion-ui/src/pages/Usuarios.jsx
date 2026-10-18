@@ -9,7 +9,6 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
 
   const fetchUsuarios = () => {
-    setLoading(true);
     api.get('/usuarios')
       .then((r) => setUsuarios(r.data))
       .finally(() => setLoading(false));
