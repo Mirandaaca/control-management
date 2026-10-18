@@ -1,5 +1,6 @@
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Middleware;
 using ControlGestion.API.Models;
 using ControlGestion.API.Serialization;
@@ -79,7 +80,10 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
 // Política de respaldo: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige sesión.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
-builder.Services.AddControllers()
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = RespuestasDeError.Personalizar);
+builder.Services.AddExceptionHandler<ManejadorDeExcepciones>();
+builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeEnlace(options.ModelBindingMessageProvider))
+    .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = RespuestasDeError.Validacion)
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler =
@@ -132,10 +136,13 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// La bitácora va por fuera del manejador de excepciones: así ve el código final de cada respuesta, también el de los errores.
+app.UseMiddleware<AuditoriaMiddleware>();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseCors("FrontendPolicy");
 app.UseStaticFiles();
 app.UseAuthentication();
-app.UseMiddleware<AuditoriaMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
