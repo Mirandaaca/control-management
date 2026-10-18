@@ -269,6 +269,12 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<DateTime?>("UltimaVisita")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
                     b.Property<int>("ZonaId")
                         .HasColumnType("int");
 

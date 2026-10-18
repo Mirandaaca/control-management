@@ -73,6 +73,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .Property(c => c.LimiteCredito).HasPrecision(18, 2);
         builder.Entity<Cliente>()
             .Property(c => c.SaldoPendiente).HasPrecision(18, 2);
+        builder.Entity<Cliente>()
+            .Property(c => c.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // InventarioProducto
         builder.Entity<InventarioProducto>()

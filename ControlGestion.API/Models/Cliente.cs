@@ -30,6 +30,10 @@ public class Cliente
     public decimal LimiteCredito { get; set; } = 0;
     public decimal SaldoPendiente { get; set; } = 0;
 
+    // Token de concurrencia (mismo patrón que Cobranza): dos pagos a la vez en cobranzas distintas de este
+    // cliente recalculan su saldo, y sin el token el segundo pisaría al primero.
+    public DateTime VersionConcurrencia { get; set; }
+
     public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public string? CreadoPorId { get; set; }

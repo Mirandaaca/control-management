@@ -81,7 +81,6 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
         {
             cobranza.Estado = EstadoCobranza.Pagada;
             cobranza.FechaPagoCompleto = ahora;
-            cobranza.Cliente!.SaldoPendiente = Math.Max(0, cobranza.Cliente.SaldoPendiente - cobranza.MontoTotal);
         }
         else
         {
@@ -89,6 +88,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
         }
 
         db.PagosCobranza.Add(pago);
+        await RecalcularSaldoDelClienteAsync(cobranza);
 
         // SaveChanges guarda el pago, la cobranza y el cliente en una sola transacción: si algo falla, no se guarda nada.
         try
@@ -103,10 +103,10 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
             if (dto.ClaveIdempotencia is { } claveRepetida && await PagoYaRegistradoAsync(id, claveRepetida) is { } ganador)
                 return ganador;
 
-            // Otro pago modificó la cobranza entre que la leímos y la guardamos: su VersionConcurrencia ya no coincide.
+            // Otro pago modificó la cobranza, o el saldo del cliente, entre que los leímos y los guardamos.
             if (ex is DbUpdateConcurrencyException)
                 throw new ConflictoException("conflicto_concurrencia",
-                    "La cobranza cambió mientras registrabas el pago. Vuelve a intentarlo.");
+                    "La cobranza o el saldo del cliente cambió mientras registrabas el pago. Vuelve a intentarlo.");
             throw;
         }
 
@@ -115,13 +115,14 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
 
     public async Task<CobranzaDetalleDTO> MarcarIncobrableAsync(int id, string observacion)
     {
-        var cobranza = await db.Cobranzas.VisiblesPara(usuario).FirstOrDefaultAsync(c => c.Id == id)
+        var cobranza = await db.Cobranzas.VisiblesPara(usuario).Include(c => c.Cliente).FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NoEncontradoException("No se encontró la cobranza.");
         if (cobranza.Estado == EstadoCobranza.Pagada)
             throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
+        await RecalcularSaldoDelClienteAsync(cobranza);
         try
         {
             await db.SaveChangesAsync();
@@ -134,6 +135,23 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
 
         return await ObtenerAsync(id);
     }
+
+    /// <summary>
+    /// El saldo del cliente es lo que debe en sus cobranzas abiertas. Se recalcula completo en vez de restar el
+    /// pago, así un saldo que ya estaba mal (los pagos parciales no lo bajaban, T4.04) se corrige solo.
+    /// </summary>
+    private async Task RecalcularSaldoDelClienteAsync(Cobranza cambiada)
+    {
+        var deLasOtras = await db.Cobranzas
+            .Where(c => c.ClienteId == cambiada.ClienteId && c.Id != cambiada.Id && EstadosAbiertos.Contains(c.Estado))
+            .SumAsync(c => c.MontoTotal - c.MontoPagado);
+        var deEsta = EstadosAbiertos.Contains(cambiada.Estado) ? cambiada.MontoTotal - cambiada.MontoPagado : 0m;
+
+        cambiada.Cliente!.SaldoPendiente = deLasOtras + deEsta;
+    }
+
+    private static readonly EstadoCobranza[] EstadosAbiertos =
+        [EstadoCobranza.Pendiente, EstadoCobranza.Parcial, EstadoCobranza.Vencida];
 
     // Devuelve el pago si la clave ya se usó en esta cobranza, null si es nueva, y 409 si se usó en otra.
     private async Task<PagoRegistradoDTO?> PagoYaRegistradoAsync(int cobranzaId, Guid clave)
