@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -39,7 +40,7 @@ export default function Clientes() {
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/clientes/estados').then(r => setEstados(r.data)),
       api.get('/usuarios/activos').then(r => setPromotores(r.data))
-        .catch(err => setError(err.response?.data?.mensaje ?? 'No se pudo cargar la lista de promotores.')),
+        .catch(err => setError(mensajeDeError(err, 'No se pudo cargar la lista de promotores.'))),
     ]);
     fetchClientes();
   }, []);
@@ -70,7 +71,7 @@ export default function Clientes() {
       setEditId(null);
       fetchClientes();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al guardar el cliente.');
+      setError(mensajeDeError(err, 'Error al guardar el cliente.'));
     } finally {
       setSaving(false);
     }

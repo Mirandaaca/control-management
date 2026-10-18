@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -49,7 +50,7 @@ export default function Inventario() {
       setShowAjuste(false);
       fetchInventario();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al ajustar stock.');
+      setError(mensajeDeError(err, 'Error al ajustar stock.'));
     } finally {
       setSaving(false);
     }

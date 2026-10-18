@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -64,7 +65,7 @@ export default function Pedidos() {
       });
       setShowForm(false);
       fetchPedidos();
-    } catch (err) { setError(err.response?.data?.mensaje ?? 'Error al crear pedido.'); }
+    } catch (err) { setError(mensajeDeError(err, 'Error al crear pedido.')); }
     finally { setSaving(false); }
   };
 
@@ -79,7 +80,7 @@ export default function Pedidos() {
       });
       setCambioEstado(null);
       fetchPedidos();
-    } catch (err) { alert(err.response?.data?.mensaje ?? 'Transición no permitida.'); }
+    } catch (err) { alert(mensajeDeError(err, 'Transición no permitida.')); }
   };
 
   const handleVerDetalle = async (id) => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -71,7 +72,7 @@ export default function Eventos() {
       setForm({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
       setArchivo(null);
       fetchEventos();
-    } catch (err) { setError(err.response?.data?.mensaje ?? 'Error al registrar el evento.'); }
+    } catch (err) { setError(mensajeDeError(err, 'Error al registrar el evento.')); }
     finally { setSaving(false); }
   };
 

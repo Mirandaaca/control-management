@@ -4,6 +4,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert } from '../components/ui';
 
@@ -17,7 +18,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const avisarError = (err) =>
-      setError(err.response?.data?.mensaje ?? 'No se pudieron cargar algunos datos del tablero.');
+      setError(mensajeDeError(err, 'No se pudieron cargar algunos datos del tablero.'));
     api.get('/reportes/dashboard').then(r => setKpis(r.data)).catch(avisarError);
     api.get('/reportes/ventas').then(r => setVentas(r.data)).catch(avisarError);
     api.get('/usuarios/activos').then(r => setUsuarios(r.data)).catch(avisarError);

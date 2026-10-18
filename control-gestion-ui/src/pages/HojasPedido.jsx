@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -88,7 +89,7 @@ export default function HojasPedido() {
       setDetalles([{ productoId: '', cantidad: 1, descuento: 0 }]);
       fetchHPs();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al crear la HP.');
+      setError(mensajeDeError(err, 'Error al crear la HP.'));
     } finally {
       setSaving(false);
     }
@@ -99,7 +100,7 @@ export default function HojasPedido() {
       await api.post(`/hojas-pedido/${id}/confirmar`);
       fetchHPs();
     } catch (err) {
-      alert(err.response?.data?.mensaje ?? 'Error al confirmar HP.');
+      alert(mensajeDeError(err, 'Error al confirmar HP.'));
     }
   };
 
@@ -111,7 +112,7 @@ export default function HojasPedido() {
       setMotivoAnulacion('');
       fetchHPs();
     } catch (err) {
-      alert(err.response?.data?.mensaje ?? 'Error al anular HP.');
+      alert(mensajeDeError(err, 'Error al anular HP.'));
     }
   };
 
