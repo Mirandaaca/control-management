@@ -34,4 +34,7 @@ public class Cobranza
     public string? Observaciones { get; set; }
 
     public ICollection<PagoCobranza> Pagos { get; set; } = new List<PagoCobranza>();
+
+    // Token de concurrencia (mismo patrón que InventarioProducto): MySQL lo cambia en cada UPDATE.
+    public DateTime VersionConcurrencia { get; set; }
 }

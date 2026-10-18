@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
 import { Table, Td, Tr } from '../components/Table';
@@ -62,11 +63,11 @@ export default function Rutas() {
   const [marcandoVisita, setMarcandoVisita] = useState(null);
   const [formVisita, setFormVisita] = useState({ estadoVisita: '1', observaciones: '' });
 
-  const fetchRutas = async () => {
-    setLoading(true);
-    const r = await api.get('/rutas');
-    setRutas(r.data);
-    setLoading(false);
+  const fetchRutas = () => {
+    return api.get('/rutas').then((r) => {
+      setRutas(r.data);
+      setLoading(false);
+    });
   };
 
   const fetchDetalle = async (id) => {
@@ -115,7 +116,7 @@ export default function Rutas() {
       setClientesSeleccionados([]);
       fetchRutas();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al crear la ruta.');
+      setError(mensajeDeError(err, 'Error al crear la ruta.'));
     } finally { setSaving(false); }
   };
 

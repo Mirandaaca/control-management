@@ -1,4 +1,5 @@
 using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,7 +27,7 @@ public class ZonasController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var zona = await _context.Zonas.Include(z => z.Supervisor).FirstOrDefaultAsync(z => z.Id == id);
-        return zona == null ? NotFound() : Ok(zona);
+        return Ok(zona ?? throw new NoEncontradoException("No se encontró la zona."));
     }
 
     [HttpPost]
@@ -42,7 +43,8 @@ public class ZonasController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] Zona zona)
     {
-        if (id != zona.Id) return BadRequest();
+        if (id != zona.Id) throw new ReglaDeNegocioException("id_no_coincide", "El id de la URL no coincide con el del cuerpo.");
+        if (!await _context.Zonas.AnyAsync(z => z.Id == id)) throw new NoEncontradoException("No se encontró la zona.");
         _context.Entry(zona).State = EntityState.Modified;
         await _context.SaveChangesAsync();
         return NoContent();
@@ -53,7 +55,7 @@ public class ZonasController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var zona = await _context.Zonas.FindAsync(id);
-        if (zona == null) return NotFound();
+        if (zona == null) throw new NoEncontradoException("No se encontró la zona.");
         _context.Zonas.Remove(zona);
         await _context.SaveChangesAsync();
         return NoContent();

@@ -4,7 +4,9 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
+import { Alert } from '../components/ui';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -12,11 +14,14 @@ export default function Dashboard() {
   const [kpis, setKpis] = useState(null);
   const [ventas, setVentas] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/reportes/dashboard').then(r => setKpis(r.data)).catch(() => {});
-    api.get('/reportes/ventas').then(r => setVentas(r.data)).catch(() => {});
-    api.get('/usuarios/activos').then(r => setUsuarios(r.data)).catch(() => {});
+    const avisarError = (err) =>
+      setError(mensajeDeError(err, 'No se pudieron cargar algunos datos del tablero.'));
+    api.get('/reportes/dashboard').then(r => setKpis(r.data)).catch(avisarError);
+    api.get('/reportes/ventas').then(r => setVentas(r.data)).catch(avisarError);
+    api.get('/usuarios/activos').then(r => setUsuarios(r.data)).catch(avisarError);
   }, []);
 
   const rolesCounts = usuarios.reduce((acc, u) => {
@@ -32,6 +37,8 @@ export default function Dashboard() {
         <h2 className="text-2xl font-bold text-slate-800">Dashboard</h2>
         <p className="text-slate-500 text-sm mt-1">Resumen general del sistema</p>
       </div>
+
+      {error && <div className="mb-6"><Alert type="error">{error}</Alert></div>}
 
       {/* KPIs principales */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

@@ -1,3 +1,6 @@
+using ControlGestion.API.Data;
+using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -8,17 +11,53 @@ namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+// El Supervisor solo necesita la lista de activos (para asignar promotores); el resto es solo para Admin.
+// Los atributos se suman: una acción con [Authorize(Roles = "Admin")] exige Admin aunque la clase admita a los dos.
+[Authorize(Roles = "Admin,Supervisor")]
 public class UsuariosController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly AppDbContext _db;
 
-    public UsuariosController(UserManager<ApplicationUser> userManager)
+    public UsuariosController(UserManager<ApplicationUser> userManager, AppDbContext db)
     {
         _userManager = userManager;
+        _db = db;
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            throw new ConflictoException("correo_duplicado", "Ya existe un usuario con ese correo.");
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.Email,
+            Email = dto.Email,
+            NombreCompleto = dto.NombreCompleto.Trim()
+        };
+
+        // Crear el usuario y asignarle el rol van juntos: si lo segundo falla, no queda un usuario sin rol.
+        await using var transaccion = await _db.Database.BeginTransactionAsync();
+
+        var resultado = await _userManager.CreateAsync(user, dto.Password);
+        if (!resultado.Succeeded)
+            throw new ReglaDeNegocioException("usuario_invalido", string.Join(" ", resultado.Errors.Select(e => e.Description)));
+
+        var resultadoRol = await _userManager.AddToRoleAsync(user, dto.Rol);
+        if (!resultadoRol.Succeeded)
+            throw new InvalidOperationException($"No se pudo asignar el rol {dto.Rol} al usuario nuevo.");
+
+        await transaccion.CommitAsync();
+
+        var creado = new UsuarioDTO(user.Id, user.Email!, user.NombreCompleto, user.Activo, new List<string> { dto.Rol });
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, creado);
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAll()
     {
         var users = await _userManager.Users.ToListAsync();
@@ -32,7 +71,6 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet("activos")]
-    [Authorize]
     public async Task<IActionResult> GetActivos()
     {
         var users = await _userManager.Users.Where(u => u.Activo).OrderBy(u => u.NombreCompleto).ToListAsync();
@@ -46,29 +84,32 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetById(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         var roles = await _userManager.GetRolesAsync(user);
         return Ok(new { user.Id, user.Email, user.NombreCompleto, user.Activo, user.FechaCreacion, Roles = roles });
     }
 
     [HttpPut("{id}/activar")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ToggleActivo(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         user.Activo = !user.Activo;
         await _userManager.UpdateAsync(user);
         return Ok(new { user.Id, user.Activo });
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         await _userManager.DeleteAsync(user);
         return NoContent();
     }

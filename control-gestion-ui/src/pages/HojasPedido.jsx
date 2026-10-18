@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -27,15 +28,15 @@ export default function HojasPedido() {
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({ estado: '', desde: '', hasta: '' });
 
-  const fetchHPs = async () => {
-    setLoading(true);
+  const fetchHPs = () => {
     const params = {};
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/hojas-pedido', { params });
-    setHps(r.data);
-    setLoading(false);
+    return api.get('/hojas-pedido', { params }).then((r) => {
+      setHps(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function HojasPedido() {
       setDetalles([{ productoId: '', cantidad: 1, descuento: 0 }]);
       fetchHPs();
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al crear la HP.');
+      setError(mensajeDeError(err, 'Error al crear la HP.'));
     } finally {
       setSaving(false);
     }
@@ -99,7 +100,7 @@ export default function HojasPedido() {
       await api.post(`/hojas-pedido/${id}/confirmar`);
       fetchHPs();
     } catch (err) {
-      alert(err.response?.data?.mensaje ?? 'Error al confirmar HP.');
+      alert(mensajeDeError(err, 'Error al confirmar HP.'));
     }
   };
 
@@ -111,7 +112,7 @@ export default function HojasPedido() {
       setMotivoAnulacion('');
       fetchHPs();
     } catch (err) {
-      alert(err.response?.data?.mensaje ?? 'Error al anular HP.');
+      alert(mensajeDeError(err, 'Error al anular HP.'));
     }
   };
 
@@ -150,7 +151,7 @@ export default function HojasPedido() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchHPs} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchHPs(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 

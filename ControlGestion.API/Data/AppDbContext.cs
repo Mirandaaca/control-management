@@ -38,9 +38,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Ruta> Rutas { get; set; }
     public DbSet<RutaDetalle> RutasDetalle { get; set; }
 
+    public DbSet<Secuencia> Secuencias { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<Secuencia>().HasKey(s => s.Clave);
 
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
 
@@ -69,6 +73,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .Property(c => c.LimiteCredito).HasPrecision(18, 2);
         builder.Entity<Cliente>()
             .Property(c => c.SaldoPendiente).HasPrecision(18, 2);
+        builder.Entity<Cliente>()
+            .Property(c => c.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // InventarioProducto
         builder.Entity<InventarioProducto>()
@@ -213,6 +223,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Cobranza>().Property(c => c.MontoTotal).HasPrecision(18, 2);
         builder.Entity<Cobranza>().Property(c => c.MontoPagado).HasPrecision(18, 2);
         builder.Entity<Cobranza>().Ignore(c => c.SaldoPendiente);
+        // Mismo token que InventarioProducto. HasDefaultValueSql es necesario porque la columna se agrega a una
+        // tabla con filas: sin él, EF pondría '0001-01-01', una fecha que MySQL no acepta en un timestamp.
+        builder.Entity<Cobranza>()
+            .Property(c => c.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // PagoCobranza
         builder.Entity<PagoCobranza>()
@@ -222,6 +240,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PagoCobranza>()
             .HasOne(p => p.Comprobante).WithMany().HasForeignKey(p => p.AnexoId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<PagoCobranza>().Property(p => p.Monto).HasPrecision(18, 2);
+        builder.Entity<PagoCobranza>()
+            .HasIndex(p => p.ClaveIdempotencia).IsUnique();
 
         // Ruta
         builder.Entity<Ruta>()

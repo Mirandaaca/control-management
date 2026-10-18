@@ -13,7 +13,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    // En el login, un 401 significa "credenciales incorrectas": lo muestra esa pantalla, sin recargarla.
+    const esElLogin = err.config?.url?.endsWith('/auth/login');
+    if (err.response?.status === 401 && !esElLogin) {
       localStorage.clear();
       window.location.href = '/login';
     }

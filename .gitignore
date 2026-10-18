@@ -2,6 +2,8 @@
 ControlGestion.API/bin/
 ControlGestion.API/obj/
 ControlGestion.API/.vs/
+ControlGestion.API.Tests/bin/
+ControlGestion.API.Tests/obj/
 
 # Configuraciones con credenciales — NUNCA subir
 ControlGestion.API/appsettings.Development.json
@@ -30,3 +32,6 @@ desktop.ini
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
+
+# Fotos y comprobantes que suben los usuarios (también los de las pruebas)
+ControlGestion.API/wwwroot/uploads/

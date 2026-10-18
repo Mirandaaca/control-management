@@ -14,15 +14,16 @@ export default function Reportes() {
   const [inventario, setInventario] = useState(null);
   const [promotores, setPromotores] = useState([]);
   const [auditoria, setAuditoria] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const today = new Date().toISOString().split('T')[0];
-  const mesAtras = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-
-  const [filtros, setFiltros] = useState({ desde: mesAtras, hasta: today, modulo: '' });
+  // La fecha se calcula una sola vez, al montar: calcularla en cada render rompe la regla de pureza de React.
+  const [filtros, setFiltros] = useState(() => ({
+    desde: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+    hasta: new Date().toISOString().split('T')[0],
+    modulo: '',
+  }));
 
   const fetchTab = async (t) => {
-    setLoading(true);
     try {
       const p = { desde: filtros.desde, hasta: filtros.hasta };
       if (t === 'Ventas') {
@@ -78,7 +79,7 @@ export default function Reportes() {
             <Input label="Módulo" placeholder="Clientes, Pedidos..." value={filtros.modulo}
               onChange={e => setFiltros({ ...filtros, modulo: e.target.value })} />
           )}
-          <Btn variant="primary" size="md" onClick={() => fetchTab(tab)} disabled={loading}>
+          <Btn variant="primary" size="md" onClick={() => { setLoading(true); fetchTab(tab); }} disabled={loading}>
             {loading ? 'Cargando...' : 'Aplicar'}
           </Btn>
           {(tab === 'Ventas' || tab === 'Cobranzas') && (
@@ -92,7 +93,7 @@ export default function Reportes() {
       {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-slate-200">
         {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => { if (t !== tab) { setLoading(true); setTab(t); } }}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}>

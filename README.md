@@ -23,24 +23,30 @@ Sistema full-stack para la gestión integral de promotores de campo: clientes, h
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Node.js 20+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Un servidor MySQL 8. Si no tienes uno, puedes usar [Docker Desktop](https://www.docker.com/products/docker-desktop/) para levantarlo en tu máquina.
 
 ---
 
 ## Puesta en marcha
 
-### 1. Base de datos (Docker)
+### 1. Base de datos
+
+La API necesita una base MySQL 8 vacía: crea las tablas sola al arrancar. Sirve un MySQL en otro servidor de tu red o uno local. Para levantar uno local con Docker:
 
 ```bash
 docker run -d \
   --name control-db \
-  -e MYSQL_ROOT_PASSWORD=sistemas \
+  -e MYSQL_ROOT_PASSWORD=<contraseña-root> \
   -e MYSQL_DATABASE=control \
   -p 3306:3306 \
   mysql:8.0
 ```
 
+Uses el servidor que uses, la cadena de conexión no va en `appsettings.json`: se guarda en user-secrets (ver "Secretos").
+
 ### 2. Backend
+
+Antes del primer arranque, configura los secretos (ver "Secretos" más abajo). Luego:
 
 ```bash
 cd ControlGestion.API
@@ -48,10 +54,12 @@ dotnet run
 # API disponible en http://localhost:5124
 ```
 
-Las migraciones se aplican automáticamente al iniciar. Se crea el usuario administrador por defecto:
+Las migraciones se aplican automáticamente al iniciar. Si no existe, se crea el usuario administrador:
 
 - **Email:** `admin@control.com`
-- **Contraseña:** `Admin123!`
+- **Contraseña:** la que guardaste en `Seed:AdminPassword` (ver "Secretos")
+
+En Development, si existe `Seed:DemoPassword`, también se crean `supervisor@control.com` (Supervisor) y `promotor@control.com` (Promotor) con esa contraseña. La siembra nunca cambia la contraseña de un usuario que ya existe.
 
 ### 3. Frontend
 
@@ -123,8 +131,10 @@ npm run dev
 ## API Endpoints principales
 
 ```
-POST   /api/auth/login
-POST   /api/auth/register
+POST   /api/auth/login        (único endpoint sin sesión)
+
+GET    /api/usuarios          (solo Admin)
+POST   /api/usuarios          (solo Admin: crea un usuario con rol Admin, Supervisor o Promotor)
 
 GET    /api/clientes
 POST   /api/clientes
@@ -156,15 +166,35 @@ GET    /api/reportes/export/cobranzas
 
 ---
 
-## Seguridad — configuración en producción
+## Secretos
 
-El archivo `appsettings.json` contiene la cadena de conexión y la clave JWT. **Nunca subir a repositorio público.** Para producción usar variables de entorno o un gestor de secretos:
+`appsettings.json` no guarda secretos: solo `Jwt:Issuer` y `Jwt:Audience`. Los secretos se configuran aparte:
+
+| Clave | Para qué | ¿Obligatoria? |
+|---|---|---|
+| `ConnectionStrings:DefaultConnection` | Cadena de conexión a MySQL | Sí. Sin ella la API no arranca. |
+| `Jwt:Key` | Clave para firmar los tokens. Mínimo 32 bytes. | Sí. Sin ella, o si es corta, la API no arranca. |
+| `Seed:AdminPassword` | Contraseña del admin al crearlo por primera vez | Si falta, el admin no se crea y se avisa en el log. |
+| `Seed:DemoPassword` | Contraseña del Supervisor y el Promotor de prueba | Opcional. Solo se usa en Development. |
+
+**En desarrollo** se guardan con `dotnet user-secrets`, fuera del repositorio. Desde `ControlGestion.API/`:
 
 ```bash
-# Variables de entorno recomendadas
-ConnectionStrings__DefaultConnection="Server=...;Password=..."
-Jwt__Key="clave-secreta-de-al-menos-32-caracteres"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=<host>;Port=<puerto>;Database=control;User=<usuario>;Password=<contraseña>"
+dotnet user-secrets set "Jwt:Key" "<clave aleatoria de al menos 32 bytes>"
+dotnet user-secrets set "Seed:AdminPassword" "<contraseña del admin>"
+dotnet user-secrets set "Seed:DemoPassword" "<contraseña de los usuarios de prueba>"
 ```
+
+Para generar una clave JWT aleatoria en PowerShell:
+
+```powershell
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+```
+
+**En producción** se usan variables de entorno, con `__` en lugar de `:`: `ConnectionStrings__DefaultConnection`, `Jwt__Key` y `Seed__AdminPassword`. Una variable de entorno tiene prioridad sobre user-secrets y sobre `appsettings.json`.
+
+Las contraseñas deben tener al menos 6 caracteres y un dígito.
 
 ---
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
+import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
@@ -15,18 +16,19 @@ export default function Cobranzas() {
   const [detalle, setDetalle] = useState(null);
   const [pagando, setPagando] = useState(null);
   const [formPago, setFormPago] = useState({ monto: '', metodoPago: '0', referencia: '', observaciones: '' });
+  const [claveIdempotencia, setClaveIdempotencia] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchCobranzas = async () => {
-    setLoading(true);
+  const fetchCobranzas = () => {
     const params = {};
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/cobranzas', { params });
-    setCobranzas(r.data);
-    setLoading(false);
+    return api.get('/cobranzas', { params }).then((r) => {
+      setCobranzas(r.data);
+      setLoading(false);
+    });
   };
 
   const fetchDetalle = async (id) => {
@@ -35,6 +37,13 @@ export default function Cobranzas() {
   };
 
   useEffect(() => { fetchCobranzas(); }, []);
+
+  // Una clave nueva cada vez que se abre el modal. Si el mismo pago se envía dos veces, la API no lo duplica.
+  // crypto.randomUUID solo existe en localhost o con HTTPS; si falta, el pago se envía sin clave.
+  const abrirPago = (cobranza) => {
+    setPagando(cobranza);
+    setClaveIdempotencia(crypto.randomUUID?.() ?? null);
+  };
 
   const handlePago = async (e) => {
     e.preventDefault();
@@ -45,13 +54,14 @@ export default function Cobranzas() {
         metodoPago: parseInt(formPago.metodoPago),
         referencia: formPago.referencia || null,
         observaciones: formPago.observaciones || null,
+        claveIdempotencia,
       });
       setPagando(null);
       setFormPago({ monto: '', metodoPago: '0', referencia: '', observaciones: '' });
       fetchCobranzas();
       if (detalle?.id === pagando.id) fetchDetalle(pagando.id);
     } catch (err) {
-      setError(err.response?.data?.mensaje ?? 'Error al registrar el pago.');
+      setError(mensajeDeError(err, 'Error al registrar el pago.'));
     } finally { setSaving(false); }
   };
 
@@ -109,7 +119,7 @@ export default function Cobranzas() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchCobranzas} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchCobranzas(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 
@@ -164,7 +174,7 @@ export default function Cobranzas() {
 
             {detalle.estado !== 2 && detalle.estado !== 4 && (
               <div className="mt-4">
-                <Btn variant="primary" size="md" onClick={() => { setPagando(detalle); setDetalle(null); }}>
+                <Btn variant="primary" size="md" onClick={() => { abrirPago(detalle); setDetalle(null); }}>
                   Registrar pago
                 </Btn>
               </div>
@@ -254,7 +264,7 @@ export default function Cobranzas() {
                 <div className="flex gap-1.5">
                   <Btn variant="ghost" onClick={() => fetchDetalle(c.id)}>Ver</Btn>
                   {c.estado !== 2 && c.estado !== 4 && (
-                    <Btn variant="primary" onClick={() => { setPagando(c); setError(''); }}>Pagar</Btn>
+                    <Btn variant="primary" onClick={() => { abrirPago(c); setError(''); }}>Pagar</Btn>
                   )}
                 </div>
               </Td>
