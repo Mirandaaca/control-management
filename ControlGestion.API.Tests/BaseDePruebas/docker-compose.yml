@@ -1,0 +1,23 @@
+# Copia de lo que corre en el servidor de pruebas (~/docker-compose-yamls/mysql8/mysql8/proyecto-julio-pruebas).
+# Para recrearlo: copia esta carpeta al servidor, crea un .env con MYSQL_ROOT_PASSWORD y PRUEBAS_PASSWORD
+# (permisos 600, nunca en git) y ejecuta: docker compose up -d
+# Base MySQL solo para las pruebas automáticas de ControlGestion.API (ControlGestion.API.Tests).
+# Los datos viven en memoria (tmpfs): cada reinicio del contenedor arranca vacío.
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mysql84_control_pruebas
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: pruebas
+      MYSQL_PASSWORD: ${PRUEBAS_PASSWORD}
+    # fsync en vez de O_DIRECT, que tmpfs no soporta; sin binlog, porque nadie lo necesita aquí.
+    command: --innodb-flush-method=fsync --disable-log-bin --innodb-buffer-pool-size=256M
+    ports:
+      - "9094:3306"
+    tmpfs:
+      - /var/lib/mysql:size=1g
+    mem_limit: 1536m
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro
