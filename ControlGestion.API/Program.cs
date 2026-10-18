@@ -178,3 +178,6 @@ static async Task SembrarUsuarioAsync(UserManager<ApplicationUser> userManager, 
     await userManager.AddToRoleAsync(usuario, rol);
     logger.LogInformation("Siembra: se creó {Email} con el rol {Rol}.", email, rol);
 }
+
+// WebApplicationFactory<Program> necesita poder referenciar esta clase desde ControlGestion.API.Tests.
+public partial class Program { }
