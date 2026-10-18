@@ -39,37 +39,55 @@ public class MoraDetectionService : BackgroundService
 
     private async Task DetectarMorasAsync()
     {
-        try
+        const int intentosMaximos = 3;
+        for (var intento = 1; intento <= intentosMaximos; intento++)
         {
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-            var hoy = DateTime.UtcNow.Date;
-
-            var vencidas = await db.Cobranzas
-                .Where(c => c.Estado == EstadoCobranza.Pendiente || c.Estado == EstadoCobranza.Parcial)
-                .Where(c => c.FechaVencimiento.Date < hoy)
-                .Include(c => c.Cliente)
-                .ToListAsync();
-
-            foreach (var cobranza in vencidas)
+            try
             {
-                cobranza.Estado = EstadoCobranza.Vencida;
-
-                if (cobranza.Cliente != null)
-                {
-                    var estadoMora = await db.EstadosCliente.FirstOrDefaultAsync(e => e.Nombre == "Con Deuda Vencida");
-                    if (estadoMora != null)
-                        cobranza.Cliente.EstadoClienteId = estadoMora.Id;
-                }
+                await MarcarCobranzasVencidasAsync();
+                return;
             }
+            catch (DbUpdateConcurrencyException) when (intento < intentosMaximos)
+            {
+                // Un pago cambió alguna cobranza entre la lectura y el guardado. Se vuelve a leer todo:
+                // si ese pago la cerró, ya no aparece como vencida.
+                _logger.LogWarning("Detección de moras: conflicto de concurrencia en el intento {Intento}; se reintenta.", intento);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error en la detección automática de moras.");
+                return;
+            }
+        }
+    }
 
-            await db.SaveChangesAsync();
-            _logger.LogInformation("Mora detection: {Count} cobranzas marcadas como vencidas.", vencidas.Count);
-        }
-        catch (Exception ex)
+    private async Task MarcarCobranzasVencidasAsync()
+    {
+        // Un scope nuevo en cada intento: el DbContext de un intento fallido guarda valores viejos.
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var hoy = DateTime.UtcNow.Date;
+
+        var vencidas = await db.Cobranzas
+            .Where(c => c.Estado == EstadoCobranza.Pendiente || c.Estado == EstadoCobranza.Parcial)
+            .Where(c => c.FechaVencimiento.Date < hoy)
+            .Include(c => c.Cliente)
+            .ToListAsync();
+
+        foreach (var cobranza in vencidas)
         {
-            _logger.LogError(ex, "Error en la detección automática de moras.");
+            cobranza.Estado = EstadoCobranza.Vencida;
+
+            if (cobranza.Cliente != null)
+            {
+                var estadoMora = await db.EstadosCliente.FirstOrDefaultAsync(e => e.Nombre == "Con Deuda Vencida");
+                if (estadoMora != null)
+                    cobranza.Cliente.EstadoClienteId = estadoMora.Id;
+            }
         }
+
+        await db.SaveChangesAsync();
+        _logger.LogInformation("Mora detection: {Count} cobranzas marcadas como vencidas.", vencidas.Count);
     }
 }

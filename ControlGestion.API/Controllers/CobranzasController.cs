@@ -194,7 +194,14 @@ public class CobranzasController : ControllerBase
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { mensaje = "La cobranza cambió mientras la marcabas como incobrable. Vuelve a intentarlo." });
+        }
         return Ok();
     }
 }
