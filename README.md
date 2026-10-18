@@ -23,13 +23,15 @@ Sistema full-stack para la gestión integral de promotores de campo: clientes, h
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Node.js 20+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Un servidor MySQL 8. Si no tienes uno, puedes usar [Docker Desktop](https://www.docker.com/products/docker-desktop/) para levantarlo en tu máquina.
 
 ---
 
 ## Puesta en marcha
 
-### 1. Base de datos (Docker)
+### 1. Base de datos
+
+La API necesita una base MySQL 8 vacía: crea las tablas sola al arrancar. Sirve un MySQL en otro servidor de tu red o uno local. Para levantar uno local con Docker:
 
 ```bash
 docker run -d \
@@ -39,6 +41,8 @@ docker run -d \
   -p 3306:3306 \
   mysql:8.0
 ```
+
+Uses el servidor que uses, la cadena de conexión no va en `appsettings.json`: se guarda en user-secrets (ver "Secretos").
 
 ### 2. Backend
 
