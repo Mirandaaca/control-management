@@ -7,13 +7,17 @@ namespace ControlGestion.API.Middleware;
 public class AuditoriaMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<AuditoriaMiddleware> _logger;
 
-    public AuditoriaMiddleware(RequestDelegate next)
+    public AuditoriaMiddleware(RequestDelegate next, IServiceScopeFactory scopeFactory, ILogger<AuditoriaMiddleware> logger)
     {
         _next = next;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, AppDbContext db)
+    public async Task InvokeAsync(HttpContext context)
     {
         await _next(context);
 
@@ -41,7 +45,19 @@ public class AuditoriaMiddleware
             Fecha = DateTime.UtcNow
         };
 
-        db.AuditoriaLogs.Add(log);
-        await db.SaveChangesAsync();
+        // DbContext propio: el de la petición puede tener cambios sin guardar o que ya fallaron
+        // (por ejemplo, un conflicto de concurrencia), y guardarlos aquí los aplicaría o repetiría el error.
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.AuditoriaLogs.Add(log);
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // La respuesta ya se envió: un fallo de la bitácora no debe cortarla.
+            _logger.LogError(ex, "No se pudo registrar en la bitácora {Accion} de {Modulo}.", accion, modulo);
+        }
     }
 }
