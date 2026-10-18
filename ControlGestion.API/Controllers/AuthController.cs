@@ -1,7 +1,10 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,15 +17,17 @@ namespace ControlGestion.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IConfiguration _config;
+    private readonly JwtOptions _jwt;
 
-    public AuthController(UserManager<ApplicationUser> userManager, IConfiguration config)
+    public AuthController(UserManager<ApplicationUser> userManager, IOptions<JwtOptions> jwt)
     {
         _userManager = userManager;
-        _config = config;
+        _jwt = jwt.Value;
     }
 
+    // Único endpoint sin sesión: los demás quedan protegidos por la FallbackPolicy de Program.cs.
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDTO dto)
     {
         var user = await _userManager.FindByEmailAsync(dto.Email);
@@ -44,27 +49,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
-    {
-        var user = new ApplicationUser
-        {
-            UserName = dto.Email,
-            Email = dto.Email,
-            NombreCompleto = dto.NombreCompleto
-        };
-
-        var result = await _userManager.CreateAsync(user, dto.Password);
-        if (!result.Succeeded)
-            return BadRequest(result.Errors);
-
-        var rolesValidos = new[] { "Admin", "Supervisor", "Promotor" };
-        var rol = rolesValidos.Contains(dto.Rol) ? dto.Rol : "Promotor";
-        await _userManager.AddToRoleAsync(user, rol);
-
-        return Ok(new { mensaje = "Usuario creado correctamente." });
-    }
-
     private string GenerarToken(ApplicationUser user, IList<string> roles)
     {
         var claims = new List<Claim>
@@ -76,12 +60,12 @@ public class AuthController : ControllerBase
 
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: _jwt.Issuer,
+            audience: _jwt.Audience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: creds

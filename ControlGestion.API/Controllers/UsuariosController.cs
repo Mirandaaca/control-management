@@ -1,3 +1,5 @@
+using ControlGestion.API.Data;
+using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -12,10 +14,47 @@ namespace ControlGestion.API.Controllers;
 public class UsuariosController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly AppDbContext _db;
 
-    public UsuariosController(UserManager<ApplicationUser> userManager)
+    public UsuariosController(UserManager<ApplicationUser> userManager, AppDbContext db)
     {
         _userManager = userManager;
+        _db = db;
+    }
+
+    // Reemplaza al antiguo POST /api/auth/register, que era anónimo y aceptaba cualquier rol.
+    [HttpPost]
+    public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
+    {
+        if (await _userManager.FindByEmailAsync(dto.Email) != null)
+            return Conflict(new { mensaje = "Ya existe un usuario con ese correo." });
+
+        var user = new ApplicationUser
+        {
+            UserName = dto.Email,
+            Email = dto.Email,
+            NombreCompleto = dto.NombreCompleto.Trim()
+        };
+
+        // Crear el usuario y asignarle el rol van juntos: si lo segundo falla, no queda un usuario sin rol.
+        await using var transaccion = await _db.Database.BeginTransactionAsync();
+
+        var resultado = await _userManager.CreateAsync(user, dto.Password);
+        if (!resultado.Succeeded)
+            return BadRequest(new
+            {
+                mensaje = "No se pudo crear el usuario.",
+                errores = resultado.Errors.Select(e => e.Description)
+            });
+
+        var resultadoRol = await _userManager.AddToRoleAsync(user, dto.Rol);
+        if (!resultadoRol.Succeeded)
+            throw new InvalidOperationException($"No se pudo asignar el rol {dto.Rol} al usuario nuevo.");
+
+        await transaccion.CommitAsync();
+
+        var creado = new UsuarioDTO(user.Id, user.Email!, user.NombreCompleto, user.Activo, new List<string> { dto.Rol });
+        return CreatedAtAction(nameof(GetById), new { id = user.Id }, creado);
     }
 
     [HttpGet]
