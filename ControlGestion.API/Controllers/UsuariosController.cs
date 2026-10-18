@@ -22,7 +22,6 @@ public class UsuariosController : ControllerBase
         _db = db;
     }
 
-    // Reemplaza al antiguo POST /api/auth/register, que era anónimo y aceptaba cualquier rol.
     [HttpPost]
     public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
     {

@@ -108,7 +108,6 @@ using (var scope = app.Services.CreateScope())
     await SembrarUsuarioAsync(userManager, app.Logger, "admin@control.com", "Administrador del Sistema", "Admin",
         app.Configuration["Seed:AdminPassword"], "Seed:AdminPassword");
 
-    // Los usuarios de prueba se crean solo en Development y solo si existe Seed:DemoPassword.
     if (app.Environment.IsDevelopment())
     {
         var demoPassword = app.Configuration["Seed:DemoPassword"];
