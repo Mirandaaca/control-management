@@ -60,6 +60,9 @@ public class InventarioController : ControllerBase
     [Authorize(Roles = "Admin,Supervisor")]
     public async Task<IActionResult> Ajustar(int productoId, [FromBody] AjusteStockDTO dto)
     {
+        if (!await _db.Productos.AnyAsync(p => p.Id == productoId))
+            return NotFound(new { mensaje = "Producto no encontrado." });
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await _inventario.AjustarStock(productoId, dto.Cantidad, userId, dto.Observacion);
         return Ok(new { mensaje = "Stock ajustado correctamente." });

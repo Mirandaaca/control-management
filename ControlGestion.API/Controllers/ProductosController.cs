@@ -34,6 +34,8 @@ public class ProductosController : ControllerBase
     public async Task<IActionResult> Create([FromBody] Producto producto)
     {
         _context.Productos.Add(producto);
+        // Sin su fila de inventario, el producto no aparece en el inventario ni acepta ajustes de stock.
+        _context.InventariosProducto.Add(new InventarioProducto { Producto = producto });
         await _context.SaveChangesAsync();
         return CreatedAtAction(nameof(GetById), new { id = producto.Id }, producto);
     }
