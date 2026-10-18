@@ -24,15 +24,15 @@ export default function Clientes() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchClientes = async () => {
-    setLoading(true);
+  const fetchClientes = () => {
     const params = {};
     if (filtros.zonaId) params.zonaId = filtros.zonaId;
     if (filtros.estadoId) params.estadoId = filtros.estadoId;
     if (filtros.soloRevisita) params.soloRevisita = true;
-    const r = await api.get('/clientes', { params });
-    setClientes(r.data);
-    setLoading(false);
+    return api.get('/clientes', { params }).then((r) => {
+      setClientes(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function Clientes() {
     fetchClientes();
   }, []);
 
-  const handleFiltrar = (e) => { e.preventDefault(); fetchClientes(); };
+  const handleFiltrar = (e) => { e.preventDefault(); setLoading(true); fetchClientes(); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

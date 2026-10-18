@@ -63,11 +63,11 @@ export default function Rutas() {
   const [marcandoVisita, setMarcandoVisita] = useState(null);
   const [formVisita, setFormVisita] = useState({ estadoVisita: '1', observaciones: '' });
 
-  const fetchRutas = async () => {
-    setLoading(true);
-    const r = await api.get('/rutas');
-    setRutas(r.data);
-    setLoading(false);
+  const fetchRutas = () => {
+    return api.get('/rutas').then((r) => {
+      setRutas(r.data);
+      setLoading(false);
+    });
   };
 
   const fetchDetalle = async (id) => {

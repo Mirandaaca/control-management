@@ -20,15 +20,15 @@ export default function Cobranzas() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const fetchCobranzas = async () => {
-    setLoading(true);
+  const fetchCobranzas = () => {
     const params = {};
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/cobranzas', { params });
-    setCobranzas(r.data);
-    setLoading(false);
+    return api.get('/cobranzas', { params }).then((r) => {
+      setCobranzas(r.data);
+      setLoading(false);
+    });
   };
 
   const fetchDetalle = async (id) => {
@@ -119,7 +119,7 @@ export default function Cobranzas() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchCobranzas} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchCobranzas(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 

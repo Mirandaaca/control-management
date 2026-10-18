@@ -28,15 +28,15 @@ export default function HojasPedido() {
   const [loading, setLoading] = useState(true);
   const [filtros, setFiltros] = useState({ estado: '', desde: '', hasta: '' });
 
-  const fetchHPs = async () => {
-    setLoading(true);
+  const fetchHPs = () => {
     const params = {};
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/hojas-pedido', { params });
-    setHps(r.data);
-    setLoading(false);
+    return api.get('/hojas-pedido', { params }).then((r) => {
+      setHps(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function HojasPedido() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchHPs} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchHPs(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 

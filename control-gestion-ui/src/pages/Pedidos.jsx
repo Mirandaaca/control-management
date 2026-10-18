@@ -3,7 +3,7 @@ import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
-import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { PageHeader, Btn, Input, Card, Alert } from '../components/ui';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -22,15 +22,15 @@ export default function Pedidos() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const fetchPedidos = async () => {
-    setLoading(true);
+  const fetchPedidos = () => {
     const params = {};
     if (filtros.estadoId) params.estadoId = filtros.estadoId;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    const r = await api.get('/pedidos', { params });
-    setPedidos(r.data);
-    setLoading(false);
+    return api.get('/pedidos', { params }).then((r) => {
+      setPedidos(r.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function Pedidos() {
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
           <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={fetchPedidos} variant="primary" size="md">Filtrar</Btn>
+          <Btn onClick={() => { setLoading(true); fetchPedidos(); }} variant="primary" size="md">Filtrar</Btn>
         </div>
       </Card>
 
