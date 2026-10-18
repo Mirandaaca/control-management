@@ -166,7 +166,8 @@ public class HojasPedidoController : ControllerBase
                     Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Cobranza),
                     ClienteId = hp.ClienteId,
                     HojaPedidoId = hp.Id,
-                    PromotorId = userId,
+                    // El responsable es quien vendió, aunque la confirme un Supervisor; los reportes se agrupan por él.
+                    PromotorId = hp.PromotorId,
                     MontoTotal = hp.Total,
                     MontoPagado = 0,
                     FechaEmision = DateTime.UtcNow,

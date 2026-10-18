@@ -75,6 +75,23 @@ public class CobranzasTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task El_responsable_de_la_cobranza_es_quien_vendio_aunque_la_confirme_otro()
+    {
+        using var escenario = await PrepararAsync();
+        var (admin, zonaId, productoId) = escenario;
+        var promotor = await api.CrearUsuarioAsync("Promotor");
+        var clienteId = await admin.CrearClienteAsync(zonaId, promotor.Id);
+        using var vendedor = api.ClienteCon(promotor.Token);
+        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 1);
+
+        (await admin.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
+
+        var cobranza = (await (await admin.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync())
+            .EnumerateArray().Single();
+        Assert.Equal(promotor.Id, cobranza.GetProperty("promotor").GetProperty("id").GetString());
+    }
+
+    [Fact]
     public async Task El_filtro_por_dia_usa_el_dia_de_Bolivia()
     {
         using var escenario = await PrepararAsync();
