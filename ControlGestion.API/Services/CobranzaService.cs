@@ -1,0 +1,152 @@
+using ControlGestion.API.Configuracion;
+using ControlGestion.API.Data;
+using ControlGestion.API.Data.Consultas;
+using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
+using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
+using Microsoft.EntityFrameworkCore;
+
+namespace ControlGestion.API.Services;
+
+public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+{
+    public async Task<List<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
+    {
+        var consulta = db.Cobranzas.VisiblesPara(usuario);
+
+        if (filtros.ClienteId.HasValue) consulta = consulta.Where(c => c.ClienteId == filtros.ClienteId);
+        if (filtros.Estado.HasValue) consulta = consulta.Where(c => c.Estado == filtros.Estado);
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
+        if (filtros.Desde is { } desde)
+        {
+            var inicio = HoraBolivia.InicioDelDiaUtc(desde);
+            consulta = consulta.Where(c => c.FechaEmision >= inicio);
+        }
+        if (filtros.Hasta is { } hasta)
+        {
+            var fin = HoraBolivia.FinDelDiaUtc(hasta);
+            consulta = consulta.Where(c => c.FechaEmision < fin);
+        }
+
+        return await consulta
+            .OrderByDescending(c => c.FechaEmision)
+            .Select(CobranzaConsultas.ComoResumen)
+            .ToListAsync();
+    }
+
+    public async Task<CobranzaDetalleDTO> ObtenerAsync(int id) =>
+        await db.Cobranzas.VisiblesPara(usuario)
+            .Where(c => c.Id == id)
+            .Select(CobranzaConsultas.ComoDetalle)
+            .FirstOrDefaultAsync()
+        ?? throw new NoEncontradoException("No se encontró la cobranza.");
+
+    public async Task<PagoRegistradoDTO> RegistrarPagoAsync(int id, RegistrarPagoDTO dto)
+    {
+        // A un Promotor, la cobranza de un cliente ajeno le responde "no existe": ni siquiera se le confirma que está.
+        if (!await db.Cobranzas.VisiblesPara(usuario).AnyAsync(c => c.Id == id))
+            throw new NoEncontradoException("No se encontró la cobranza.");
+
+        // Idempotencia: si la app reintenta un pago que ya se guardó, se devuelve ese pago y no se crea otro.
+        // Va antes de validar el estado, para que reintentar el pago que cerró la deuda no responda 400.
+        if (dto.ClaveIdempotencia is { } clave && await PagoYaRegistradoAsync(id, clave) is { } repetido)
+            return repetido;
+
+        var cobranza = await db.Cobranzas.Include(c => c.Cliente).FirstAsync(c => c.Id == id);
+        if (cobranza.Estado is EstadoCobranza.Pagada or EstadoCobranza.Incobrable)
+            throw new ReglaDeNegocioException("cobranza_cerrada", "La cobranza ya está cerrada.");
+
+        var saldo = Math.Max(0, cobranza.MontoTotal - cobranza.MontoPagado);
+        if (saldo <= 0)
+            throw new ReglaDeNegocioException("cobranza_sin_saldo", "Esta cobranza ya no tiene saldo pendiente.");
+        if (dto.Monto <= 0 || dto.Monto > saldo)
+            throw new ReglaDeNegocioException("monto_invalido", $"Monto inválido. Saldo pendiente: {saldo:F2}");
+
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var pago = new PagoCobranza
+        {
+            CobranzaId = id,
+            RegistradoPorId = usuario.Id,
+            Monto = dto.Monto,
+            MetodoPago = dto.MetodoPago,
+            FechaPago = ahora,
+            Referencia = dto.Referencia,
+            Observaciones = dto.Observaciones,
+            ClaveIdempotencia = dto.ClaveIdempotencia
+        };
+
+        cobranza.MontoPagado += dto.Monto;
+        if (cobranza.MontoPagado >= cobranza.MontoTotal)
+        {
+            cobranza.Estado = EstadoCobranza.Pagada;
+            cobranza.FechaPagoCompleto = ahora;
+            cobranza.Cliente!.SaldoPendiente = Math.Max(0, cobranza.Cliente.SaldoPendiente - cobranza.MontoTotal);
+        }
+        else
+        {
+            cobranza.Estado = EstadoCobranza.Parcial;
+        }
+
+        db.PagosCobranza.Add(pago);
+
+        // SaveChanges guarda el pago, la cobranza y el cliente en una sola transacción: si algo falla, no se guarda nada.
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            db.ChangeTracker.Clear();
+
+            // Dos peticiones con la misma clave a la vez: el índice único frena la segunda.
+            if (dto.ClaveIdempotencia is { } claveRepetida && await PagoYaRegistradoAsync(id, claveRepetida) is { } ganador)
+                return ganador;
+
+            // Otro pago modificó la cobranza entre que la leímos y la guardamos: su VersionConcurrencia ya no coincide.
+            if (ex is DbUpdateConcurrencyException)
+                throw new ConflictoException("conflicto_concurrencia",
+                    "La cobranza cambió mientras registrabas el pago. Vuelve a intentarlo.");
+            throw;
+        }
+
+        return new PagoRegistradoDTO(pago.Id, cobranza.Estado, cobranza.MontoPagado, cobranza.MontoTotal - cobranza.MontoPagado);
+    }
+
+    public async Task<CobranzaDetalleDTO> MarcarIncobrableAsync(int id, string observacion)
+    {
+        var cobranza = await db.Cobranzas.VisiblesPara(usuario).FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NoEncontradoException("No se encontró la cobranza.");
+        if (cobranza.Estado == EstadoCobranza.Pagada)
+            throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
+
+        cobranza.Estado = EstadoCobranza.Incobrable;
+        cobranza.Observaciones = observacion;
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia",
+                "La cobranza cambió mientras la marcabas como incobrable. Vuelve a intentarlo.");
+        }
+
+        return await ObtenerAsync(id);
+    }
+
+    // Devuelve el pago si la clave ya se usó en esta cobranza, null si es nueva, y 409 si se usó en otra.
+    private async Task<PagoRegistradoDTO?> PagoYaRegistradoAsync(int cobranzaId, Guid clave)
+    {
+        var existente = await db.PagosCobranza
+            .Where(p => p.ClaveIdempotencia == clave)
+            .Select(p => new { p.Id, p.CobranzaId, p.Cobranza!.Estado, p.Cobranza.MontoTotal, p.Cobranza.MontoPagado })
+            .FirstOrDefaultAsync();
+
+        if (existente == null) return null;
+        if (existente.CobranzaId != cobranzaId)
+            throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otra cobranza.");
+
+        return new PagoRegistradoDTO(existente.Id, existente.Estado, existente.MontoPagado, existente.MontoTotal - existente.MontoPagado);
+    }
+}

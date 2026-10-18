@@ -95,7 +95,7 @@ public class PagosTests(ApiDePrueba api)
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(2, i => i == 0
             ? admin.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", Pago(3m))
-            : admin.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", "Prueba de choque"));
+            : admin.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", new { observacion = "Prueba de choque" }));
 
         var cobranza = await CobranzaAsync(admin, cobranzaId);
         var pagos = cobranza.GetProperty("pagos").EnumerateArray().ToList();
