@@ -3,6 +3,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Middleware;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using ControlGestion.API.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -91,6 +92,9 @@ builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeE
         // Ningún usuario anidado sale con los campos internos de Identity (passwordHash, securityStamp…).
         options.JsonSerializerOptions.Converters.Add(new ApplicationUserJsonConverter());
     });
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IUsuarioActual, UsuarioActual>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
