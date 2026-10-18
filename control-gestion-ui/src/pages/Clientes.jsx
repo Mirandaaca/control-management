@@ -38,7 +38,8 @@ export default function Clientes() {
     Promise.all([
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/clientes/estados').then(r => setEstados(r.data)),
-      api.get('/usuarios/activos').then(r => setPromotores(r.data)).catch(() => {}),
+      api.get('/usuarios/activos').then(r => setPromotores(r.data))
+        .catch(err => setError(err.response?.data?.mensaje ?? 'No se pudo cargar la lista de promotores.')),
     ]);
     fetchClientes();
   }, []);
