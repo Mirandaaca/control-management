@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -60,6 +61,18 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidIssuer = jwt.Issuer,
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            // Un token dura 8 h: sin esta consulta, un usuario desactivado o borrado seguiría entrando hasta que venza.
+            OnTokenValidated = async contexto =>
+            {
+                var usuarioId = contexto.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var db = contexto.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var activo = usuarioId != null && await db.Users.AnyAsync(u => u.Id == usuarioId && u.Activo);
+                if (!activo)
+                    contexto.Fail("El usuario no existe o está inactivo.");
+            }
         };
     });
 
