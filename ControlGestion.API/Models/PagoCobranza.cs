@@ -27,4 +27,7 @@ public class PagoCobranza
 
     public int? AnexoId { get; set; }
     public Anexo? Comprobante { get; set; }
+
+    // La genera quien envía el pago. Si el mismo pago llega dos veces, la clave repetida evita duplicarlo.
+    public Guid? ClaveIdempotencia { get; set; }
 }

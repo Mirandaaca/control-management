@@ -87,6 +87,14 @@ public class CobranzasController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
+        // Idempotencia: si la app reintenta un pago que ya se guardó, se devuelve ese pago y no se crea otro.
+        // Va antes de validar el estado, para que reintentar el pago que cerró la deuda no responda 400.
+        if (dto.ClaveIdempotencia.HasValue)
+        {
+            var repetido = await PagoYaRegistradoAsync(id, dto.ClaveIdempotencia.Value);
+            if (repetido != null) return repetido;
+        }
+
         var cobranza = await _db.Cobranzas
             .Include(c => c.Pagos)
             .FirstOrDefaultAsync(c => c.Id == id);
@@ -108,7 +116,8 @@ public class CobranzasController : ControllerBase
             Monto = dto.Monto,
             MetodoPago = dto.MetodoPago,
             Referencia = dto.Referencia,
-            Observaciones = dto.Observaciones
+            Observaciones = dto.Observaciones,
+            ClaveIdempotencia = dto.ClaveIdempotencia
         };
 
         cobranza.MontoPagado += dto.Monto;
@@ -130,9 +139,48 @@ public class CobranzasController : ControllerBase
         }
 
         _db.PagosCobranza.Add(pago);
-        await _db.SaveChangesAsync();
 
-        return Ok(new { pago.Id, cobranza.Estado, cobranza.MontoPagado, SaldoPendiente = cobranza.MontoTotal - cobranza.MontoPagado });
+        // SaveChanges guarda el pago, la cobranza y el cliente en una sola transacción: si algo falla, no se guarda nada.
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            _db.ChangeTracker.Clear();
+
+            // Dos peticiones con la misma clave a la vez: el índice único frena la segunda.
+            if (dto.ClaveIdempotencia.HasValue)
+            {
+                var repetido = await PagoYaRegistradoAsync(id, dto.ClaveIdempotencia.Value);
+                if (repetido != null) return repetido;
+            }
+
+            // Otro pago modificó la cobranza entre que la leímos y la guardamos: su VersionConcurrencia ya no coincide.
+            if (ex is DbUpdateConcurrencyException)
+                return Conflict(new { mensaje = "La cobranza cambió mientras registrabas el pago. Vuelve a intentarlo." });
+
+            throw;
+        }
+
+        return Ok(new PagoRegistradoDTO(pago.Id, cobranza.Estado, cobranza.MontoPagado, cobranza.MontoTotal - cobranza.MontoPagado));
+    }
+
+    // Busca un pago por su clave de idempotencia. Devuelve 200 con ese pago si es de esta cobranza,
+    // 409 si la clave ya se usó en otra cobranza, o null si la clave es nueva.
+    private async Task<IActionResult?> PagoYaRegistradoAsync(int cobranzaId, Guid clave)
+    {
+        var existente = await _db.PagosCobranza
+            .Where(p => p.ClaveIdempotencia == clave)
+            .Select(p => new { p.Id, p.CobranzaId, p.Cobranza!.Estado, p.Cobranza.MontoTotal, p.Cobranza.MontoPagado })
+            .FirstOrDefaultAsync();
+
+        if (existente == null) return null;
+        if (existente.CobranzaId != cobranzaId)
+            return Conflict(new { mensaje = "Esa clave de idempotencia ya se usó en otra cobranza." });
+
+        return Ok(new PagoRegistradoDTO(existente.Id, existente.Estado, existente.MontoPagado,
+            existente.MontoTotal - existente.MontoPagado));
     }
 
     [HttpPost("{id}/incobrable")]

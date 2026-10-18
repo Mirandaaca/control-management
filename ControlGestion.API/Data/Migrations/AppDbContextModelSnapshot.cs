@@ -335,6 +335,12 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClienteId");
@@ -878,6 +884,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<int?>("AnexoId")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("ClaveIdempotencia")
+                        .HasColumnType("char(36)");
+
                     b.Property<int>("CobranzaId")
                         .HasColumnType("int");
 
@@ -906,6 +915,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AnexoId");
+
+                    b.HasIndex("ClaveIdempotencia")
+                        .IsUnique();
 
                     b.HasIndex("CobranzaId");
 

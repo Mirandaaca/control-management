@@ -15,6 +15,7 @@ export default function Cobranzas() {
   const [detalle, setDetalle] = useState(null);
   const [pagando, setPagando] = useState(null);
   const [formPago, setFormPago] = useState({ monto: '', metodoPago: '0', referencia: '', observaciones: '' });
+  const [claveIdempotencia, setClaveIdempotencia] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -36,6 +37,13 @@ export default function Cobranzas() {
 
   useEffect(() => { fetchCobranzas(); }, []);
 
+  // Una clave nueva cada vez que se abre el modal. Si el mismo pago se envía dos veces, la API no lo duplica.
+  // crypto.randomUUID solo existe en localhost o con HTTPS; si falta, el pago se envía sin clave.
+  const abrirPago = (cobranza) => {
+    setPagando(cobranza);
+    setClaveIdempotencia(crypto.randomUUID?.() ?? null);
+  };
+
   const handlePago = async (e) => {
     e.preventDefault();
     setSaving(true); setError('');
@@ -45,6 +53,7 @@ export default function Cobranzas() {
         metodoPago: parseInt(formPago.metodoPago),
         referencia: formPago.referencia || null,
         observaciones: formPago.observaciones || null,
+        claveIdempotencia,
       });
       setPagando(null);
       setFormPago({ monto: '', metodoPago: '0', referencia: '', observaciones: '' });
@@ -164,7 +173,7 @@ export default function Cobranzas() {
 
             {detalle.estado !== 2 && detalle.estado !== 4 && (
               <div className="mt-4">
-                <Btn variant="primary" size="md" onClick={() => { setPagando(detalle); setDetalle(null); }}>
+                <Btn variant="primary" size="md" onClick={() => { abrirPago(detalle); setDetalle(null); }}>
                   Registrar pago
                 </Btn>
               </div>
@@ -254,7 +263,7 @@ export default function Cobranzas() {
                 <div className="flex gap-1.5">
                   <Btn variant="ghost" onClick={() => fetchDetalle(c.id)}>Ver</Btn>
                   {c.estado !== 2 && c.estado !== 4 && (
-                    <Btn variant="primary" onClick={() => { setPagando(c); setError(''); }}>Pagar</Btn>
+                    <Btn variant="primary" onClick={() => { abrirPago(c); setError(''); }}>Pagar</Btn>
                   )}
                 </div>
               </Td>
