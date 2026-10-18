@@ -1,5 +1,6 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -56,7 +57,7 @@ public class HojasPedidoController : ControllerBase
             .Include(h => h.Detalles).ThenInclude(d => d.Producto)
             .FirstOrDefaultAsync(h => h.Id == id);
 
-        return hp == null ? NotFound() : Ok(hp);
+        return Ok(hp ?? throw new NoEncontradoException("No se encontró la hoja de pedido."));
     }
 
     [HttpPost]
@@ -65,14 +66,14 @@ public class HojasPedidoController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         var cliente = await _db.Clientes.FindAsync(dto.ClienteId);
-        if (cliente == null) return BadRequest(new { mensaje = "Cliente no encontrado." });
+        if (cliente == null) throw new ReglaDeNegocioException("cliente_no_existe", "Cliente no encontrado.");
 
         var productos = await _db.Productos
             .Where(p => dto.Detalles.Select(d => d.ProductoId).Contains(p.Id) && p.Activo)
             .ToDictionaryAsync(p => p.Id);
 
         if (productos.Count != dto.Detalles.Select(d => d.ProductoId).Distinct().Count())
-            return BadRequest(new { mensaje = "Uno o más productos no existen o están inactivos." });
+            throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
 
         var contador = await _db.HojasPedido.CountAsync() + 1;
         var hp = new HojaPedido
@@ -108,7 +109,7 @@ public class HojasPedidoController : ControllerBase
         hp.Total = hp.SubTotal - hp.Descuento;
 
         if (hp.Total <= 0)
-            return BadRequest(new { mensaje = $"El total de la HP debe ser mayor a cero. Subtotal: {hp.SubTotal:F2}, Descuento: {hp.Descuento:F2}, Total: {hp.Total:F2}" });
+            throw new ReglaDeNegocioException("total_invalido", $"El total de la HP debe ser mayor a cero. Subtotal: {hp.SubTotal:F2}, Descuento: {hp.Descuento:F2}, Total: {hp.Total:F2}");
 
         _db.HojasPedido.Add(hp);
         await _db.SaveChangesAsync();
@@ -125,15 +126,15 @@ public class HojasPedidoController : ControllerBase
             .Include(h => h.Cliente)
             .FirstOrDefaultAsync(h => h.Id == id);
 
-        if (hp == null) return NotFound();
+        if (hp == null) throw new NoEncontradoException("No se encontró la hoja de pedido.");
         if (hp.EstadoHP != EstadoHP.Borrador)
-            return BadRequest(new { mensaje = "Solo se pueden confirmar HPs en estado Borrador." });
+            throw new ReglaDeNegocioException("hp_no_es_borrador", "Solo se pueden confirmar HPs en estado Borrador.");
 
         if (hp.TipoVenta == TipoVenta.Credito && hp.Cliente != null)
         {
             var creditoDisponible = hp.Cliente.LimiteCredito - hp.Cliente.SaldoPendiente;
             if (!hp.Cliente.TieneCredito || hp.Total > creditoDisponible)
-                return BadRequest(new { mensaje = "Crédito insuficiente o no habilitado para este cliente." });
+                throw new ReglaDeNegocioException("credito_insuficiente", "Crédito insuficiente o no habilitado para este cliente.");
         }
 
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -193,9 +194,9 @@ public class HojasPedidoController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
         var hp = await _db.HojasPedido.FindAsync(id);
-        if (hp == null) return NotFound();
+        if (hp == null) throw new NoEncontradoException("No se encontró la hoja de pedido.");
         if (hp.EstadoHP == EstadoHP.Anulada)
-            return BadRequest(new { mensaje = "La HP ya está anulada." });
+            throw new ReglaDeNegocioException("hp_ya_anulada", "La HP ya está anulada.");
 
         hp.EstadoHP = EstadoHP.Anulada;
         hp.ObservacionesAnulacion = dto.Motivo;

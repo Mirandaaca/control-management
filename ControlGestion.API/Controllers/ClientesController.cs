@@ -1,5 +1,6 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -51,7 +52,7 @@ public class ClientesController : ControllerBase
             .Include(c => c.Promotor)
             .FirstOrDefaultAsync(c => c.Id == id && c.Activo);
 
-        return cliente == null ? NotFound() : Ok(cliente);
+        return Ok(cliente ?? throw new NoEncontradoException("No se encontró el cliente."));
     }
 
     [HttpGet("mapa")]
@@ -111,7 +112,7 @@ public class ClientesController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] ClienteUpdateDTO dto)
     {
         var cliente = await _db.Clientes.FindAsync(id);
-        if (cliente == null) return NotFound();
+        if (cliente == null) throw new NoEncontradoException("No se encontró el cliente.");
 
         cliente.NombreCompleto = dto.NombreCompleto;
         cliente.RazonSocial = dto.RazonSocial;
@@ -137,7 +138,7 @@ public class ClientesController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         var cliente = await _db.Clientes.FindAsync(id);
-        if (cliente == null) return NotFound();
+        if (cliente == null) throw new NoEncontradoException("No se encontró el cliente.");
         cliente.Activo = false;
         await _db.SaveChangesAsync();
         return NoContent();

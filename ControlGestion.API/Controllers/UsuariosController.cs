@@ -1,5 +1,6 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -29,7 +30,7 @@ public class UsuariosController : ControllerBase
     public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
     {
         if (await _userManager.FindByEmailAsync(dto.Email) != null)
-            return Conflict(new { mensaje = "Ya existe un usuario con ese correo." });
+            throw new ConflictoException("correo_duplicado", "Ya existe un usuario con ese correo.");
 
         var user = new ApplicationUser
         {
@@ -43,11 +44,7 @@ public class UsuariosController : ControllerBase
 
         var resultado = await _userManager.CreateAsync(user, dto.Password);
         if (!resultado.Succeeded)
-            return BadRequest(new
-            {
-                mensaje = "No se pudo crear el usuario.",
-                errores = resultado.Errors.Select(e => e.Description)
-            });
+            throw new ReglaDeNegocioException("usuario_invalido", string.Join(" ", resultado.Errors.Select(e => e.Description)));
 
         var resultadoRol = await _userManager.AddToRoleAsync(user, dto.Rol);
         if (!resultadoRol.Succeeded)
@@ -91,7 +88,7 @@ public class UsuariosController : ControllerBase
     public async Task<IActionResult> GetById(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         var roles = await _userManager.GetRolesAsync(user);
         return Ok(new { user.Id, user.Email, user.NombreCompleto, user.Activo, user.FechaCreacion, Roles = roles });
     }
@@ -101,7 +98,7 @@ public class UsuariosController : ControllerBase
     public async Task<IActionResult> ToggleActivo(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         user.Activo = !user.Activo;
         await _userManager.UpdateAsync(user);
         return Ok(new { user.Id, user.Activo });
@@ -112,7 +109,7 @@ public class UsuariosController : ControllerBase
     public async Task<IActionResult> Delete(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
         await _userManager.DeleteAsync(user);
         return NoContent();
     }

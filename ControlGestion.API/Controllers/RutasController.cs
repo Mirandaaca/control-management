@@ -1,5 +1,6 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -57,7 +58,7 @@ public class RutasController : ControllerBase
             .Include(r => r.Detalles).ThenInclude(d => d.Cliente).ThenInclude(c => c!.EstadoCliente)
             .FirstOrDefaultAsync(r => r.Id == id);
 
-        if (ruta == null) return NotFound();
+        if (ruta == null) throw new NoEncontradoException("No se encontró la ruta.");
 
         return Ok(new
         {
@@ -90,7 +91,7 @@ public class RutasController : ControllerBase
             .CountAsync();
 
         if (clientesExisten != clienteIds.Distinct().Count())
-            return BadRequest(new { mensaje = "Uno o más clientes no existen." });
+            throw new ReglaDeNegocioException("cliente_no_existe", "Uno o más clientes no existen.");
 
         var contador = await _db.Rutas.CountAsync() + 1;
         var ruta = new Ruta
@@ -122,9 +123,9 @@ public class RutasController : ControllerBase
     public async Task<IActionResult> Iniciar(int id)
     {
         var ruta = await _db.Rutas.FindAsync(id);
-        if (ruta == null) return NotFound();
+        if (ruta == null) throw new NoEncontradoException("No se encontró la ruta.");
         if (ruta.Estado != EstadoRuta.Planificada)
-            return BadRequest(new { mensaje = "Solo se pueden iniciar rutas planificadas." });
+            throw new ReglaDeNegocioException("ruta_no_planificada", "Solo se pueden iniciar rutas planificadas.");
 
         ruta.Estado = EstadoRuta.EnCurso;
         ruta.FechaInicio = DateTime.UtcNow;
@@ -136,9 +137,9 @@ public class RutasController : ControllerBase
     public async Task<IActionResult> Completar(int id)
     {
         var ruta = await _db.Rutas.FindAsync(id);
-        if (ruta == null) return NotFound();
+        if (ruta == null) throw new NoEncontradoException("No se encontró la ruta.");
         if (ruta.Estado != EstadoRuta.EnCurso)
-            return BadRequest(new { mensaje = "Solo se pueden completar rutas en curso." });
+            throw new ReglaDeNegocioException("ruta_no_en_curso", "Solo se pueden completar rutas en curso.");
 
         ruta.Estado = EstadoRuta.Completada;
         ruta.FechaFin = DateTime.UtcNow;
@@ -153,9 +154,9 @@ public class RutasController : ControllerBase
             .Include(d => d.Ruta)
             .FirstOrDefaultAsync(d => d.Id == detalleId && d.RutaId == rutaId);
 
-        if (detalle == null) return NotFound();
+        if (detalle == null) throw new NoEncontradoException("No se encontró la visita de la ruta.");
         if (detalle.Ruta!.Estado != EstadoRuta.EnCurso)
-            return BadRequest(new { mensaje = "La ruta no está en curso." });
+            throw new ReglaDeNegocioException("ruta_no_en_curso", "La ruta no está en curso.");
 
         detalle.EstadoVisita = (EstadoVisita)dto.EstadoVisita;
         detalle.HoraVisita = DateTime.UtcNow;

@@ -39,12 +39,12 @@ public static partial class RespuestasDeError
             .Where(p => p.BindingInfo?.BindingSource == BindingSource.Body)
             .Select(p => p.Name)
             .ToHashSet();
-        var hayErroresDeJson = contexto.ModelState.Keys.Any(k => k.StartsWith('$'));
+        var elCuerpoNoSePudoLeer = contexto.ModelState.Keys.Any(k => k.StartsWith('$') || k.Length == 0);
 
         var errores = contexto.ModelState
             .Where(e => e.Value is { Errors.Count: > 0 })
-            // Si el JSON no se pudo leer, ASP.NET agrega además "el campo dto es obligatorio", que no le dice nada al usuario.
-            .Where(e => !(hayErroresDeJson && parametrosDelCuerpo.Contains(e.Key)))
+            // Si el JSON falta o no se pudo leer, ASP.NET agrega además "el campo dto es obligatorio", que no le dice nada al usuario.
+            .Where(e => !(elCuerpoNoSePudoLeer && parametrosDelCuerpo.Contains(e.Key)))
             .GroupBy(e => NombreDeCampo(e.Key))
             .ToDictionary(
                 g => g.Key,

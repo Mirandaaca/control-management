@@ -1,5 +1,6 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -62,7 +63,7 @@ public class CobranzasController : ControllerBase
             .Include(c => c.Pagos).ThenInclude(p => p.RegistradoPor)
             .FirstOrDefaultAsync(c => c.Id == id);
 
-        if (cobranza == null) return NotFound();
+        if (cobranza == null) throw new NoEncontradoException("No se encontró la cobranza.");
 
         return Ok(new
         {
@@ -99,15 +100,15 @@ public class CobranzasController : ControllerBase
             .Include(c => c.Pagos)
             .FirstOrDefaultAsync(c => c.Id == id);
 
-        if (cobranza == null) return NotFound();
+        if (cobranza == null) throw new NoEncontradoException("No se encontró la cobranza.");
         if (cobranza.Estado == EstadoCobranza.Pagada || cobranza.Estado == EstadoCobranza.Incobrable)
-            return BadRequest(new { mensaje = "La cobranza ya está cerrada." });
+            throw new ReglaDeNegocioException("cobranza_cerrada", "La cobranza ya está cerrada.");
 
         var saldo = Math.Max(0, cobranza.MontoTotal - cobranza.MontoPagado);
         if (saldo <= 0)
-            return BadRequest(new { mensaje = "Esta cobranza ya no tiene saldo pendiente." });
+            throw new ReglaDeNegocioException("cobranza_sin_saldo", "Esta cobranza ya no tiene saldo pendiente.");
         if (dto.Monto <= 0 || dto.Monto > saldo)
-            return BadRequest(new { mensaje = $"Monto inválido. Saldo pendiente: {saldo:F2}" });
+            throw new ReglaDeNegocioException("monto_invalido", $"Monto inválido. Saldo pendiente: {saldo:F2}");
 
         var pago = new PagoCobranza
         {
@@ -158,7 +159,7 @@ public class CobranzasController : ControllerBase
 
             // Otro pago modificó la cobranza entre que la leímos y la guardamos: su VersionConcurrencia ya no coincide.
             if (ex is DbUpdateConcurrencyException)
-                return Conflict(new { mensaje = "La cobranza cambió mientras registrabas el pago. Vuelve a intentarlo." });
+                throw new ConflictoException("conflicto_concurrencia", "La cobranza cambió mientras registrabas el pago. Vuelve a intentarlo.");
 
             throw;
         }
@@ -177,7 +178,7 @@ public class CobranzasController : ControllerBase
 
         if (existente == null) return null;
         if (existente.CobranzaId != cobranzaId)
-            return Conflict(new { mensaje = "Esa clave de idempotencia ya se usó en otra cobranza." });
+            throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otra cobranza.");
 
         return Ok(new PagoRegistradoDTO(existente.Id, existente.Estado, existente.MontoPagado,
             existente.MontoTotal - existente.MontoPagado));
@@ -188,9 +189,9 @@ public class CobranzasController : ControllerBase
     public async Task<IActionResult> MarcarIncobrable(int id, [FromBody] string observacion)
     {
         var cobranza = await _db.Cobranzas.FindAsync(id);
-        if (cobranza == null) return NotFound();
+        if (cobranza == null) throw new NoEncontradoException("No se encontró la cobranza.");
         if (cobranza.Estado == EstadoCobranza.Pagada)
-            return BadRequest(new { mensaje = "No se puede marcar como incobrable una cobranza pagada." });
+            throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
@@ -200,7 +201,7 @@ public class CobranzasController : ControllerBase
         }
         catch (DbUpdateConcurrencyException)
         {
-            return Conflict(new { mensaje = "La cobranza cambió mientras la marcabas como incobrable. Vuelve a intentarlo." });
+            throw new ConflictoException("conflicto_concurrencia", "La cobranza cambió mientras la marcabas como incobrable. Vuelve a intentarlo.");
         }
         return Ok();
     }

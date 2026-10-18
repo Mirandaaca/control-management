@@ -1,5 +1,6 @@
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -32,10 +33,10 @@ public class AuthController : ControllerBase
     {
         var user = await _userManager.FindByEmailAsync(dto.Email);
         if (user == null || !await _userManager.CheckPasswordAsync(user, dto.Password))
-            return Unauthorized(new { mensaje = "Credenciales incorrectas." });
+            throw new NoAutenticadoException("credenciales_incorrectas", "Credenciales incorrectas.");
 
         if (!user.Activo)
-            return Unauthorized(new { mensaje = "Usuario inactivo." });
+            throw new NoAutenticadoException("usuario_inactivo", "Usuario inactivo.");
 
         var roles = await _userManager.GetRolesAsync(user);
         var token = GenerarToken(user, roles);
