@@ -2,6 +2,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,10 +16,12 @@ namespace ControlGestion.API.Controllers;
 public class ClientesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly NumeradorService _numerador;
 
-    public ClientesController(AppDbContext db)
+    public ClientesController(AppDbContext db, NumeradorService numerador)
     {
         _db = db;
+        _numerador = numerador;
     }
 
     [HttpGet]
@@ -80,11 +83,9 @@ public class ClientesController : ControllerBase
     public async Task<IActionResult> Create([FromBody] ClienteCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var contador = await _db.Clientes.CountAsync() + 1;
-
         var cliente = new Cliente
         {
-            Codigo = $"CLI-{contador:D5}",
+            Codigo = await _numerador.SiguienteAsync(NumeradorService.Cliente),
             NombreCompleto = dto.NombreCompleto,
             RazonSocial = dto.RazonSocial,
             NIT = dto.NIT,

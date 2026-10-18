@@ -17,11 +17,13 @@ public class HojasPedidoController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly InventarioService _inventario;
+    private readonly NumeradorService _numerador;
 
-    public HojasPedidoController(AppDbContext db, InventarioService inventario)
+    public HojasPedidoController(AppDbContext db, InventarioService inventario, NumeradorService numerador)
     {
         _db = db;
         _inventario = inventario;
+        _numerador = numerador;
     }
 
     [HttpGet]
@@ -75,10 +77,9 @@ public class HojasPedidoController : ControllerBase
         if (productos.Count != dto.Detalles.Select(d => d.ProductoId).Distinct().Count())
             throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
 
-        var contador = await _db.HojasPedido.CountAsync() + 1;
         var hp = new HojaPedido
         {
-            Numero = $"HP-{DateTime.UtcNow:yyyy}-{contador:D5}",
+            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.HojaPedido),
             ClienteId = dto.ClienteId,
             PromotorId = userId,
             ZonaId = dto.ZonaId,
@@ -159,11 +160,10 @@ public class HojasPedidoController : ControllerBase
             {
                 var config = await _db.ConfiguracionesGenerales.FindAsync("DiasVencimientoCredito");
                 var diasVencimiento = int.TryParse(config?.Valor, out var d) ? d : 30;
-                var contadorCob = await _db.Cobranzas.CountAsync() + 1;
 
                 _db.Cobranzas.Add(new ControlGestion.API.Models.Cobranza
                 {
-                    Numero = $"COB-{DateTime.UtcNow:yyyy}-{contadorCob:D5}",
+                    Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Cobranza),
                     ClienteId = hp.ClienteId,
                     HojaPedidoId = hp.Id,
                     PromotorId = userId,

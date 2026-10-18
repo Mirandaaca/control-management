@@ -2,6 +2,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +17,13 @@ namespace ControlGestion.API.Controllers;
 public class PedidosController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly NumeradorService _numerador;
 
-    public PedidosController(AppDbContext db) => _db = db;
+    public PedidosController(AppDbContext db, NumeradorService numerador)
+    {
+        _db = db;
+        _numerador = numerador;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -77,10 +83,9 @@ public class PedidosController : ControllerBase
         if (productos.Count != dto.Detalles.Select(d => d.ProductoId).Distinct().Count())
             throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
 
-        var contador = await _db.Pedidos.CountAsync() + 1;
         var pedido = new Pedido
         {
-            Numero = $"PED-{DateTime.UtcNow:yyyy}-{contador:D5}",
+            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Pedido),
             ClienteId = dto.ClienteId,
             PromotorId = userId,
             ZonaId = dto.ZonaId,

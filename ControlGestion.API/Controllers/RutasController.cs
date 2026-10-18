@@ -2,6 +2,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,8 +16,13 @@ namespace ControlGestion.API.Controllers;
 public class RutasController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly NumeradorService _numerador;
 
-    public RutasController(AppDbContext db) => _db = db;
+    public RutasController(AppDbContext db, NumeradorService numerador)
+    {
+        _db = db;
+        _numerador = numerador;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -93,10 +99,9 @@ public class RutasController : ControllerBase
         if (clientesExisten != clienteIds.Distinct().Count())
             throw new ReglaDeNegocioException("cliente_no_existe", "Uno o más clientes no existen.");
 
-        var contador = await _db.Rutas.CountAsync() + 1;
         var ruta = new Ruta
         {
-            Numero = $"RUT-{DateTime.UtcNow:yyyy}-{contador:D5}",
+            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Ruta),
             Nombre = dto.Nombre,
             PromotorId = userId,
             ZonaId = dto.ZonaId,

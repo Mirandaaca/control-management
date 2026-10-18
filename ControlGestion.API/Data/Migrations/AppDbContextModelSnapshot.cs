@@ -1136,6 +1136,20 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("RutasDetalle");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Secuencia", b =>
+                {
+                    b.Property<string>("Clave")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Ultimo")
+                        .HasColumnType("int");
+
+                    b.HasKey("Clave");
+
+                    b.ToTable("Secuencias");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.TipoEvento", b =>
                 {
                     b.Property<int>("Id")

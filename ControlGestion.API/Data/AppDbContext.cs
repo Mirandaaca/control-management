@@ -38,9 +38,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Ruta> Rutas { get; set; }
     public DbSet<RutaDetalle> RutasDetalle { get; set; }
 
+    public DbSet<Secuencia> Secuencias { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<Secuencia>().HasKey(s => s.Clave);
 
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
 

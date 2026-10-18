@@ -95,6 +95,7 @@ builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeE
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioActual, UsuarioActual>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 

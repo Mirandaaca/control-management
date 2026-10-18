@@ -2,6 +2,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +17,13 @@ public class EventosController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
+    private readonly NumeradorService _numerador;
 
-    public EventosController(AppDbContext db, IWebHostEnvironment env)
+    public EventosController(AppDbContext db, IWebHostEnvironment env, NumeradorService numerador)
     {
         _db = db;
         _env = env;
+        _numerador = numerador;
     }
 
     [HttpGet]
@@ -70,11 +73,10 @@ public class EventosController : ControllerBase
     public async Task<IActionResult> Create([FromBody] EventoCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var contador = await _db.Eventos.CountAsync() + 1;
 
         var evento = new Evento
         {
-            Numero = $"EVT-{DateTime.UtcNow:yyyy}-{contador:D5}",
+            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Evento),
             TipoEventoId = dto.TipoEventoId,
             ClienteId = dto.ClienteId,
             PedidoId = dto.PedidoId,
