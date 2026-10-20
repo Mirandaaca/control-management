@@ -31,6 +31,18 @@ namespace ControlGestion.API.Data.Migrations
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.SetNull);
+
+            // La columna vieja guardaba supervisores (hoy, gerentes generales), no promotores. Una zona cuyo usuario no
+            // recorre rutas queda sin promotor: el gerente asigna el correcto desde Zonas y los clientes pasan a él (7.2).
+            // Los clientes conservan su promotor hasta entonces. Si esta migración corre antes de que se siembren los
+            // permisos, ninguna zona conserva el suyo, y está bien: todos los valores viejos eran supervisores.
+            migrationBuilder.Sql(@"
+                UPDATE Zonas z SET z.PromotorId = NULL
+                WHERE z.PromotorId IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM AspNetUserRoles ur
+                    JOIN RolesPermisos rp ON rp.RolId = ur.RoleId
+                    JOIN Permisos p ON p.Id = rp.PermisoId
+                    WHERE ur.UserId = z.PromotorId AND p.Clave = 'territorial.recorrer-ruta');");
         }
 
         /// <inheritdoc />
