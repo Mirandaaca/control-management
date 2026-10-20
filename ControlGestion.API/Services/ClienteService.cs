@@ -21,8 +21,11 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
         if (filtros.PorVisitar)
         {
+            // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
+            // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
             var ahora = reloj.GetUtcNow().UtcDateTime;
-            consulta = consulta.Where(c => c.ProximaVisita <= ahora);
+            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId)
+                && (c.ProximaVisita == null || c.ProximaVisita <= ahora));
         }
 
         var total = await consulta.CountAsync();
@@ -55,14 +58,16 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
     public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
     {
+        var promotorDeLaZona = await PromotorDeLaZonaAsync(dto.ZonaId);
         var cliente = new Cliente
         {
             Codigo = await numerador.SiguienteAsync(NumeradorService.Cliente),
-            EstadoClienteId = 1,
+            // Un cliente sin visitas está disponible para re-visita (5.2).
+            EstadoClienteId = EstadosDeCliente.DisponibleParaRevisita,
             CreadoPorId = usuario.Id,
             FechaCreacion = reloj.GetUtcNow().UtcDateTime
         };
-        Copiar(dto, cliente);
+        Copiar(dto, cliente, promotorDeLaZona);
         db.Clientes.Add(cliente);
         await db.SaveChangesAsync();
         return await ObtenerAsync(cliente.Id);
@@ -72,7 +77,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
     {
         var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NoEncontradoException("No se encontró el cliente.");
-        Copiar(dto, cliente);
+        Copiar(dto, cliente, await PromotorDeLaZonaAsync(dto.ZonaId));
         cliente.EstadoClienteId = dto.EstadoClienteId;
         await db.SaveChangesAsync();
         return await ObtenerAsync(id);
@@ -86,7 +91,20 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         await db.SaveChangesAsync();
     }
 
-    private static void Copiar(GuardarClienteDTO dto, Cliente cliente)
+    /// <summary>
+    /// El cliente siempre tiene el promotor de su zona (7.2). Sin cartera completa, el usuario solo registra o mueve
+    /// clientes a sus propias zonas: en otra, el cliente pasaría a otro promotor y desaparecería de su lista.
+    /// </summary>
+    private async Task<string?> PromotorDeLaZonaAsync(int zonaId)
+    {
+        var zona = await db.Zonas.Where(z => z.Id == zonaId).Select(z => new { z.PromotorId }).FirstOrDefaultAsync()
+            ?? throw new ReglaDeNegocioException("zona_no_existe", "La zona elegida no existe.");
+        if (!usuario.VeCarteraCompleta && zona.PromotorId != usuario.Id)
+            throw new ReglaDeNegocioException("zona_fuera_de_cartera", "Solo puedes registrar clientes en tus zonas.");
+        return zona.PromotorId;
+    }
+
+    private static void Copiar(GuardarClienteDTO dto, Cliente cliente, string? promotorDeLaZona)
     {
         cliente.NombreCompleto = dto.NombreCompleto.Trim();
         cliente.RazonSocial = dto.RazonSocial?.Trim();
@@ -97,7 +115,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         cliente.Latitud = dto.Latitud!.Value;
         cliente.Longitud = dto.Longitud!.Value;
         cliente.ZonaId = dto.ZonaId;
-        cliente.PromotorId = string.IsNullOrEmpty(dto.PromotorId) ? null : dto.PromotorId;
+        cliente.PromotorId = promotorDeLaZona;
         cliente.DiasRevisita = dto.DiasRevisita;
         cliente.TieneCredito = dto.TieneCredito;
         cliente.LimiteCredito = dto.LimiteCredito;

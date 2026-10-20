@@ -17,7 +17,7 @@ public class SeguridadDeDatosTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync(gerente.Id);
         var productoId = await operador.CrearProductoAsync(10m);
-        var clienteId = await operador.CrearClienteAsync(zonaId, promotor.Id);
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
         var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 1, credito: false);
 

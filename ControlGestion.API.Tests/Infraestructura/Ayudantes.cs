@@ -95,18 +95,17 @@ public static class Ayudantes
         return id;
     }
 
-    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId, string? promotorId = null,
-        decimal limiteCredito = 1000)
+    /// <summary>Crea un cliente en la zona. Su promotor es el de la zona: para el cliente de un promotor, usa una zona suya.</summary>
+    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId, decimal limiteCredito = 1000)
     {
         var respuesta = await admin.PostAsJsonAsync("/api/clientes", new
         {
             nombreCompleto = $"Cliente {Unico("C")}",
-            telefono = "70000000",
+            telefono = $"7{Random.Shared.Next(1000000, 9999999)}",
             direccionTexto = "Calle de prueba",
             latitud = -17.7833m,
             longitud = -63.1821m,
             zonaId,
-            promotorId,
             tieneCredito = limiteCredito > 0,
             limiteCredito
         });

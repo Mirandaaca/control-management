@@ -72,7 +72,7 @@ public class ClientesTests(ApiDePrueba api)
         var nuevo = await api.CrearUsuarioAsync(Roles.Promotor);
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync(anterior.Id);
-        var clienteId = await operador.CrearClienteAsync(zonaId, anterior.Id);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
         var zona = await (await operador.GetAsync($"/api/zonas/{zonaId}")).LeerJsonAsync();
 
         (await operador.PutAsJsonAsync($"/api/zonas/{zonaId}", new
@@ -110,8 +110,8 @@ public class ClientesTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaA = await operador.CrearZonaAsync(promotorA.Id);
         var zonaB = await operador.CrearZonaAsync(promotorB.Id);
-        var deA = await operador.CrearClienteAsync(zonaA, promotorA.Id);
-        var deB = await operador.CrearClienteAsync(zonaB, promotorB.Id);
+        var deA = await operador.CrearClienteAsync(zonaA);
+        var deB = await operador.CrearClienteAsync(zonaB);
         using var clienteA = api.ClienteCon(promotorA.Token);
 
         var lista = await IdsAsync(clienteA, "?tamano=100");
@@ -177,5 +177,55 @@ public class ClientesTests(ApiDePrueba api)
         })).ProblemaAsync(400, "validacion");
 
         Assert.True(problema.GetProperty("errors").TryGetProperty("latitud", out _));
+    }
+
+    private static string? PromotorDe(JsonElement cliente) =>
+        cliente.GetProperty("promotor").ValueKind == JsonValueKind.Null ? null : cliente.GetProperty("promotor").GetProperty("id").GetString();
+
+    [Fact]
+    public async Task El_cliente_toma_el_promotor_de_su_zona_y_lo_cambia_con_ella()
+    {
+        var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
+        var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaA = await operador.CrearZonaAsync(promotorA.Id);
+        var zonaB = await operador.CrearZonaAsync(promotorB.Id);
+
+        var creado = await (await operador.PostAsJsonAsync("/api/clientes", Cliente(zonaA))).LeerJsonAsync();
+        var movido = await (await operador.PutAsJsonAsync($"/api/clientes/{creado.GetProperty("id").GetInt32()}", Cliente(zonaB)))
+            .LeerJsonAsync();
+
+        Assert.Equal(promotorA.Id, PromotorDe(creado));
+        Assert.Equal(promotorB.Id, PromotorDe(movido));
+    }
+
+    [Fact]
+    public async Task Un_promotor_registra_clientes_solo_en_sus_zonas()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var otro = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var suya = await operador.CrearZonaAsync(promotor.Id);
+        var ajena = await operador.CrearZonaAsync(otro.Id);
+        using var cliente = api.ClienteCon(promotor.Token);
+
+        var respuesta = await cliente.PostAsJsonAsync("/api/clientes", Cliente(suya));
+
+        Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+        Assert.Equal(promotor.Id, PromotorDe(await respuesta.LeerJsonAsync()));
+        await (await cliente.PostAsJsonAsync("/api/clientes", Cliente(ajena))).ProblemaAsync(400, "zona_fuera_de_cartera");
+    }
+
+    [Fact]
+    public async Task Un_cliente_nuevo_esta_disponible_para_re_visita_y_sale_por_visitar()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var creado = await (await operador.PostAsJsonAsync("/api/clientes", Cliente(zonaId))).LeerJsonAsync();
+        var id = creado.GetProperty("id").GetInt32();
+
+        Assert.Equal("Disponible para Re-visita", creado.GetProperty("estado").GetProperty("nombre").GetString());
+        Assert.Equal(JsonValueKind.Null, creado.GetProperty("proximaVisita").ValueKind);
+        Assert.Contains(id, await IdsAsync(operador, $"?zonaId={zonaId}&porVisitar=true"));
     }
 }

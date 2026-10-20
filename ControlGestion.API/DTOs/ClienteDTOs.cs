@@ -35,10 +35,10 @@ public record GuardarClienteDTO : IValidatableObject
     [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
     public decimal? Longitud { get; init; }
 
+    // El promotor del cliente no se elige: es el de su zona (7.2).
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }
 
-    public string? PromotorId { get; init; }
     public int DiasRevisita { get; init; } = 15;
     public bool TieneCredito { get; init; }
     public decimal LimiteCredito { get; init; }
@@ -62,7 +62,7 @@ public record FiltrosClienteDTO
     public int? EstadoId { get; init; }
     public string? PromotorId { get; init; }
 
-    /// <summary>Solo los clientes cuya próxima visita ya llegó (5.3).</summary>
+    /// <summary>Solo los clientes del ciclo de visitas cuya próxima visita ya llegó o que nunca se visitaron (5.3).</summary>
     public bool PorVisitar { get; init; }
 
     [Range(1, int.MaxValue, ErrorMessage = "La página empieza en 1.")]

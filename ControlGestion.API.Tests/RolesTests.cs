@@ -121,7 +121,7 @@ public class RolesTests(ApiDePrueba api)
         var usuario = await api.CrearUsuarioAsync(rolNombre);
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
-        var suya = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId, usuario.Id), zonaId, productoId, 1);
+        var suya = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)), zonaId, productoId, 1);
         var ajena = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 1);
         using var cliente = api.ClienteCon(usuario.Token);
         var visibles = async () => (await (await cliente.GetAsync("/api/cobranzas")).LeerJsonAsync())
