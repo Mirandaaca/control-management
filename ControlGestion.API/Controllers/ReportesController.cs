@@ -26,7 +26,7 @@ public class ReportesController : ControllerBase
         var hoy = DateTime.UtcNow.Date;
         var inicioMes = new DateTime(hoy.Year, hoy.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var totalClientes = await _db.Clientes.CountAsync(c => c.Activo);
+        var totalClientes = await _db.Clientes.CountAsync(c => c.EstadoClienteId != EstadosDeCliente.Inactivo);
         var pedidosMes = await _db.HojasPedido
             .Where(h => h.FechaRegistro >= inicioMes && h.EstadoHP == EstadoHP.Confirmada)
             .CountAsync();
@@ -237,7 +237,7 @@ public class ReportesController : ControllerBase
             .ToListAsync();
 
         var clientes = await _db.Clientes
-            .Where(c => c.Activo)
+            .Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
             .GroupBy(c => c.PromotorId)
             .Select(g => new { PromotorId = g.Key, Clientes = g.Count() })
             .ToListAsync();

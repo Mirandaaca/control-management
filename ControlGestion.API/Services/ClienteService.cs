@@ -11,7 +11,7 @@ namespace ControlGestion.API.Services;
 /// <summary>Clientes en campo (2.2) y su ubicación (2.4). Cada usuario ve y edita solo su cartera, salvo con cartera completa.</summary>
 public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
 {
-    private IQueryable<Cliente> Visibles => db.Clientes.Where(c => c.Activo).VisiblesPara(usuario);
+    private IQueryable<Cliente> Visibles => db.Clientes.VisiblesPara(usuario);
 
     public async Task<Pagina<ClienteListaDTO>> ListarAsync(FiltrosClienteDTO filtros)
     {
@@ -38,13 +38,14 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         return new Pagina<ClienteListaDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
-    /// <summary>Para los selectores de HP, pedidos, eventos y rutas: todos los clientes visibles, con lo justo para elegir.</summary>
+    /// <summary>Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos.</summary>
     public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar) =>
-        Visibles.Buscar(buscar).OrderBy(c => c.NombreCompleto).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+        Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
+            .Buscar(buscar).OrderBy(c => c.NombreCompleto).Select(ClienteConsultas.ComoOpcion).ToListAsync();
 
     public Task<List<ClienteMapaDTO>> MapaAsync(int? zonaId)
     {
-        var consulta = Visibles.Where(c => c.Latitud != 0 && c.Longitud != 0);
+        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo && c.Latitud != 0 && c.Longitud != 0);
         if (zonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == zonaId);
         return consulta.Select(ClienteConsultas.ComoMapa).ToListAsync();
     }
@@ -77,18 +78,35 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
     {
         var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NoEncontradoException("No se encontró el cliente.");
+        // Editar no toca el estado: antes lo devolvía a "Activo" sin avisar.
         Copiar(dto, cliente, await PromotorDeLaZonaAsync(dto.ZonaId));
-        cliente.EstadoClienteId = dto.EstadoClienteId;
         await db.SaveChangesAsync();
         return await ObtenerAsync(id);
     }
 
-    public async Task DesactivarAsync(int id)
+    /// <summary>Desactivar a un cliente es asignarle el estado Inactivo: los clientes no se borran.</summary>
+    public async Task<ClienteDTO> AsignarEstadoAsync(int id, AsignarEstadoClienteDTO dto)
     {
         var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NoEncontradoException("No se encontró el cliente.");
-        cliente.Activo = false;
+
+        if (dto.EstadoClienteId is { } estadoId)
+        {
+            if (EstadosDeCliente.DelSistema.Contains(estadoId))
+                throw new ReglaDeNegocioException("estado_del_sistema",
+                    "Activo y Disponible para re-visita los asigna el sistema según las visitas.");
+            if (!await db.EstadosCliente.AnyAsync(e => e.Id == estadoId && e.Activo))
+                throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
+            cliente.EstadoClienteId = estadoId;
+        }
+        else
+        {
+            var ahora = reloj.GetUtcNow().UtcDateTime;
+            cliente.EstadoClienteId = cliente.ProximaVisita > ahora ? EstadosDeCliente.Activo : EstadosDeCliente.DisponibleParaRevisita;
+        }
+
         await db.SaveChangesAsync();
+        return await ObtenerAsync(id);
     }
 
     /// <summary>

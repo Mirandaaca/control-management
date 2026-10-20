@@ -228,4 +228,66 @@ public class ClientesTests(ApiDePrueba api)
         Assert.Equal(JsonValueKind.Null, creado.GetProperty("proximaVisita").ValueKind);
         Assert.Contains(id, await IdsAsync(operador, $"?zonaId={zonaId}&porVisitar=true"));
     }
+
+    private static string EstadoDe(JsonElement cliente) => cliente.GetProperty("estado").GetProperty("nombre").GetString()!;
+
+    [Fact]
+    public async Task Editar_no_cambia_el_estado_del_cliente()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var id = await operador.CrearClienteAsync(zonaId);
+
+        var editado = await (await operador.PutAsJsonAsync($"/api/clientes/{id}", Cliente(zonaId))).LeerJsonAsync();
+
+        Assert.Equal("Disponible para Re-visita", EstadoDe(editado));
+    }
+
+    [Fact]
+    public async Task La_secretaria_desactiva_un_cliente_con_un_estado_y_lo_devuelve_al_ciclo()
+    {
+        var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var id = await operador.CrearClienteAsync(zonaId);
+        using var cliente = api.ClienteCon(secretaria.Token);
+        var enOpciones = async () => (await (await cliente.GetAsync("/api/clientes/opciones")).LeerJsonAsync())
+            .EnumerateArray().Any(c => c.GetProperty("id").GetInt32() == id);
+
+        var inactivo = await (await cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = 4 })).LeerJsonAsync();
+
+        Assert.Equal("Inactivo", EstadoDe(inactivo));
+        Assert.DoesNotContain(id, await IdsAsync(cliente, $"?zonaId={zonaId}&porVisitar=true"));
+        Assert.False(await enOpciones());
+
+        var deVuelta = await (await cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = (int?)null }))
+            .LeerJsonAsync();
+
+        Assert.Equal("Disponible para Re-visita", EstadoDe(deVuelta));
+        Assert.Contains(id, await IdsAsync(cliente, $"?zonaId={zonaId}&porVisitar=true"));
+        Assert.True(await enOpciones());
+    }
+
+    [Fact]
+    public async Task Los_estados_del_sistema_no_se_asignan_a_mano_y_el_promotor_no_asigna_estados()
+    {
+        var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
+
+        await (await api.ClienteCon(secretaria.Token).PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = 1 }))
+            .ProblemaAsync(400, "estado_del_sistema");
+        await (await api.ClienteCon(promotor.Token).PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = 4 }))
+            .ProblemaAsync(403, "sin_permiso");
+    }
+
+    [Fact]
+    public async Task Los_clientes_no_se_borran()
+    {
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        await (await operador.DeleteAsync($"/api/clientes/{id}")).ProblemaAsync(405, "metodo_no_permitido");
+    }
 }

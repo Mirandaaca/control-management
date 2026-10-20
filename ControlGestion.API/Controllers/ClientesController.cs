@@ -46,12 +46,9 @@ public class ClientesController(ClienteService clientes) : ControllerBase
     public async Task<ActionResult<ClienteDTO>> Editar(int id, [FromBody] GuardarClienteDTO dto) =>
         await clientes.EditarAsync(id, dto);
 
-    // Sin operación propia en el catálogo: inactivar a un cliente es asignarle un estado a mano.
-    [HttpDelete("{id:int}")]
+    // Los clientes no se borran: desactivar uno es asignarle el estado Inactivo.
+    [HttpPut("{id:int}/estado")]
     [Permiso(Permisos.Ventas.AsignarEstadoCliente)]
-    public async Task<IActionResult> Desactivar(int id)
-    {
-        await clientes.DesactivarAsync(id);
-        return NoContent();
-    }
+    public async Task<ActionResult<ClienteDTO>> AsignarEstado(int id, [FromBody] AsignarEstadoClienteDTO dto) =>
+        await clientes.AsignarEstadoAsync(id, dto);
 }

@@ -34,7 +34,6 @@ public class Cliente
     // cliente recalculan su saldo, y sin el token el segundo pisaría al primero.
     public DateTime VersionConcurrencia { get; set; }
 
-    public bool Activo { get; set; } = true;
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public string? CreadoPorId { get; set; }
     public ApplicationUser? CreadoPor { get; set; }

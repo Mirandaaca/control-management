@@ -201,9 +201,6 @@ namespace ControlGestion.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasColumnType("varchar(255)");

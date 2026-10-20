@@ -42,7 +42,6 @@ public record GuardarClienteDTO : IValidatableObject
     public int DiasRevisita { get; init; } = 15;
     public bool TieneCredito { get; init; }
     public decimal LimiteCredito { get; init; }
-    public int EstadoClienteId { get; init; } = 1;
 
     // 0,0 es lo que guardaba el formulario viejo con los campos vacíos: un punto en el océano, no una ubicación real.
     public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
@@ -51,6 +50,12 @@ public record GuardarClienteDTO : IValidatableObject
             yield return new ValidationResult("Marca la ubicación del cliente en el mapa.", [nameof(Latitud)]);
     }
 }
+
+/// <summary>
+/// Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo de visitas. Null lo devuelve al ciclo: el
+/// sistema vuelve a decidir entre Activo y Disponible para re-visita según su próxima visita.
+/// </summary>
+public record AsignarEstadoClienteDTO(int? EstadoClienteId);
 
 /// <summary>Filtros de la lista de clientes (query string). Buscar compara con nombre, código, celular, razón social y NIT.</summary>
 public record FiltrosClienteDTO
