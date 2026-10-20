@@ -63,9 +63,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
 
         builder.Entity<Zona>()
-            .HasOne(z => z.Supervisor)
+            .HasOne(z => z.Promotor)
             .WithMany()
-            .HasForeignKey(z => z.IdSupervisor)
+            .HasForeignKey(z => z.PromotorId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // Cliente

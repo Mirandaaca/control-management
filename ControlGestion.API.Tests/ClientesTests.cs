@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
 
 namespace ControlGestion.API.Tests;
@@ -59,6 +60,28 @@ public class ClientesTests(ApiDePrueba api)
         var leido = await (await operador.GetAsync($"/api/clientes/{id}")).LeerJsonAsync();
         Assert.Equal("Nombre corregido", leido.GetProperty("nombreCompleto").GetString());
         Assert.Equal("Calle nueva", leido.GetProperty("direccionTexto").GetString());
+    }
+
+    [Fact]
+    public async Task Al_cambiar_el_promotor_de_una_zona_sus_clientes_pasan_al_nuevo()
+    {
+        var anterior = await api.CrearUsuarioAsync(Roles.Promotor);
+        var nuevo = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync(anterior.Id);
+        var clienteId = await operador.CrearClienteAsync(zonaId, anterior.Id);
+        var zona = await (await operador.GetAsync($"/api/zonas/{zonaId}")).LeerJsonAsync();
+
+        (await operador.PutAsJsonAsync($"/api/zonas/{zonaId}", new
+        {
+            id = zonaId,
+            nombre = zona.GetProperty("nombre").GetString(),
+            codigo = zona.GetProperty("codigo").GetString(),
+            promotorId = nuevo.Id
+        })).EnsureSuccessStatusCode();
+
+        var cliente = await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync();
+        Assert.Equal(nuevo.Id, cliente.GetProperty("promotorId").GetString());
     }
 
     [Fact]

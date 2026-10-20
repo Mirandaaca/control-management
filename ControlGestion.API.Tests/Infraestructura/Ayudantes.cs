@@ -73,11 +73,11 @@ public static class Ayudantes
         return problema;
     }
 
-    public static async Task<int> CrearZonaAsync(this HttpClient admin, string? supervisorId = null)
+    public static async Task<int> CrearZonaAsync(this HttpClient admin, string? promotorId = null)
     {
         var codigo = Unico("Z");
         var respuesta = await admin.PostAsJsonAsync("/api/zonas",
-            new { nombre = $"Zona {codigo}", codigo, idSupervisor = supervisorId });
+            new { nombre = $"Zona {codigo}", codigo, promotorId });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }

@@ -1290,16 +1290,16 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("IdSupervisor")
-                        .HasColumnType("varchar(255)");
-
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PromotorId")
+                        .HasColumnType("varchar(255)");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IdSupervisor");
+                    b.HasIndex("PromotorId");
 
                     b.ToTable("Zonas");
                 });
@@ -1816,12 +1816,12 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.Zona", b =>
                 {
-                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Supervisor")
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
                         .WithMany()
-                        .HasForeignKey("IdSupervisor")
+                        .HasForeignKey("PromotorId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Supervisor");
+                    b.Navigation("Promotor");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
