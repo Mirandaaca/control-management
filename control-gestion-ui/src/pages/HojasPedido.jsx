@@ -44,7 +44,7 @@ export default function HojasPedido() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/productos').then(r => setProductos(r.data)),
     ]);

@@ -40,7 +40,7 @@ export default function Eventos() {
   useEffect(() => {
     Promise.all([
       api.get('/eventos/tipos').then(r => setTipos(r.data)),
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
     ]);
     fetchEventos();
   }, []);

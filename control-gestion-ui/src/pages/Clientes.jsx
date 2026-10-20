@@ -34,9 +34,10 @@ export default function Clientes() {
     const params = {};
     if (filtros.zonaId) params.zonaId = filtros.zonaId;
     if (filtros.estadoId) params.estadoId = filtros.estadoId;
-    if (filtros.soloRevisita) params.soloRevisita = true;
+    if (filtros.soloRevisita) params.porVisitar = true;
+    params.tamano = 100;
     return api.get('/clientes', { params }).then((r) => {
-      setClientes(r.data);
+      setClientes(r.data.items);
       setLoading(false);
     });
   };
@@ -89,7 +90,7 @@ export default function Clientes() {
       nombreCompleto: c.nombreCompleto, razonSocial: c.razonSocial ?? '',
       nit: c.nit ?? '', telefono: c.telefono, email: c.email ?? '',
       direccionTexto: c.direccionTexto, latitud: String(c.latitud), longitud: String(c.longitud),
-      zonaId: String(c.zonaId), promotorId: c.promotorId ?? '',
+      zonaId: String(c.zona?.id ?? ''), promotorId: c.promotor?.id ?? '',
       diasRevisita: c.diasRevisita, tieneCredito: c.tieneCredito,
       limiteCredito: c.limiteCredito, estadoClienteId: c.estadoClienteId,
     });
@@ -251,9 +252,9 @@ export default function Clientes() {
               <Td>
                 <span
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: c.estadoCliente?.color + '22', color: c.estadoCliente?.color }}
+                  style={{ backgroundColor: c.estado?.color + '22', color: c.estado?.color }}
                 >
-                  {c.estadoCliente?.nombre}
+                  {c.estado?.nombre}
                 </span>
               </Td>
               <Td>{c.telefono}</Td>

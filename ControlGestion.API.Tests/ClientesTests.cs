@@ -20,7 +20,10 @@ public class ClientesTests(ApiDePrueba api)
     };
 
     private static async Task<List<JsonElement>> ListarAsync(HttpClient cliente, string consulta = "") =>
-        (await (await cliente.GetAsync($"/api/clientes{consulta}")).LeerJsonAsync()).EnumerateArray().ToList();
+        (await (await cliente.GetAsync($"/api/clientes{consulta}")).LeerJsonAsync()).GetProperty("items").EnumerateArray().ToList();
+
+    private static async Task<List<int>> IdsAsync(HttpClient cliente, string consulta = "") =>
+        (await ListarAsync(cliente, consulta)).Select(c => c.GetProperty("id").GetInt32()).ToList();
 
     [Fact]
     public async Task Registrar_un_cliente_le_da_su_codigo_y_se_puede_consultar()
@@ -36,7 +39,7 @@ public class ClientesTests(ApiDePrueba api)
         var id = creado.GetProperty("id").GetInt32();
         var leido = await (await operador.GetAsync($"/api/clientes/{id}")).LeerJsonAsync();
         Assert.Equal("71234567", leido.GetProperty("telefono").GetString());
-        Assert.Equal(zonaId, leido.GetProperty("zonaId").GetInt32());
+        Assert.Equal(zonaId, leido.GetProperty("zona").GetProperty("id").GetInt32());
     }
 
     [Fact]
@@ -81,7 +84,7 @@ public class ClientesTests(ApiDePrueba api)
         })).EnsureSuccessStatusCode();
 
         var cliente = await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync();
-        Assert.Equal(nuevo.Id, cliente.GetProperty("promotorId").GetString());
+        Assert.Equal(nuevo.Id, cliente.GetProperty("promotor").GetProperty("id").GetString());
     }
 
     [Fact]
@@ -93,9 +96,69 @@ public class ClientesTests(ApiDePrueba api)
         var deA = await operador.CrearClienteAsync(zonaA);
         var deB = await operador.CrearClienteAsync(zonaB);
 
-        var ids = (await ListarAsync(operador, $"?zonaId={zonaA}")).Select(c => c.GetProperty("id").GetInt32()).ToList();
+        var ids = await IdsAsync(operador, $"?zonaId={zonaA}");
 
         Assert.Contains(deA, ids);
         Assert.DoesNotContain(deB, ids);
+    }
+
+    [Fact]
+    public async Task Un_promotor_ve_solo_los_clientes_de_su_cartera()
+    {
+        var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
+        var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaA = await operador.CrearZonaAsync(promotorA.Id);
+        var zonaB = await operador.CrearZonaAsync(promotorB.Id);
+        var deA = await operador.CrearClienteAsync(zonaA, promotorA.Id);
+        var deB = await operador.CrearClienteAsync(zonaB, promotorB.Id);
+        using var clienteA = api.ClienteCon(promotorA.Token);
+
+        var lista = await IdsAsync(clienteA, "?tamano=100");
+        var opciones = (await (await clienteA.GetAsync("/api/clientes/opciones")).LeerJsonAsync())
+            .EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
+
+        Assert.Contains(deA, lista);
+        Assert.DoesNotContain(deB, lista);
+        Assert.Contains(deA, opciones);
+        Assert.DoesNotContain(deB, opciones);
+        await (await clienteA.GetAsync($"/api/clientes/{deB}")).ProblemaAsync(404, "no_encontrado");
+        await (await clienteA.PutAsJsonAsync($"/api/clientes/{deB}", Cliente(zonaB))).ProblemaAsync(404, "no_encontrado");
+        Assert.Contains(deB, await IdsAsync(operador, $"?zonaId={zonaB}"));
+    }
+
+    [Fact]
+    public async Task La_busqueda_no_distingue_tildes_ni_mayusculas_y_tambien_busca_por_codigo()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var marca = Ayudantes.Unico("Ñ");
+        var respuesta = await operador.PostAsJsonAsync("/api/clientes", new
+        {
+            nombreCompleto = $"María Ángela {marca}", telefono = "70011223", direccionTexto = "Plan 3000",
+            latitud = -17.80m, longitud = -63.15m, zonaId
+        });
+        var creado = await respuesta.LeerJsonAsync();
+        var id = creado.GetProperty("id").GetInt32();
+        var codigo = creado.GetProperty("codigo").GetString();
+
+        Assert.Contains(id, await IdsAsync(operador, $"?buscar=maria angela {marca.ToLowerInvariant()}"));
+        Assert.Contains(id, await IdsAsync(operador, $"?buscar={codigo}"));
+        Assert.DoesNotContain(id, await IdsAsync(operador, $"?buscar=no-existe-{marca}"));
+    }
+
+    [Fact]
+    public async Task La_lista_viene_paginada_con_el_total()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        for (var i = 0; i < 3; i++) await operador.CrearClienteAsync(zonaId);
+
+        var pagina = await (await operador.GetAsync($"/api/clientes?zonaId={zonaId}&tamano=2&pagina=2")).LeerJsonAsync();
+
+        Assert.Equal(3, pagina.GetProperty("total").GetInt32());
+        Assert.Equal(2, pagina.GetProperty("totalPaginas").GetInt32());
+        Assert.Single(pagina.GetProperty("items").EnumerateArray());
+        await (await operador.GetAsync("/api/clientes?tamano=500")).ProblemaAsync(400, "validacion");
     }
 }

@@ -79,7 +79,7 @@ export default function Rutas() {
   useEffect(() => {
     Promise.all([
       api.get('/zonas').then(r => setZonas(r.data)),
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
     ]);
     fetchRutas();
   }, []);
