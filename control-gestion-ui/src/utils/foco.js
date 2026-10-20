@@ -6,6 +6,7 @@
 export function mostrarPrimerProblema(contenedor) {
   const problema = contenedor?.querySelector('[aria-invalid="true"], [role="alert"], [role="status"]');
   if (!problema) return;
-  problema.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const sinAnimacion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  problema.scrollIntoView({ block: 'center', behavior: sinAnimacion ? 'auto' : 'smooth' });
   if (problema.matches('input, select, textarea, button')) problema.focus({ preventScroll: true });
 }

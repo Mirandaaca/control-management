@@ -219,7 +219,7 @@ export default function Clientes() {
     try {
       const estadoClienteId = cambioEstado.valor === EN_EL_CICLO ? null : Number(cambioEstado.valor);
       const { data } = await api.put(`/clientes/${cambioEstado.cliente.id}/estado`, { estadoClienteId });
-      setAviso(`${data.nombreCompleto} quedó en "${data.estado.nombre}".`);
+      setAviso(`${data.nombreCompleto} quedó en “${data.estado.nombre}”.`);
       setCambioEstado(null);
       cargar();
     } catch (err) {

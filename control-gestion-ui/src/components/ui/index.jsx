@@ -167,11 +167,17 @@ export function Alert({ children, type = 'error', className = '' }) {
 
 const anchos = { md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
 
-/** Ventana modal: atrapa el foco, se cierra con Escape o con la X, y devuelve el foco al botón que la abrió. */
+/**
+ * Ventana modal: atrapa el foco, se cierra con Escape o con la X, y devuelve el foco al botón que la abrió. Un clic
+ * fuera no la cierra: perdería lo que se escribió en un formulario.
+ */
 export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, ancho = 'md' }) {
   return (
     <Dialog open={abierto} onOpenChange={(abre) => { if (!abre) onCerrar(); }}>
-      <DialogContent className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}>
+      <DialogContent
+        className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
           {descripcion

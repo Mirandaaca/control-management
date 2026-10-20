@@ -6,9 +6,13 @@ const SANTA_CRUZ = [-17.7833, -63.1821];
 
 const redondear = (n) => Math.round(n * 1e6) / 1e6;
 
+// La rueda del mouse acerca el mapa solo después de un clic en él: si no, dentro de un formulario con scroll, quien
+// desplaza el formulario termina acercando el mapa.
 function AlHacerClic({ onCambiar }) {
-  useMapEvents({
+  const mapa = useMapEvents({
     click: (e) => onCambiar({ latitud: redondear(e.latlng.lat), longitud: redondear(e.latlng.lng) }),
+    focus: () => mapa.scrollWheelZoom.enable(),
+    blur: () => mapa.scrollWheelZoom.disable(),
   });
   return null;
 }
@@ -38,7 +42,7 @@ export default function MapaUbicacion({ valor, onCambiar, alto = 260, etiqueta =
       <MapContainer
         center={punto ?? SANTA_CRUZ}
         zoom={punto ? 16 : 13}
-        scrollWheelZoom={Boolean(onCambiar)}
+        scrollWheelZoom={false}
         className={`h-full w-full ${onCambiar ? 'cursor-crosshair' : ''}`}
       >
         <TileLayer
