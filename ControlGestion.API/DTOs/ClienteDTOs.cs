@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.DTOs;
 
-public record GuardarClienteDTO
+public record GuardarClienteDTO : IValidatableObject
 {
     [Required(ErrorMessage = "El nombre es obligatorio.")]
     [MaxLength(150, ErrorMessage = "El nombre no puede superar los 150 caracteres.")]
@@ -26,8 +26,14 @@ public record GuardarClienteDTO
     [MaxLength(300, ErrorMessage = "La dirección no puede superar los 300 caracteres.")]
     public string DireccionTexto { get; init; } = string.Empty;
 
-    public decimal Latitud { get; init; }
-    public decimal Longitud { get; init; }
+    // Sin ubicación no se guarda el cliente: en la app la da el GPS y en el panel se marca en el mapa.
+    [Required(ErrorMessage = "Marca la ubicación del cliente en el mapa.")]
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Required(ErrorMessage = "Marca la ubicación del cliente en el mapa.")]
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }
@@ -37,6 +43,13 @@ public record GuardarClienteDTO
     public bool TieneCredito { get; init; }
     public decimal LimiteCredito { get; init; }
     public int EstadoClienteId { get; init; } = 1;
+
+    // 0,0 es lo que guardaba el formulario viejo con los campos vacíos: un punto en el océano, no una ubicación real.
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (Latitud == 0 && Longitud == 0)
+            yield return new ValidationResult("Marca la ubicación del cliente en el mapa.", [nameof(Latitud)]);
+    }
 }
 
 /// <summary>Filtros de la lista de clientes (query string). Buscar compara con nombre, código, celular, razón social y NIT.</summary>

@@ -161,4 +161,21 @@ public class ClientesTests(ApiDePrueba api)
         Assert.Single(pagina.GetProperty("items").EnumerateArray());
         await (await operador.GetAsync("/api/clientes?tamano=500")).ProblemaAsync(400, "validacion");
     }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(0.0, 0.0)]
+    [InlineData(200.0, -63.18)]
+    public async Task Sin_una_ubicacion_valida_no_se_guarda_el_cliente(double? latitud, double? longitud)
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+
+        var problema = await (await operador.PostAsJsonAsync("/api/clientes", new
+        {
+            nombreCompleto = "Sin ubicación", telefono = "70000001", direccionTexto = "Calle", latitud, longitud, zonaId
+        })).ProblemaAsync(400, "validacion");
+
+        Assert.True(problema.GetProperty("errors").TryGetProperty("latitud", out _));
+    }
 }

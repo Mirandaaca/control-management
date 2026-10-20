@@ -94,8 +94,8 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         cliente.Telefono = dto.Telefono.Trim();
         cliente.Email = dto.Email?.Trim();
         cliente.DireccionTexto = dto.DireccionTexto.Trim();
-        cliente.Latitud = dto.Latitud;
-        cliente.Longitud = dto.Longitud;
+        cliente.Latitud = dto.Latitud!.Value;
+        cliente.Longitud = dto.Longitud!.Value;
         cliente.ZonaId = dto.ZonaId;
         cliente.PromotorId = string.IsNullOrEmpty(dto.PromotorId) ? null : dto.PromotorId;
         cliente.DiasRevisita = dto.DiasRevisita;

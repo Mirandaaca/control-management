@@ -42,7 +42,8 @@ public class NumeracionTests(ApiDePrueba api)
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(8, i => operador.PostAsJsonAsync("/api/clientes", new
         {
-            nombreCompleto = $"Cliente simultáneo {i}", telefono = "70000000", direccionTexto = "Calle", zonaId
+            nombreCompleto = $"Cliente simultáneo {i}", telefono = $"7100000{i}", direccionTexto = "Calle",
+            latitud = -17.78m, longitud = -63.18m, zonaId
         }));
 
         Assert.All(respuestas, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
