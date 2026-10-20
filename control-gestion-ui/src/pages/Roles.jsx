@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { LoaderCircle, Lock, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -10,6 +11,7 @@ import {
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
+import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
 
 const { seguridad } = PERMISOS;
@@ -85,6 +87,7 @@ export default function Roles() {
   const [aviso, setAviso] = useState('');
 
   const [editor, setEditor] = useState(null);
+  const editorRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorEditor, setErrorEditor] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -140,8 +143,11 @@ export default function Roles() {
       const campos = erroresPorCampo(err);
       const campoDelCodigo = CAMPO_DEL_ERROR[err.response?.data?.codigo];
       if (campoDelCodigo) campos[campoDelCodigo] = err.response.data.detail;
-      setErroresCampo(campos);
-      if (Object.keys(campos).length === 0) setErrorEditor(mensajeDeError(err, 'No se pudo guardar el rol.'));
+      flushSync(() => {
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorEditor(mensajeDeError(err, 'No se pudo guardar el rol.'));
+      });
+      mostrarPrimerProblema(editorRef.current);
     } finally {
       setGuardando(false);
     }
@@ -258,7 +264,7 @@ export default function Roles() {
         )}
       >
         {editor && (
-          <form id="editor-rol" onSubmit={guardar} className="space-y-4" noValidate>
+          <form id="editor-rol" ref={editorRef} onSubmit={guardar} className="space-y-4" noValidate>
             {errorEditor && <Alert type="error">{errorEditor}</Alert>}
             <Input
               label="Nombre del rol"

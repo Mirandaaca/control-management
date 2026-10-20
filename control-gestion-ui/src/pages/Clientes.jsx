@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Eye, LoaderCircle, LocateFixed, Pencil, Plus, Store, Tag } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -13,6 +14,7 @@ import {
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { mostrarPrimerProblema } from '../utils/foco';
 import { diasDesdeHoy, formatearFecha, formatearMonto } from '../utils/formato';
 
 const { ventas, seguridad } = PERMISOS;
@@ -72,6 +74,7 @@ export default function Clientes() {
 
   const [detalle, setDetalle] = useState(null);
   const [formulario, setFormulario] = useState(null);
+  const formularioRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [avisoTelefono, setAvisoTelefono] = useState('');
@@ -188,14 +191,17 @@ export default function Clientes() {
       cargar();
     } catch (err) {
       const { codigo, detail } = err.response?.data ?? {};
-      if (codigo === 'telefono_repetido') {
-        setAvisoTelefono(detail);
-        return;
-      }
-      const campos = erroresPorCampo(err);
-      if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
-      setErroresCampo(campos);
-      if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el cliente.'));
+      flushSync(() => {
+        if (codigo === 'telefono_repetido') {
+          setAvisoTelefono(detail);
+          return;
+        }
+        const campos = erroresPorCampo(err);
+        if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el cliente.'));
+      });
+      mostrarPrimerProblema(formularioRef.current);
     } finally {
       setGuardando(false);
     }
@@ -383,7 +389,7 @@ export default function Clientes() {
         )}
       >
         {formulario && (
-          <form id="formulario-cliente" onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
+          <form id="formulario-cliente" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
             {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
             {zonasElegibles.length === 0 && (
               <Alert type="warning">No tienes zonas asignadas: pídele al gerente general que te asigne una.</Alert>
