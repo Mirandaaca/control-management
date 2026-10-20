@@ -12,7 +12,7 @@ namespace ControlGestion.API.Tests;
 public class AutenticacionTests(ApiDePrueba api)
 {
     [Fact]
-    public async Task Login_correcto_devuelve_token_y_roles()
+    public async Task Login_correcto_devuelve_el_token_y_la_sesion_con_los_permisos()
     {
         using var cliente = api.CreateClient();
         var respuesta = await cliente.PostAsJsonAsync("/api/auth/login",
@@ -21,7 +21,11 @@ public class AutenticacionTests(ApiDePrueba api)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.LeerJsonAsync();
         Assert.False(string.IsNullOrEmpty(cuerpo.GetProperty("token").GetString()));
-        Assert.Contains(Roles.Administrador, cuerpo.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        var usuario = cuerpo.GetProperty("usuario");
+        Assert.Equal(Roles.Administrador, usuario.GetProperty("rol").GetString());
+        var permisos = usuario.GetProperty("permisos").EnumerateArray().Select(p => p.GetString()).ToList();
+        Assert.Equal(14, permisos.Count);
+        Assert.Contains(Permisos.Seguridad.CrearUsuario, permisos);
     }
 
     [Fact]
