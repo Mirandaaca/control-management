@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { PANTALLAS } from './context/permisos';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -23,18 +24,18 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/clientes" element={<PrivateRoute><Clientes /></PrivateRoute>} />
-          <Route path="/hojas-pedido" element={<PrivateRoute><HojasPedido /></PrivateRoute>} />
-          <Route path="/inventario" element={<PrivateRoute><Inventario /></PrivateRoute>} />
-          <Route path="/pedidos" element={<PrivateRoute><Pedidos /></PrivateRoute>} />
-          <Route path="/eventos" element={<PrivateRoute><Eventos /></PrivateRoute>} />
-          <Route path="/cobranzas" element={<PrivateRoute><Cobranzas /></PrivateRoute>} />
-          <Route path="/rutas" element={<PrivateRoute><Rutas /></PrivateRoute>} />
-          <Route path="/usuarios" element={<PrivateRoute roles={['Admin']}><Usuarios /></PrivateRoute>} />
-          <Route path="/zonas" element={<PrivateRoute><Zonas /></PrivateRoute>} />
-          <Route path="/productos" element={<PrivateRoute><Productos /></PrivateRoute>} />
-          <Route path="/reportes" element={<PrivateRoute roles={['Admin']}><Reportes /></PrivateRoute>} />
-          <Route path="/configuraciones" element={<PrivateRoute roles={['Admin']}><Configuraciones /></PrivateRoute>} />
+          <Route path="/clientes" element={<PrivateRoute permisos={PANTALLAS.clientes}><Clientes /></PrivateRoute>} />
+          <Route path="/hojas-pedido" element={<PrivateRoute permisos={PANTALLAS.hojasPedido}><HojasPedido /></PrivateRoute>} />
+          <Route path="/inventario" element={<PrivateRoute permisos={PANTALLAS.inventario}><Inventario /></PrivateRoute>} />
+          <Route path="/pedidos" element={<PrivateRoute permisos={PANTALLAS.pedidos}><Pedidos /></PrivateRoute>} />
+          <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
+          <Route path="/cobranzas" element={<PrivateRoute permisos={PANTALLAS.cobranzas}><Cobranzas /></PrivateRoute>} />
+          <Route path="/rutas" element={<PrivateRoute permisos={PANTALLAS.rutas}><Rutas /></PrivateRoute>} />
+          <Route path="/usuarios" element={<PrivateRoute permisos={PANTALLAS.usuarios}><Usuarios /></PrivateRoute>} />
+          <Route path="/zonas" element={<PrivateRoute permisos={PANTALLAS.zonas}><Zonas /></PrivateRoute>} />
+          <Route path="/productos" element={<PrivateRoute permisos={PANTALLAS.productos}><Productos /></PrivateRoute>} />
+          <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />
+          <Route path="/configuraciones" element={<PrivateRoute permisos={PANTALLAS.configuraciones}><Configuraciones /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

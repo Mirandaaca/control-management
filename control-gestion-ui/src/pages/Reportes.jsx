@@ -4,12 +4,24 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card } from '../components/ui';
 import { diaEnBolivia, formatearFecha } from '../utils/formato';
+import { useAuth } from '../context/auth';
+import { PERMISOS } from '../context/permisos';
+import { leerToken } from '../api/sesion';
 
 const METHOD_COLOR = { POST: 'blue', PUT: 'yellow', DELETE: 'red' };
-const TABS = ['Ventas', 'Cobranzas', 'Inventario', 'Promotores', 'Auditoría'];
+// Cada pestaña se ve con el permiso de su reporte; así nadie abre una pestaña que la API le va a negar.
+const TABS = [
+  { nombre: 'Ventas', permisos: [PERMISOS.reportes.ventasPorPromotor, PERMISOS.reportes.ventasPorZona] },
+  { nombre: 'Cobranzas', permisos: [PERMISOS.cobranzas.generarReporte] },
+  { nombre: 'Inventario', permisos: [PERMISOS.reportes.inventario] },
+  { nombre: 'Promotores', permisos: [PERMISOS.reportes.ventasPorPromotor] },
+  { nombre: 'Auditoría', permisos: [PERMISOS.seguridad.consultarBitacora] },
+];
 
 export default function Reportes() {
-  const [tab, setTab] = useState('Ventas');
+  const { tiene } = useAuth();
+  const pestanas = TABS.filter((t) => tiene(...t.permisos)).map((t) => t.nombre);
+  const [tab, setTab] = useState(() => pestanas[0]);
   const [ventas, setVentas] = useState(null);
   const [cobranzas, setCobranzas] = useState(null);
   const [inventario, setInventario] = useState(null);
@@ -54,7 +66,7 @@ export default function Reportes() {
 
   const handleExport = async (tipo) => {
     const p = new URLSearchParams({ desde: filtros.desde, hasta: filtros.hasta });
-    const token = localStorage.getItem('token');
+    const token = leerToken();
     const res = await fetch(`http://localhost:5124/api/reportes/export/${tipo}?${p}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -93,7 +105,7 @@ export default function Reportes() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-5 border-b border-slate-200">
-        {TABS.map(t => (
+        {pestanas.map(t => (
           <button key={t} onClick={() => { if (t !== tab) { setLoading(true); setTab(t); } }}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
               tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'

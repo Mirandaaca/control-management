@@ -5,6 +5,8 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
 import { leerFechaUtc } from '../utils/formato';
+import { useAuth } from '../context/auth';
+import { ELIGEN_PROMOTOR } from '../context/permisos';
 
 const EMPTY = {
   nombreCompleto: '', razonSocial: '', nit: '', telefono: '', email: '',
@@ -13,6 +15,9 @@ const EMPTY = {
 };
 
 export default function Clientes() {
+  const { tiene } = useAuth();
+  // La lista de promotores es solo para quien asigna; el promotor registra clientes sin elegir a nadie.
+  const eligePromotor = tiene(...ELIGEN_PROMOTOR);
   const [clientes, setClientes] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [estados, setEstados] = useState([]);
@@ -40,11 +45,11 @@ export default function Clientes() {
     Promise.all([
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/clientes/estados').then(r => setEstados(r.data)),
-      api.get('/usuarios/activos').then(r => setPromotores(r.data))
+      eligePromotor && api.get('/usuarios/promotores').then(r => setPromotores(r.data))
         .catch(err => setError(mensajeDeError(err, 'No se pudo cargar la lista de promotores.'))),
     ]);
     fetchClientes();
-  }, []);
+  }, [eligePromotor]);
 
   const handleFiltrar = (e) => { e.preventDefault(); setLoading(true); fetchClientes(); };
 
@@ -189,14 +194,14 @@ export default function Clientes() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
+              {eligePromotor && <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Promotor asignado</label>
                 <select value={form.promotorId} onChange={e => setForm({ ...form, promotorId: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">Sin asignar</option>
-                  {promotores.map(p => <option key={p.id} value={p.id}>{p.nombreCompleto} ({p.roles?.[0]})</option>)}
+                  {promotores.map(p => <option key={p.id} value={p.id}>{p.nombreCompleto}</option>)}
                 </select>
-              </div>
+              </div>}
             </div>
             <Input label="Dirección *" value={form.direccionTexto} onChange={e => setForm({ ...form, direccionTexto: e.target.value })} required />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

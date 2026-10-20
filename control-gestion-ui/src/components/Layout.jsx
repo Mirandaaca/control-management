@@ -5,38 +5,40 @@ import {
   PanelLeftOpen, Route, Settings, Shield, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, Users, Wallet, X,
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
+import { PANTALLAS } from '../context/permisos';
 
-// Los módulos siguen el orden de la tesis (docs/alcance.md). Uno con una sola pantalla visible se muestra como enlace
-// directo; con dos o más, como un grupo que se abre y se cierra.
+// Los módulos siguen el orden de la tesis (docs/alcance.md). Cada pantalla se ve si el usuario tiene uno de sus
+// permisos. Un módulo con una sola pantalla visible se muestra como enlace directo; con dos o más, como un grupo que
+// se abre y se cierra.
 const modulos = [
   { id: 'inicio', seccion: 'inicio', items: [{ to: '/dashboard', label: 'Inicio', icon: House }] },
   { id: 'pedidos', seccion: 'operacion', nombre: 'Pedidos', icon: Package, items: [
-    { to: '/pedidos', label: 'Pedidos', icon: Package },
+    { to: '/pedidos', label: 'Pedidos', icon: Package, permisos: PANTALLAS.pedidos },
   ] },
   { id: 'ventas', seccion: 'operacion', nombre: 'Ventas', icon: ShoppingCart, items: [
-    { to: '/clientes', label: 'Clientes', icon: Store },
-    { to: '/hojas-pedido', label: 'Hojas de pedido', icon: ClipboardList },
-    { to: '/inventario', label: 'Inventario', icon: Boxes },
+    { to: '/clientes', label: 'Clientes', icon: Store, permisos: PANTALLAS.clientes },
+    { to: '/hojas-pedido', label: 'Hojas de pedido', icon: ClipboardList, permisos: PANTALLAS.hojasPedido },
+    { to: '/inventario', label: 'Inventario', icon: Boxes, permisos: PANTALLAS.inventario },
   ] },
   { id: 'cobranzas', seccion: 'operacion', nombre: 'Cobranzas', icon: Wallet, items: [
-    { to: '/cobranzas', label: 'Cobranzas', icon: Wallet },
+    { to: '/cobranzas', label: 'Cobranzas', icon: Wallet, permisos: PANTALLAS.cobranzas },
   ] },
   { id: 'eventos', seccion: 'operacion', nombre: 'Eventos', icon: TriangleAlert, items: [
-    { to: '/eventos', label: 'Eventos', icon: TriangleAlert },
+    { to: '/eventos', label: 'Eventos', icon: TriangleAlert, permisos: PANTALLAS.eventos },
   ] },
   { id: 'territorio', seccion: 'operacion', nombre: 'Territorio', icon: MapPinned, items: [
-    { to: '/rutas', label: 'Rutas', icon: Route },
+    { to: '/rutas', label: 'Rutas', icon: Route, permisos: PANTALLAS.rutas },
   ] },
   { id: 'reportes', seccion: 'operacion', nombre: 'Reportes', icon: ChartColumn, items: [
-    { to: '/reportes', label: 'Reportes', icon: ChartColumn, roles: ['Admin'] },
+    { to: '/reportes', label: 'Reportes', icon: ChartColumn, permisos: PANTALLAS.reportes },
   ] },
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
-    { to: '/zonas', label: 'Zonas', icon: Mapa },
-    { to: '/productos', label: 'Productos', icon: Tag },
-    { to: '/configuraciones', label: 'Configuraciones', icon: Settings, roles: ['Admin'] },
+    { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
+    { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
+    { to: '/configuraciones', label: 'Configuraciones', icon: Settings, permisos: PANTALLAS.configuraciones },
   ] },
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [
-    { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['Admin'] },
+    { to: '/usuarios', label: 'Usuarios', icon: Users, permisos: PANTALLAS.usuarios },
   ] },
 ];
 
@@ -194,16 +196,16 @@ function MenuReplegado({ visibles, ruta, mostrarEtiqueta, ocultarEtiqueta }) {
   );
 }
 
-function Avatar({ user }) {
+function Avatar({ usuario }) {
   return (
     <span className="grid place-items-center w-8 h-8 rounded-full bg-marca-600 text-xs font-bold text-white shrink-0" aria-hidden="true">
-      {user?.nombreCompleto?.[0]?.toUpperCase() ?? 'U'}
+      {usuario?.nombreCompleto?.[0]?.toUpperCase() ?? 'U'}
     </span>
   );
 }
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth();
+  const { usuario, tiene, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -230,16 +232,16 @@ export default function Layout({ children }) {
   }, [menuAbierto]);
 
   const visibles = modulos
-    .map((m) => ({ ...m, items: m.items.filter((i) => !i.roles || i.roles.some((r) => user?.roles?.includes(r))) }))
+    .map((m) => ({ ...m, items: m.items.filter((i) => !i.permisos || tiene(...i.permisos)) }))
     .filter((m) => m.items.length > 0);
 
   const pieCompleto = (
     <div className="px-3 py-4 border-t border-marca-800">
       <div className="flex items-center gap-3 px-3 mb-3">
-        <Avatar user={user} />
+        <Avatar usuario={usuario} />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-white truncate">{user?.nombreCompleto}</p>
-          <p className="text-xs text-marca-200 truncate">{user?.roles?.[0]}</p>
+          <p className="text-sm font-medium text-white truncate">{usuario?.nombreCompleto}</p>
+          <p className="text-xs text-marca-200 truncate">{usuario?.rol}</p>
         </div>
       </div>
       <button
@@ -284,14 +286,14 @@ export default function Layout({ children }) {
           <div className="flex flex-col items-center gap-2 py-4 border-t border-marca-800">
             <span
               tabIndex={0}
-              aria-label={`${user?.nombreCompleto ?? ''}, ${user?.roles?.[0] ?? ''}`}
-              onMouseEnter={(e) => mostrarEtiqueta(e, user?.nombreCompleto ?? '')}
-              onFocus={(e) => mostrarEtiqueta(e, user?.nombreCompleto ?? '')}
+              aria-label={`${usuario?.nombreCompleto ?? ''}, ${usuario?.rol ?? ''}`}
+              onMouseEnter={(e) => mostrarEtiqueta(e, usuario?.nombreCompleto ?? '')}
+              onFocus={(e) => mostrarEtiqueta(e, usuario?.nombreCompleto ?? '')}
               onMouseLeave={ocultarEtiqueta}
               onBlur={ocultarEtiqueta}
               className={`rounded-full ${foco}`}
             >
-              <Avatar user={user} />
+              <Avatar usuario={usuario} />
             </span>
             <button
               onClick={handleLogout}
