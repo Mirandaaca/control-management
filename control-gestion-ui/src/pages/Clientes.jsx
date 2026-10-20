@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { leerFechaUtc } from '../utils/formato';
 
 const EMPTY = {
   nombreCompleto: '', razonSocial: '', nit: '', telefono: '', email: '',
@@ -98,7 +99,7 @@ export default function Clientes() {
 
   const proximaRevisitaLabel = (fecha) => {
     if (!fecha) return null;
-    const dias = Math.ceil((new Date(fecha) - new Date()) / 86400000);
+    const dias = Math.ceil((leerFechaUtc(fecha) - new Date()) / 86400000);
     if (dias < 0) return <Badge color="red">Vencida {Math.abs(dias)}d</Badge>;
     if (dias === 0) return <Badge color="yellow">Hoy</Badge>;
     if (dias <= 3) return <Badge color="yellow">En {dias}d</Badge>;

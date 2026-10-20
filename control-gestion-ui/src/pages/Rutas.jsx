@@ -6,6 +6,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
 import { Table, Td, Tr } from '../components/Table';
+import { formatearDia, formatearHora } from '../utils/formato';
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -271,7 +272,7 @@ export default function Rutas() {
                         )}
                       </div>
                       {d.horaVisita && (
-                        <p className="text-xs text-slate-400 mt-1">{new Date(d.horaVisita).toLocaleTimeString()}</p>
+                        <p className="text-xs text-slate-400 mt-1">{formatearHora(d.horaVisita)}</p>
                       )}
                     </div>
                   ))}
@@ -369,7 +370,7 @@ export default function Rutas() {
               <Td><span className="font-medium text-slate-800">{r.nombre}</span></Td>
               <Td>{r.zona?.nombre}</Td>
               <Td>{r.promotor?.nombreCompleto}</Td>
-              <Td>{new Date(r.fechaPlanificada).toLocaleDateString()}</Td>
+              <Td>{formatearDia(r.fechaPlanificada)}</Td>
               <Td>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden w-20">

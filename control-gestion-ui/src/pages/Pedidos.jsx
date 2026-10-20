@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -262,7 +263,7 @@ export default function Pedidos() {
                   <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: h.estadoPedido?.color }} />
                   <div>
                     <span className="font-medium">{h.estadoPedido?.nombre}</span>
-                    <span className="text-slate-400 ml-2">{new Date(h.fechaCambio).toLocaleString()}</span>
+                    <span className="text-slate-400 ml-2">{formatearFecha(h.fechaCambio, { hora: true })}</span>
                     {h.observacion && <p className="text-slate-500">{h.observacion}</p>}
                   </div>
                 </div>
@@ -289,7 +290,7 @@ export default function Pedidos() {
                   {p.estadoPedido?.nombre}
                 </span>
               </Td>
-              <Td>{new Date(p.fechaRegistro).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(p.fechaRegistro)}</Td>
               <Td>
                 <div className="flex gap-1.5">
                   <Btn onClick={() => handleVerDetalle(p.id)} variant="ghost">Ver</Btn>

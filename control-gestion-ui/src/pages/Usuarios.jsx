@@ -3,6 +3,7 @@ import api from '../api/axios';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -63,7 +64,7 @@ export default function Usuarios() {
                   {u.activo ? 'Activo' : 'Inactivo'}
                 </Badge>
               </Td>
-              <Td>{new Date(u.fechaCreacion).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(u.fechaCreacion)}</Td>
               <Td>
                 <div className="flex items-center gap-2">
                   <Btn onClick={() => toggleActivo(u.id)} variant="ghost">

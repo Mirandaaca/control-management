@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 const ESTADO_COLOR = { 0: 'gray', 1: 'green', 2: 'red' };
 const ESTADO_LABEL = { 0: 'Borrador', 1: 'Confirmada', 2: 'Anulada' };
@@ -307,7 +308,7 @@ export default function HojasPedido() {
               <Td><Badge color={TIPO_COLOR[hp.tipoVenta]}>{TIPO_LABEL[hp.tipoVenta]}</Badge></Td>
               <Td><span className="font-semibold text-slate-800">Bs. {hp.total?.toFixed(2)}</span></Td>
               <Td><Badge color={ESTADO_COLOR[hp.estadoHP]}>{ESTADO_LABEL[hp.estadoHP]}</Badge></Td>
-              <Td>{new Date(hp.fechaRegistro).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(hp.fechaRegistro)}</Td>
               <Td>
                 <div className="flex gap-1.5 flex-wrap">
                   <Btn onClick={() => handleVerDetalle(hp.id)} variant="ghost">Ver</Btn>

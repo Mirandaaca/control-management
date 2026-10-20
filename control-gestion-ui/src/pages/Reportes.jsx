@@ -3,6 +3,7 @@ import api from '../api/axios';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card } from '../components/ui';
+import { diaEnBolivia, formatearFecha } from '../utils/formato';
 
 const METHOD_COLOR = { POST: 'blue', PUT: 'yellow', DELETE: 'red' };
 const TABS = ['Ventas', 'Cobranzas', 'Inventario', 'Promotores', 'Auditoría'];
@@ -18,8 +19,8 @@ export default function Reportes() {
 
   // La fecha se calcula una sola vez, al montar: calcularla en cada render rompe la regla de pureza de React.
   const [filtros, setFiltros] = useState(() => ({
-    desde: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
-    hasta: new Date().toISOString().split('T')[0],
+    desde: diaEnBolivia(-30),
+    hasta: diaEnBolivia(),
     modulo: '',
   }));
 
@@ -277,7 +278,7 @@ export default function Reportes() {
                   <Td>{m.cantidad}</Td>
                   <Td>{m.stockResultante}</Td>
                   <Td>{m.usuario}</Td>
-                  <Td>{new Date(m.fecha).toLocaleDateString()}</Td>
+                  <Td>{formatearFecha(m.fecha)}</Td>
                 </Tr>
               ))}
             </Table>
@@ -318,7 +319,7 @@ export default function Reportes() {
                 <Td><Badge color={METHOD_COLOR[a.accion] ?? 'gray'}>{a.accion}</Badge></Td>
                 <Td>{a.modulo}</Td>
                 <Td mono>{a.direccionIp ?? '—'}</Td>
-                <Td>{new Date(a.fecha).toLocaleString()}</Td>
+                <Td>{formatearFecha(a.fecha, { hora: true })}</Td>
               </Tr>
             ))}
           </Table>
