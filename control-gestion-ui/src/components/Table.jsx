@@ -1,8 +1,8 @@
 /**
- * Tabla dentro de su tarjeta. "barra" va arriba (buscador y filtros); "estado" reemplaza a las filas mientras carga,
- * si no hay datos o si hubo un error.
+ * Tabla dentro de su tarjeta. "barra" va arriba (buscador y filtros) y "pie" abajo (paginación); "estado" reemplaza a
+ * las filas mientras carga, si no hay datos o si hubo un error.
  */
-export function Table({ headers, children, empty = 'Sin registros.', barra, estado }) {
+export function Table({ headers, children, empty = 'Sin registros.', barra, estado, pie }) {
   const sinFilas = !children || (Array.isArray(children) && children.length === 0);
   return (
     <div className="bg-white rounded-xl shadow-tarjeta border border-slate-200 overflow-hidden">
@@ -26,6 +26,7 @@ export function Table({ headers, children, empty = 'Sin registros.', barra, esta
             </table>
           </div>
           {sinFilas && <p className="text-center text-slate-600 text-sm py-10">{empty}</p>}
+          {pie}
         </>
       )}
     </div>

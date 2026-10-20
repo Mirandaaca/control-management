@@ -46,3 +46,21 @@ export function formatearDia(valor) {
 export function diaEnBolivia(desfaseDias = 0) {
   return diaISO.format(new Date(Date.now() + desfaseDias * 86400000));
 }
+
+const montoBolivia = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Un monto en bolivianos: "Bs 1.234,50". */
+export function formatearMonto(valor) {
+  return `Bs ${montoBolivia.format(Number(valor ?? 0))}`;
+}
+
+/**
+ * Cuántos días de calendario de Bolivia faltan para un momento (negativo si ya pasó). Se cuentan días, no horas:
+ * una visita para mañana a las 8 está "en 1 día" aunque falten 30 horas.
+ */
+export function diasDesdeHoy(valor) {
+  if (!valor) return null;
+  const fecha = leerFechaUtc(valor);
+  if (Number.isNaN(fecha.getTime())) return null;
+  return Math.round((Date.parse(diaISO.format(fecha)) - Date.parse(diaEnBolivia())) / 86400000);
+}

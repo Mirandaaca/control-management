@@ -1,5 +1,7 @@
 import { useId } from 'react';
-import { CircleAlert, CircleCheck, Inbox, Info, LoaderCircle, RefreshCw, Search, TriangleAlert, X } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Inbox, Info, LoaderCircle, RefreshCw, Search, TriangleAlert, X,
+} from 'lucide-react';
 import { Checkbox } from './checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
@@ -250,6 +252,26 @@ export function BarraDeFiltros({ children, resultado, hayFiltros, onLimpiar }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Página anterior y siguiente de una lista paginada en la API. */
+export function Paginacion({ pagina, totalPaginas, onCambiar }) {
+  if (totalPaginas <= 1) return null;
+  return (
+    <nav aria-label="Paginación" className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
+      <span>Página {pagina} de {totalPaginas}</span>
+      <div className="flex gap-2">
+        <Btn variant="outline" onClick={() => onCambiar(pagina - 1)} disabled={pagina <= 1}>
+          <ChevronLeft size={14} aria-hidden="true" />
+          Anterior
+        </Btn>
+        <Btn variant="outline" onClick={() => onCambiar(pagina + 1)} disabled={pagina >= totalPaginas}>
+          Siguiente
+          <ChevronRight size={14} aria-hidden="true" />
+        </Btn>
+      </div>
+    </nav>
   );
 }
 
