@@ -84,8 +84,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Cliente>()
             .Property(c => c.Longitud).HasPrecision(11, 8);
         builder.Entity<Cliente>()
-            .Property(c => c.LimiteCredito).HasPrecision(18, 2);
-        builder.Entity<Cliente>()
             .Property(c => c.SaldoPendiente).HasPrecision(18, 2);
         builder.Entity<Cliente>()
             .Property(c => c.VersionConcurrencia)

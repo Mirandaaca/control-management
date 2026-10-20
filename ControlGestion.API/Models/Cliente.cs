@@ -22,12 +22,9 @@ public class Cliente
     public string? PromotorId { get; set; }
     public ApplicationUser? Promotor { get; set; }
 
-    public int DiasRevisita { get; set; } = 15;
     public DateTime? UltimaVisita { get; set; }
     public DateTime? ProximaVisita { get; set; }
 
-    public bool TieneCredito { get; set; } = false;
-    public decimal LimiteCredito { get; set; } = 0;
     public decimal SaldoPendiente { get; set; } = 0;
 
     // Token de concurrencia (mismo patrón que Cobranza): dos pagos a la vez en cobranzas distintas de este

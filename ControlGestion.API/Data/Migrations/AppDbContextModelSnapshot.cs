@@ -208,9 +208,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("CreadoPorId")
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int>("DiasRevisita")
-                        .HasColumnType("int");
-
                     b.Property<string>("DireccionTexto")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -227,10 +224,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<decimal>("Latitud")
                         .HasPrecision(10, 8)
                         .HasColumnType("decimal(10,8)");
-
-                    b.Property<decimal>("LimiteCredito")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Longitud")
                         .HasPrecision(11, 8)
@@ -259,9 +252,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("Telefono")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<bool>("TieneCredito")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("UltimaVisita")
                         .HasColumnType("datetime(6)");

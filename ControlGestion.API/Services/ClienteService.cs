@@ -156,8 +156,5 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         cliente.Longitud = dto.Longitud!.Value;
         cliente.ZonaId = dto.ZonaId;
         cliente.PromotorId = promotorDeLaZona;
-        cliente.DiasRevisita = dto.DiasRevisita;
-        cliente.TieneCredito = dto.TieneCredito;
-        cliente.LimiteCredito = dto.LimiteCredito;
     }
 }

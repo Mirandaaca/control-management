@@ -96,7 +96,7 @@ public static class Ayudantes
     }
 
     /// <summary>Crea un cliente en la zona. Su promotor es el de la zona: para el cliente de un promotor, usa una zona suya.</summary>
-    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId, decimal limiteCredito = 1000)
+    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId)
     {
         var respuesta = await admin.PostAsJsonAsync("/api/clientes", new
         {
@@ -105,9 +105,7 @@ public static class Ayudantes
             direccionTexto = "Calle de prueba",
             latitud = -17.7833m,
             longitud = -63.1821m,
-            zonaId,
-            tieneCredito = limiteCredito > 0,
-            limiteCredito
+            zonaId
         });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();

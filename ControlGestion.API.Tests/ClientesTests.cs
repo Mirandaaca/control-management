@@ -326,4 +326,29 @@ public class ClientesTests(ApiDePrueba api)
 
         Assert.Equal("Ya existe otro cliente con ese celular.", problema.GetProperty("detail").GetString());
     }
+
+    [Fact]
+    public async Task Una_venta_es_una_visita_y_la_proxima_usa_los_dias_de_re_visita_generales()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var productoId = await operador.CrearProductoAsync(10m);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        (await operador.PutAsJsonAsync("/api/configuraciones/DiasRevisita", new { clave = "DiasRevisita", valor = "7" }))
+            .EnsureSuccessStatusCode();
+        try
+        {
+            // HP a crédito para un cliente sin límite de crédito: la validación credito_insuficiente ya no existe.
+            await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, 1);
+
+            var cliente = await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync();
+            var faltan = cliente.GetProperty("proximaVisita").GetDateTime() - DateTime.UtcNow;
+            Assert.InRange(faltan.TotalDays, 6.9, 7.1);
+            Assert.Equal("Activo", EstadoDe(cliente));
+        }
+        finally
+        {
+            await operador.DeleteAsync("/api/configuraciones/DiasRevisita");
+        }
+    }
 }

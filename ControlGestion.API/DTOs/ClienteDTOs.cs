@@ -42,9 +42,6 @@ public record GuardarClienteDTO : IValidatableObject
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }
 
-    public int DiasRevisita { get; init; } = 15;
-    public bool TieneCredito { get; init; }
-    public decimal LimiteCredito { get; init; }
 
     // 0,0 es lo que guardaba el formulario viejo con los campos vacíos: un punto en el océano, no una ubicación real.
     public IEnumerable<ValidationResult> Validate(ValidationContext contexto)

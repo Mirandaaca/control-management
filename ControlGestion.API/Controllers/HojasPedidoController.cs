@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
@@ -136,25 +137,21 @@ public class HojasPedidoController : ControllerBase
         if (hp.EstadoHP != EstadoHP.Borrador)
             throw new ReglaDeNegocioException("hp_no_es_borrador", "Solo se pueden confirmar HPs en estado Borrador.");
 
-        if (hp.TipoVenta == TipoVenta.Credito && hp.Cliente != null)
-        {
-            var creditoDisponible = hp.Cliente.LimiteCredito - hp.Cliente.SaldoPendiente;
-            if (!hp.Cliente.TieneCredito || hp.Total > creditoDisponible)
-                throw new ReglaDeNegocioException("credito_insuficiente", "Crédito insuficiente o no habilitado para este cliente.");
-        }
-
         using var tx = await _db.Database.BeginTransactionAsync();
         try
         {
             hp.EstadoHP = EstadoHP.Confirmada;
             await _inventario.DescontarStockPorHP(hp, userId);
 
-            // Actualizar última visita del cliente
+            // La venta es una visita (5.2): la próxima se calcula con el parámetro general de días de re-visita (7.1).
             if (hp.Cliente != null)
             {
+                var diasRevisita = await LeerDiasAsync(ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto);
                 hp.Cliente.UltimaVisita = DateTime.UtcNow;
-                hp.Cliente.ProximaVisita = DateTime.UtcNow.AddDays(hp.Cliente.DiasRevisita);
-                hp.Cliente.EstadoClienteId = 1;
+                hp.Cliente.ProximaVisita = DateTime.UtcNow.AddDays(diasRevisita);
+                // Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo: la venta no lo cambia.
+                if (EstadosDeCliente.DelSistema.Contains(hp.Cliente.EstadoClienteId))
+                    hp.Cliente.EstadoClienteId = EstadosDeCliente.Activo;
 
                 if (hp.TipoVenta == TipoVenta.Credito)
                     hp.Cliente.SaldoPendiente += hp.Total;
@@ -163,8 +160,8 @@ public class HojasPedidoController : ControllerBase
             // Crear cobranza automática para ventas a crédito
             if (hp.TipoVenta == TipoVenta.Credito && hp.Total > 0)
             {
-                var config = await _db.ConfiguracionesGenerales.FindAsync("DiasVencimientoCredito");
-                var diasVencimiento = int.TryParse(config?.Valor, out var d) ? d : 30;
+                var diasVencimiento = await LeerDiasAsync(ClavesDeConfiguracion.DiasVencimientoCredito,
+                    ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto);
 
                 _db.Cobranzas.Add(new ControlGestion.API.Models.Cobranza
                 {
@@ -191,6 +188,12 @@ public class HojasPedidoController : ControllerBase
         }
 
         return Ok(new { hp.Id, hp.Numero, hp.EstadoHP, hp.Total });
+    }
+
+    private async Task<int> LeerDiasAsync(string clave, int porDefecto)
+    {
+        var config = await _db.ConfiguracionesGenerales.FindAsync(clave);
+        return int.TryParse(config?.Valor, out var dias) && dias > 0 ? dias : porDefecto;
     }
 
     [HttpPost("{id}/anular")]
