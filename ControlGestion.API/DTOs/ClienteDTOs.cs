@@ -77,7 +77,8 @@ public record FiltrosClienteDTO
     public int Tamano { get; init; } = 25;
 }
 
-public record EstadoClienteDTO(int Id, string Nombre, string Color, string? Descripcion);
+/// <summary>DelSistema: Activo y Disponible para re-visita, que asigna el sistema según las visitas (5.2).</summary>
+public record EstadoClienteDTO(int Id, string Nombre, string Color, string? Descripcion, bool DelSistema);
 
 public record ClienteListaDTO(
     int Id,

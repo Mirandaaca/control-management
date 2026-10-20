@@ -28,7 +28,7 @@ public static class ClienteConsultas
     }
 
     public static readonly Expression<Func<EstadoCliente, EstadoClienteDTO>> EstadoComoDTO =
-        e => new EstadoClienteDTO(e.Id, e.Nombre, e.Color, e.Descripcion);
+        e => new EstadoClienteDTO(e.Id, e.Nombre, e.Color, e.Descripcion, EstadosDeCliente.DelSistema.Contains(e.Id));
 
     public static readonly Expression<Func<Cliente, ClienteListaDTO>> ComoLista = c => new ClienteListaDTO(
         c.Id,
@@ -36,7 +36,8 @@ public static class ClienteConsultas
         c.NombreCompleto,
         c.Telefono,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
-        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion),
+        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
+            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)),
         c.Promotor == null ? null : new UsuarioResumenDTO(c.Promotor.Id, c.Promotor.NombreCompleto),
         c.SaldoPendiente,
         c.UltimaVisita,
@@ -54,7 +55,8 @@ public static class ClienteConsultas
         c.Latitud,
         c.Longitud,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
-        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion),
+        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
+            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)),
         c.Promotor == null ? null : new UsuarioResumenDTO(c.Promotor.Id, c.Promotor.NombreCompleto),
         c.SaldoPendiente,
         c.UltimaVisita,
@@ -73,5 +75,6 @@ public static class ClienteConsultas
         c.Telefono,
         c.DireccionTexto,
         c.ProximaVisita,
-        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion));
+        new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
+            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)));
 }

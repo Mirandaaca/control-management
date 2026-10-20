@@ -351,4 +351,14 @@ public class ClientesTests(ApiDePrueba api)
             await operador.DeleteAsync("/api/configuraciones/DiasRevisita");
         }
     }
+
+    [Fact]
+    public async Task Los_estados_dicen_cuales_asigna_el_sistema()
+    {
+        using var operador = await api.OperadorAsync();
+        var estados = (await (await operador.GetAsync("/api/clientes/estados")).LeerJsonAsync()).EnumerateArray().ToList();
+
+        Assert.Equal([1, 2], estados.Where(e => e.GetProperty("delSistema").GetBoolean()).Select(e => e.GetProperty("id").GetInt32()));
+        Assert.Contains(estados, e => e.GetProperty("nombre").GetString() == "Inactivo" && !e.GetProperty("delSistema").GetBoolean());
+    }
 }
