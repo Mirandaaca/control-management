@@ -26,12 +26,16 @@ if (string.IsNullOrWhiteSpace(connStr))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
+// Contraseña (8.1): 8 caracteres o más, con al menos un número. Solo se aplica al crearla o cambiarla, así que las
+// contraseñas que ya existen siguen valiendo.
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
+    options.Password.RequiredLength = 8;
     options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireLowercase = false;
     options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredUniqueChars = 1;
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders()
@@ -88,6 +92,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
 builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
+builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
 builder.Services.AddCors(options =>

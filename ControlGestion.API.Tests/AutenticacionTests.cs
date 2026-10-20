@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using ControlGestion.API.Tests.Infraestructura;
+using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
 
@@ -66,20 +69,24 @@ public class AutenticacionTests(ApiDePrueba api)
         using var admin = await api.AdminAsync();
         Assert.Equal(HttpStatusCode.OK, (await cliente.GetAsync("/api/clientes")).StatusCode);
 
-        (await admin.PutAsync($"/api/usuarios/{promotor.Id}/activar", null)).EnsureSuccessStatusCode();
+        (await admin.PutAsync($"/api/usuarios/{promotor.Id}/desactivar", null)).EnsureSuccessStatusCode();
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await cliente.GetAsync("/api/clientes")).StatusCode);
     }
 
+    // La API ya no borra usuarios, pero alguien podría hacerlo en la base: el token tampoco debe servir.
     [Fact]
     public async Task El_token_de_un_usuario_borrado_deja_de_servir()
     {
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var cliente = api.ClienteCon(promotor.Token);
-        using var admin = await api.AdminAsync();
         Assert.Equal(HttpStatusCode.OK, (await cliente.GetAsync("/api/clientes")).StatusCode);
 
-        (await admin.DeleteAsync($"/api/usuarios/{promotor.Id}")).EnsureSuccessStatusCode();
+        using (var scope = api.Services.CreateScope())
+        {
+            var usuarios = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            await usuarios.DeleteAsync((await usuarios.FindByIdAsync(promotor.Id))!);
+        }
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await cliente.GetAsync("/api/clientes")).StatusCode);
     }

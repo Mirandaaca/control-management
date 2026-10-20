@@ -11,7 +11,7 @@ public class ErroresTests(ApiDePrueba api)
     {
         using var admin = await api.AdminAsync();
         var problema = await (await admin.PostAsJsonAsync("/api/usuarios",
-            new { email = "no-es-correo", nombreCompleto = "", password = "abcdef", rol = "Root" })).ProblemaAsync(400, "validacion");
+            new { email = "no-es-correo", nombreCompleto = "", password = "abcdef", rol = "" })).ProblemaAsync(400, "validacion");
 
         var errores = problema.GetProperty("errors");
         foreach (var campo in new[] { "email", "nombreCompleto", "password", "rol" })
