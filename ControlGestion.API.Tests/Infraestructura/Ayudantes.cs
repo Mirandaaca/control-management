@@ -48,6 +48,15 @@ public static class Ayudantes
         return new UsuarioDePrueba(id, correo, contrasena, await api.IniciarSesionAsync(correo, contrasena));
     }
 
+    /// <summary>Crea un rol con esos permisos y devuelve su id y su nombre.</summary>
+    public static async Task<(string Id, string Nombre)> CrearRolAsync(this HttpClient admin, params string[] permisos)
+    {
+        var nombre = Unico("Rol");
+        var respuesta = await admin.PostAsJsonAsync("/api/roles", new { nombre, permisos });
+        respuesta.EnsureSuccessStatusCode();
+        return ((await respuesta.LeerJsonAsync()).GetProperty("id").GetString()!, nombre);
+    }
+
     public static async Task<JsonElement> LeerJsonAsync(this HttpResponseMessage respuesta) =>
         await respuesta.Content.ReadFromJsonAsync<JsonElement>();
 

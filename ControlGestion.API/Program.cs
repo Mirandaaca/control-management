@@ -94,6 +94,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
+builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
 builder.Services.AddCors(options =>

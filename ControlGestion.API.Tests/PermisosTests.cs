@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using ControlGestion.API.Data;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ControlGestion.API.Tests;
 
@@ -27,6 +29,32 @@ public class PermisosTests(ApiDePrueba api)
         Assert.Equal(21, porRol[Roles.GerenteGeneral]);
         Assert.Equal(27, porRol[Roles.Secretaria]);
         Assert.Equal(23, porRol[Roles.Promotor]);
+    }
+
+    [Fact]
+    public async Task Volver_a_sembrar_no_cambia_nada_ni_revive_un_rol_renombrado()
+    {
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var secretaria = (await roles.FindByNameAsync(Roles.Secretaria))!;
+        var asignaciones = await db.RolesPermisos.CountAsync();
+
+        secretaria.Name = Ayudantes.Unico("Secretaria renombrada");
+        await roles.UpdateAsync(secretaria);
+        try
+        {
+            await SembradorDeSeguridad.SembrarAsync(db, roles, NullLogger.Instance);
+
+            Assert.False(await roles.RoleExistsAsync(Roles.Secretaria));
+            Assert.Equal(66, await db.Permisos.CountAsync());
+            Assert.Equal(asignaciones, await db.RolesPermisos.CountAsync());
+        }
+        finally
+        {
+            secretaria.Name = Roles.Secretaria;
+            await roles.UpdateAsync(secretaria);
+        }
     }
 
     [Fact]

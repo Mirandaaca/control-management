@@ -6,14 +6,18 @@ using Microsoft.EntityFrameworkCore;
 namespace ControlGestion.API.Seguridad;
 
 /// <summary>
-/// Se ejecuta al arrancar, después de las migraciones. Deja la base de acuerdo con el código: los cuatro roles del
-/// sistema y el catálogo de Permisos.cs.
+/// Se ejecuta al arrancar, después de las migraciones. Deja la base de acuerdo con el código: el catálogo de
+/// Permisos.cs y, al instalar, los cuatro roles del sistema.
 /// </summary>
 public static class SembradorDeSeguridad
 {
     public static async Task SembrarAsync(AppDbContext db, RoleManager<IdentityRole> roles, ILogger logger)
     {
-        foreach (var nombre in Roles.DelSistema)
+        // Los cuatro roles se crean una sola vez, al instalar (todavía no hay permisos). Después son datos del
+        // administrador: si renombra o elimina uno, no debe reaparecer vacío al reiniciar la API. Solo el rol
+        // administrador se garantiza siempre, porque sin él nadie podría administrar usuarios ni roles.
+        var instalando = !await db.Permisos.AnyAsync();
+        foreach (var nombre in instalando ? Roles.DelSistema : [Roles.Administrador])
         {
             if (!await roles.RoleExistsAsync(nombre))
                 await roles.CreateAsync(new IdentityRole(nombre));
@@ -35,7 +39,10 @@ public static class SembradorDeSeguridad
             permiso = new Permiso { Clave = definicion.Clave, Modulo = definicion.Modulo, Nombre = definicion.Nombre };
             db.Permisos.Add(permiso);
             foreach (var rol in definicion.RolesIniciales)
-                db.RolesPermisos.Add(new RolPermiso { RolId = idDeRol[rol], Permiso = permiso });
+            {
+                if (idDeRol.TryGetValue(rol, out var rolId))
+                    db.RolesPermisos.Add(new RolPermiso { RolId = rolId, Permiso = permiso });
+            }
             nuevos++;
         }
 
