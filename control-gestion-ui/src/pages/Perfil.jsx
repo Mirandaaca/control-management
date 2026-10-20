@@ -132,7 +132,7 @@ export default function Perfil() {
           {errorDatos && <Alert type="error">{errorDatos}</Alert>}
           <Input label="Nombre completo" value={datos.nombreCompleto} error={erroresDatos.nombreCompleto} autoComplete="name"
             onChange={(e) => setDatos({ ...datos, nombreCompleto: e.target.value })} />
-          <Input label="Correo" type="email" value={datos.email} error={erroresDatos.email} autoComplete="email"
+          <Input label="Correo" type="email" value={datos.email} error={erroresDatos.email} autoComplete="email" spellCheck={false}
             ayuda="Es también tu usuario para iniciar sesión."
             onChange={(e) => setDatos({ ...datos, email: e.target.value })} />
           <dl className="grid grid-cols-2 gap-4 pt-1">

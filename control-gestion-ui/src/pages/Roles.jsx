@@ -195,7 +195,7 @@ export default function Roles() {
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >
-            <Buscador label="Buscar" placeholder="Nombre del rol" value={busqueda} onChange={setBusqueda} />
+            <Buscador label="Buscar" placeholder="Nombre del rol…" value={busqueda} onChange={setBusqueda} />
           </BarraDeFiltros>
         )}
       >

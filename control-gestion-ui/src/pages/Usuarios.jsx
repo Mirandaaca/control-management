@@ -161,7 +161,7 @@ export default function Usuarios() {
             hayFiltros={hayFiltros}
             onLimpiar={() => setFiltros(SIN_FILTROS)}
           >
-            <Buscador label="Buscar" placeholder="Nombre o correo" value={filtros.texto}
+            <Buscador label="Buscar" placeholder="Nombre o correo…" value={filtros.texto}
               onChange={(texto) => setFiltros({ ...filtros, texto })} />
             <div className="w-full sm:w-52">
               <Selector label="Rol" todos="Todos los roles" value={filtros.rol}
@@ -245,7 +245,7 @@ export default function Usuarios() {
             <Input label="Nombre completo" value={formulario.nombreCompleto} error={erroresCampo.nombreCompleto}
               onChange={(e) => setFormulario({ ...formulario, nombreCompleto: e.target.value })} autoComplete="off" />
             <Input label="Correo" type="email" value={formulario.email} error={erroresCampo.email}
-              ayuda="Es también el usuario para iniciar sesión."
+              ayuda="Es también el usuario para iniciar sesión." spellCheck={false}
               onChange={(e) => setFormulario({ ...formulario, email: e.target.value })} autoComplete="off" />
             <Selector label="Rol" value={formulario.rol} error={erroresCampo.rol} placeholder="Elige un rol"
               opciones={roles.map((r) => ({ valor: r.nombre, texto: r.nombre }))}

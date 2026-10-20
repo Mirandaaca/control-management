@@ -115,6 +115,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 autoComplete="username"
+                spellCheck={false}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="nombre@empresa.com"
