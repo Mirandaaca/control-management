@@ -35,6 +35,9 @@ public record GuardarClienteDTO : IValidatableObject
     [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
     public decimal? Longitud { get; init; }
 
+    /// <summary>Si ya hay otro cliente con ese celular, la API avisa (telefono_repetido) y se registra igual con true.</summary>
+    public bool ConfirmarTelefonoRepetido { get; init; }
+
     // El promotor del cliente no se elige: es el de su zona (7.2).
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }

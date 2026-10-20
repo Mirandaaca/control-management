@@ -60,6 +60,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
     public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
     {
         var promotorDeLaZona = await PromotorDeLaZonaAsync(dto.ZonaId);
+        await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: null);
         var cliente = new Cliente
         {
             Codigo = await numerador.SiguienteAsync(NumeradorService.Cliente),
@@ -78,6 +79,9 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
     {
         var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
             ?? throw new NoEncontradoException("No se encontró el cliente.");
+        // Solo se avisa si el celular cambió: si no, editar otro dato avisaría cada vez.
+        if (cliente.Telefono != dto.Telefono.Trim())
+            await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: id);
         // Editar no toca el estado: antes lo devolvía a "Activo" sin avisar.
         Copiar(dto, cliente, await PromotorDeLaZonaAsync(dto.ZonaId));
         await db.SaveChangesAsync();
@@ -107,6 +111,24 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
         await db.SaveChangesAsync();
         return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Avisar si el celular ya existe (2.2): puede ser el mismo cliente registrado dos veces. No se bloquea, porque un
+    /// celular también se comparte (un negocio familiar), pero quien registra tiene que confirmarlo.
+    /// </summary>
+    private async Task AvisarSiElTelefonoSeRepiteAsync(GuardarClienteDTO dto, int? idPropio)
+    {
+        if (dto.ConfirmarTelefonoRepetido) return;
+        var telefono = dto.Telefono.Trim();
+        var otro = await db.Clientes.Where(c => c.Telefono == telefono && c.Id != idPropio).Select(c => new { c.Id }).FirstOrDefaultAsync();
+        if (otro == null) return;
+
+        // Solo se nombra al otro cliente si el usuario puede verlo: a un promotor no se le muestra la cartera de otro.
+        var visible = await Visibles.Where(c => c.Id == otro.Id).Select(c => new { c.NombreCompleto, c.Codigo }).FirstOrDefaultAsync();
+        throw new ConflictoException("telefono_repetido", visible == null
+            ? "Ya existe otro cliente con ese celular."
+            : $"Ya existe el cliente {visible.NombreCompleto} ({visible.Codigo}) con ese celular.");
     }
 
     /// <summary>

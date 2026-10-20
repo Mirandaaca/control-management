@@ -290,4 +290,40 @@ public class ClientesTests(ApiDePrueba api)
 
         await (await operador.DeleteAsync($"/api/clientes/{id}")).ProblemaAsync(405, "metodo_no_permitido");
     }
+
+    [Fact]
+    public async Task Un_celular_repetido_se_avisa_y_se_registra_si_se_confirma()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var telefono = $"6{Random.Shared.Next(1000000, 9999999)}";
+        var primero = await (await operador.PostAsJsonAsync("/api/clientes", Cliente(zonaId, telefono))).LeerJsonAsync();
+
+        var problema = await (await operador.PostAsJsonAsync("/api/clientes", Cliente(zonaId, telefono)))
+            .ProblemaAsync(409, "telefono_repetido");
+        Assert.Contains(primero.GetProperty("codigo").GetString()!, problema.GetProperty("detail").GetString());
+
+        var confirmado = await operador.PostAsJsonAsync("/api/clientes", new
+        {
+            nombreCompleto = "Mismo celular", telefono, direccionTexto = "Calle", latitud = -17.76m, longitud = -63.18m,
+            zonaId, confirmarTelefonoRepetido = true
+        });
+        Assert.Equal(HttpStatusCode.Created, confirmado.StatusCode);
+    }
+
+    [Fact]
+    public async Task El_aviso_de_celular_no_muestra_un_cliente_de_otra_cartera()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var otro = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var telefono = $"6{Random.Shared.Next(1000000, 9999999)}";
+        (await operador.PostAsJsonAsync("/api/clientes", Cliente(await operador.CrearZonaAsync(otro.Id), telefono))).EnsureSuccessStatusCode();
+        var suya = await operador.CrearZonaAsync(promotor.Id);
+
+        var problema = await (await api.ClienteCon(promotor.Token).PostAsJsonAsync("/api/clientes", Cliente(suya, telefono)))
+            .ProblemaAsync(409, "telefono_repetido");
+
+        Assert.Equal("Ya existe otro cliente con ese celular.", problema.GetProperty("detail").GetString());
+    }
 }
