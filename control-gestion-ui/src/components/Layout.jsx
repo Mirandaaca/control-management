@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Boxes, ChartColumn, ChevronDown, ClipboardList, House, LogOut, Map as Mapa, MapPinned, Menu, Package, PanelLeftClose,
-  PanelLeftOpen, Route, Settings, Shield, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, Users, Wallet, X,
+  PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, UserRound,
+  Users, Wallet, X,
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { PANTALLAS } from '../context/permisos';
@@ -39,6 +40,7 @@ const modulos = [
   ] },
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [
     { to: '/usuarios', label: 'Usuarios', icon: Users, permisos: PANTALLAS.usuarios },
+    { to: '/roles', label: 'Roles y permisos', icon: ShieldCheck, permisos: PANTALLAS.roles },
   ] },
 ];
 
@@ -244,6 +246,15 @@ export default function Layout({ children }) {
           <p className="text-xs text-marca-200 truncate">{usuario?.rol}</p>
         </div>
       </div>
+      <Link
+        to="/perfil"
+        onClick={cerrarMenu}
+        aria-current={location.pathname === '/perfil' ? 'page' : undefined}
+        className={`${claseDeEnlace(location.pathname === '/perfil')} px-3 mb-0.5`}
+      >
+        <UserRound size={18} aria-hidden="true" />
+        Mi perfil
+      </Link>
       <button
         onClick={handleLogout}
         className={`flex items-center gap-3 w-full h-10 px-3 rounded-lg text-sm text-marca-200 hover:bg-marca-800 hover:text-white transition-colors cursor-pointer ${foco}`}
@@ -284,17 +295,17 @@ export default function Layout({ children }) {
 
         {replegado ? (
           <div className="flex flex-col items-center gap-2 py-4 border-t border-marca-800">
-            <span
-              tabIndex={0}
-              aria-label={`${usuario?.nombreCompleto ?? ''}, ${usuario?.rol ?? ''}`}
-              onMouseEnter={(e) => mostrarEtiqueta(e, usuario?.nombreCompleto ?? '')}
-              onFocus={(e) => mostrarEtiqueta(e, usuario?.nombreCompleto ?? '')}
+            <Link
+              to="/perfil"
+              aria-label={`Mi perfil: ${usuario?.nombreCompleto ?? ''}, ${usuario?.rol ?? ''}`}
+              onMouseEnter={(e) => mostrarEtiqueta(e, 'Mi perfil')}
+              onFocus={(e) => mostrarEtiqueta(e, 'Mi perfil')}
               onMouseLeave={ocultarEtiqueta}
               onBlur={ocultarEtiqueta}
               className={`rounded-full ${foco}`}
             >
               <Avatar usuario={usuario} />
-            </span>
+            </Link>
             <button
               onClick={handleLogout}
               aria-label="Cerrar sesión"
