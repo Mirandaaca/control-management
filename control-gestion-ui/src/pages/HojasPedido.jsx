@@ -23,6 +23,8 @@ export default function HojasPedido() {
   const [showForm, setShowForm] = useState(false);
   const [showDetalle, setShowDetalle] = useState(null);
   const [anulandoId, setAnulandoId] = useState(null);
+  const [errorAccion, setErrorAccion] = useState('');
+  const [errorAnulacion, setErrorAnulacion] = useState('');
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -97,23 +99,25 @@ export default function HojasPedido() {
   };
 
   const handleConfirmar = async (id) => {
+    setErrorAccion('');
     try {
       await api.post(`/hojas-pedido/${id}/confirmar`);
       fetchHPs();
     } catch (err) {
-      alert(mensajeDeError(err, 'Error al confirmar HP.'));
+      setErrorAccion(mensajeDeError(err, 'Error al confirmar HP.'));
     }
   };
 
   const handleAnular = async () => {
     if (!motivoAnulacion.trim()) return;
+    setErrorAnulacion('');
     try {
       await api.post(`/hojas-pedido/${anulandoId}/anular`, { motivo: motivoAnulacion });
       setAnulandoId(null);
       setMotivoAnulacion('');
       fetchHPs();
     } catch (err) {
-      alert(mensajeDeError(err, 'Error al anular HP.'));
+      setErrorAnulacion(mensajeDeError(err, 'Error al anular HP.'));
     }
   };
 
@@ -133,6 +137,8 @@ export default function HojasPedido() {
           </Btn>
         }
       />
+
+      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
 
       {/* Filtros */}
       <Card className="mb-5">
@@ -260,9 +266,10 @@ export default function HojasPedido() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Describe el motivo..." />
             </div>
+            {errorAnulacion && <Alert type="error" className="mt-3">{errorAnulacion}</Alert>}
             <div className="flex gap-2 mt-3">
               <Btn variant="danger" size="md" onClick={handleAnular}>Confirmar anulación</Btn>
-              <Btn variant="ghost" size="md" onClick={() => setAnulandoId(null)}>Cancelar</Btn>
+              <Btn variant="ghost" size="md" onClick={() => { setAnulandoId(null); setErrorAnulacion(''); }}>Cancelar</Btn>
             </div>
           </Card>
         </div>

@@ -70,7 +70,7 @@ export function Card({ children, className = '' }) {
   );
 }
 
-export function Alert({ children, type = 'error' }) {
+export function Alert({ children, type = 'error', className = '' }) {
   const styles = {
     error: { clase: 'bg-red-50 border-red-200 text-red-700', Icono: CircleAlert },
     success: { clase: 'bg-green-50 border-green-200 text-green-800', Icono: CircleCheck },
@@ -79,7 +79,7 @@ export function Alert({ children, type = 'error' }) {
   };
   const { clase, Icono } = styles[type];
   return (
-    <div role={type === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2.5 border rounded-lg px-4 py-3 text-sm ${clase}`}>
+    <div role={type === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2.5 border rounded-lg px-4 py-3 text-sm ${clase} ${className}`}>
       <Icono size={18} className="shrink-0 mt-px" aria-hidden="true" />
       <div className="min-w-0">{children}</div>
     </div>
