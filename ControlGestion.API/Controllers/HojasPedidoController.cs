@@ -3,6 +3,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ public class HojasPedidoController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Ventas.ConsultarHp)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? clienteId,
         [FromQuery] string? promotorId,
@@ -50,6 +52,7 @@ public class HojasPedidoController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Ventas.ConsultarHp)]
     public async Task<IActionResult> GetById(int id)
     {
         var hp = await _db.HojasPedido
@@ -63,6 +66,7 @@ public class HojasPedidoController : ControllerBase
     }
 
     [HttpPost]
+    [Permiso(Permisos.Ventas.RegistrarHp)]
     public async Task<IActionResult> Create([FromBody] HojaPedidoCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -118,6 +122,7 @@ public class HojasPedidoController : ControllerBase
     }
 
     [HttpPost("{id}/confirmar")]
+    [Permiso(Permisos.Ventas.ConfirmarHp)]
     public async Task<IActionResult> Confirmar(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -189,7 +194,7 @@ public class HojasPedidoController : ControllerBase
     }
 
     [HttpPost("{id}/anular")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Ventas.AnularHp)]
     public async Task<IActionResult> Anular(int id, [FromBody] HojaPedidoAnularDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;

@@ -40,11 +40,25 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Secuencia> Secuencias { get; set; }
 
+    public DbSet<Permiso> Permisos { get; set; }
+    public DbSet<RolPermiso> RolesPermisos { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         builder.Entity<Secuencia>().HasKey(s => s.Clave);
+
+        // Permisos (8.4)
+        builder.Entity<Permiso>().HasIndex(p => p.Clave).IsUnique();
+        builder.Entity<Permiso>().Property(p => p.Clave).HasMaxLength(80);
+        builder.Entity<Permiso>().Property(p => p.Modulo).HasMaxLength(80);
+        builder.Entity<Permiso>().Property(p => p.Nombre).HasMaxLength(150);
+        builder.Entity<RolPermiso>().HasKey(rp => new { rp.RolId, rp.PermisoId });
+        builder.Entity<RolPermiso>()
+            .HasOne(rp => rp.Rol).WithMany().HasForeignKey(rp => rp.RolId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<RolPermiso>()
+            .HasOne(rp => rp.Permiso).WithMany().HasForeignKey(rp => rp.PermisoId).OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
 

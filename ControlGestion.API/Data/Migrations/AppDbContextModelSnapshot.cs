@@ -1015,6 +1015,37 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("Pedidos");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Permiso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Modulo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Clave")
+                        .IsUnique();
+
+                    b.ToTable("Permisos");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.Producto", b =>
                 {
                     b.Property<int>("Id")
@@ -1043,6 +1074,21 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Productos");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.RolPermiso", b =>
+                {
+                    b.Property<string>("RolId")
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("PermisoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RolId", "PermisoId");
+
+                    b.HasIndex("PermisoId");
+
+                    b.ToTable("RolesPermisos");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Ruta", b =>
@@ -1709,6 +1755,25 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("Repartidor");
 
                     b.Navigation("Zona");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.RolPermiso", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.Permiso", "Permiso")
+                        .WithMany()
+                        .HasForeignKey("PermisoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", "Rol")
+                        .WithMany()
+                        .HasForeignKey("RolId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permiso");
+
+                    b.Navigation("Rol");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Ruta", b =>

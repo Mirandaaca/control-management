@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using ControlGestion.API.Data;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Supervisor")]
+[Authorize]
 public class ReportesController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -18,8 +19,8 @@ public class ReportesController : ControllerBase
 
     // ─── Dashboard KPIs ───────────────────────────────────────────────────────
 
+    // Sin operación en el catálogo: es el inicio del panel.
     [HttpGet("dashboard")]
-    [Authorize]
     public async Task<IActionResult> Dashboard()
     {
         var hoy = DateTime.UtcNow.Date;
@@ -53,8 +54,8 @@ public class ReportesController : ControllerBase
 
     // ─── Ventas por período ───────────────────────────────────────────────────
 
+    // Sin operación en el catálogo: el inicio del panel usa sus totales.
     [HttpGet("ventas")]
-    [Authorize]
     public async Task<IActionResult> Ventas(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta,
@@ -117,6 +118,7 @@ public class ReportesController : ControllerBase
     // ─── Cobranzas resumen ────────────────────────────────────────────────────
 
     [HttpGet("cobranzas")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
     public async Task<IActionResult> ResumenCobranzas(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta)
@@ -169,6 +171,7 @@ public class ReportesController : ControllerBase
     // ─── Inventario ───────────────────────────────────────────────────────────
 
     [HttpGet("inventario")]
+    [Permiso(Permisos.Reportes.Inventario)]
     public async Task<IActionResult> ResumenInventario()
     {
         var inventario = await _db.InventariosProducto
@@ -210,6 +213,7 @@ public class ReportesController : ControllerBase
     // ─── Promotores rendimiento ───────────────────────────────────────────────
 
     [HttpGet("promotores")]
+    [Permiso(Permisos.Reportes.VentasPorPromotor)]
     public async Task<IActionResult> RendimientoPromotores(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta)
@@ -257,7 +261,7 @@ public class ReportesController : ControllerBase
     // ─── Auditoría ────────────────────────────────────────────────────────────
 
     [HttpGet("auditoria")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.ConsultarBitacora)]
     public async Task<IActionResult> Auditoria(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta,
@@ -275,6 +279,7 @@ public class ReportesController : ControllerBase
     // ─── Exportar Excel ───────────────────────────────────────────────────────
 
     [HttpGet("export/ventas")]
+    [Permiso(Permisos.Reportes.VentasPorPromotor)]
     public async Task<IActionResult> ExportVentas(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta)
@@ -369,6 +374,7 @@ public class ReportesController : ControllerBase
     }
 
     [HttpGet("export/cobranzas")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
     public async Task<IActionResult> ExportCobranzas(
         [FromQuery] DateTime? desde,
         [FromQuery] DateTime? hasta)

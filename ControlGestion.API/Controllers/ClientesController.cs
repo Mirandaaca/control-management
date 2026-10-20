@@ -3,6 +3,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,7 @@ public class ClientesController : ControllerBase
     }
 
     [HttpGet("mapa")]
+    [Permiso(Permisos.Ventas.VerUbicacionCliente, Permisos.Territorial.VerMapaClientes)]
     public async Task<IActionResult> GetParaMapa([FromQuery] int? zonaId)
     {
         var query = _db.Clientes
@@ -79,7 +81,7 @@ public class ClientesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Ventas.RegistrarCliente)]
     public async Task<IActionResult> Create([FromBody] ClienteCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -109,7 +111,7 @@ public class ClientesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Ventas.EditarCliente)]
     public async Task<IActionResult> Update(int id, [FromBody] ClienteUpdateDTO dto)
     {
         var cliente = await _db.Clientes.FindAsync(id);
@@ -134,8 +136,9 @@ public class ClientesController : ControllerBase
         return Ok(cliente);
     }
 
+    // Sin operación propia en el catálogo: inactivar a un cliente es asignarle un estado a mano.
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Ventas.AsignarEstadoCliente)]
     public async Task<IActionResult> Delete(int id)
     {
         var cliente = await _db.Clientes.FindAsync(id);

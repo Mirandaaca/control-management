@@ -20,7 +20,8 @@ public record CrearUsuarioDTO
     public string Password { get; init; } = string.Empty;
 
     [Required(ErrorMessage = "El rol es obligatorio.")]
-    [RegularExpression("^(Admin|Supervisor|Promotor)$", ErrorMessage = "El rol debe ser Admin, Supervisor o Promotor.")]
+    [RegularExpression("^(Administrador del sistema|Gerente general|Secretaria|Promotor)$",
+        ErrorMessage = "El rol debe ser Administrador del sistema, Gerente general, Secretaria o Promotor.")]
     public string Rol { get; init; } = string.Empty;
 }
 

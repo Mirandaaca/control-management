@@ -2,6 +2,7 @@ using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,9 +12,7 @@ namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// El Supervisor solo necesita la lista de activos (para asignar promotores); el resto es solo para Admin.
-// Los atributos se suman: una acción con [Authorize(Roles = "Admin")] exige Admin aunque la clase admita a los dos.
-[Authorize(Roles = "Admin,Supervisor")]
+[Authorize]
 public class UsuariosController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -26,7 +25,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.CrearUsuario)]
     public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
     {
         if (await _userManager.FindByEmailAsync(dto.Email) != null)
@@ -57,7 +56,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.CrearUsuario, Permisos.Seguridad.EditarUsuario, Permisos.Seguridad.ActivarUsuario)]
     public async Task<IActionResult> GetAll()
     {
         var users = await _userManager.Users.ToListAsync();
@@ -70,7 +69,9 @@ public class UsuariosController : ControllerBase
         return Ok(result);
     }
 
+    // Para elegir un promotor al asignar pedidos, zonas o rutas.
     [HttpGet("activos")]
+    [Permiso(Permisos.Pedidos.AsignarPedidos, Permisos.Parametros.RegistrarZona, Permisos.Parametros.ModificarZona, Permisos.Territorial.PlanificarRuta)]
     public async Task<IActionResult> GetActivos()
     {
         var users = await _userManager.Users.Where(u => u.Activo).OrderBy(u => u.NombreCompleto).ToListAsync();
@@ -84,7 +85,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.CrearUsuario, Permisos.Seguridad.EditarUsuario, Permisos.Seguridad.ActivarUsuario)]
     public async Task<IActionResult> GetById(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
@@ -94,7 +95,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpPut("{id}/activar")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.ActivarUsuario)]
     public async Task<IActionResult> ToggleActivo(string id)
     {
         var user = await _userManager.FindByIdAsync(id);
@@ -105,7 +106,7 @@ public class UsuariosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Seguridad.ActivarUsuario)]
     public async Task<IActionResult> Delete(string id)
     {
         var user = await _userManager.FindByIdAsync(id);

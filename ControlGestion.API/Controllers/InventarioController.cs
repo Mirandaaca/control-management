@@ -1,6 +1,7 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +24,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Ventas.ConsultarKardex, Permisos.Ventas.RegistrarIngreso)]
     public async Task<IActionResult> GetAll()
     {
         var result = await _db.InventariosProducto
@@ -45,6 +47,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpGet("{productoId}/movimientos")]
+    [Permiso(Permisos.Ventas.ConsultarKardex)]
     public async Task<IActionResult> GetMovimientos(int productoId, [FromQuery] int limit = 50)
     {
         var movimientos = await _db.MovimientosInventario
@@ -58,7 +61,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpPost("{productoId}/ajuste")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Ventas.RegistrarIngreso)]
     public async Task<IActionResult> Ajustar(int productoId, [FromBody] AjusteStockDTO dto)
     {
         if (!await _db.Productos.AnyAsync(p => p.Id == productoId))

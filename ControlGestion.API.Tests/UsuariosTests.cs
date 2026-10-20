@@ -1,13 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
 using ControlGestion.API.Tests.Infraestructura;
+using ControlGestion.API.Seguridad;
 
 namespace ControlGestion.API.Tests;
 
 [Collection(ColeccionApi.Nombre)]
 public class UsuariosTests(ApiDePrueba api)
 {
-    private static object NuevoUsuario(string rol = "Promotor") => new
+    private static object NuevoUsuario(string rol = Roles.Promotor) => new
     {
         email = $"{Ayudantes.Unico("u").ToLowerInvariant()}@test.local",
         nombreCompleto = "Usuario de prueba",
@@ -19,11 +20,11 @@ public class UsuariosTests(ApiDePrueba api)
     public async Task El_admin_crea_un_usuario_con_su_rol()
     {
         using var admin = await api.AdminAsync();
-        var respuesta = await admin.PostAsJsonAsync("/api/usuarios", NuevoUsuario("Supervisor"));
+        var respuesta = await admin.PostAsJsonAsync("/api/usuarios", NuevoUsuario(Roles.GerenteGeneral));
 
         Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
         var usuario = await respuesta.LeerJsonAsync();
-        Assert.Equal(["Supervisor"], usuario.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        Assert.Equal([Roles.GerenteGeneral], usuario.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
         Assert.True(usuario.GetProperty("activo").GetBoolean());
     }
 
@@ -48,16 +49,16 @@ public class UsuariosTests(ApiDePrueba api)
     [Fact]
     public async Task Un_promotor_no_puede_crear_usuarios()
     {
-        var promotor = await api.CrearUsuarioAsync("Promotor");
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var cliente = api.ClienteCon(promotor.Token);
-        await (await cliente.PostAsJsonAsync("/api/usuarios", NuevoUsuario("Admin"))).ProblemaAsync(403, "sin_permiso");
+        await (await cliente.PostAsJsonAsync("/api/usuarios", NuevoUsuario(Roles.Administrador))).ProblemaAsync(403, "sin_permiso");
     }
 
     [Fact]
-    public async Task El_supervisor_lista_los_activos_pero_no_administra_usuarios()
+    public async Task El_gerente_lista_los_activos_pero_no_administra_usuarios()
     {
-        var supervisor = await api.CrearUsuarioAsync("Supervisor");
-        using var cliente = api.ClienteCon(supervisor.Token);
+        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
+        using var cliente = api.ClienteCon(gerente.Token);
 
         Assert.Equal(HttpStatusCode.OK, (await cliente.GetAsync("/api/usuarios/activos")).StatusCode);
         await (await cliente.GetAsync("/api/usuarios")).ProblemaAsync(403, "sin_permiso");

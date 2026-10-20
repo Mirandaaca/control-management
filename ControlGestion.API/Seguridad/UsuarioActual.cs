@@ -9,12 +9,12 @@ namespace ControlGestion.API.Seguridad;
 public interface IUsuarioActual
 {
     string Id { get; }
-    bool EsAdmin { get; }
-    bool EsSupervisor { get; }
-    bool EsPromotor { get; }
 
-    /// <summary>Admin y Supervisor ven los registros de todos; cualquier otro rol, solo los suyos.</summary>
-    bool VeTodosLosRegistros => EsAdmin || EsSupervisor;
+    /// <summary>Si el rol del usuario tiene el permiso. Los permisos se cargan de la base en cada petición.</summary>
+    bool Tiene(string permiso);
+
+    /// <summary>Sin este permiso, el usuario solo ve los registros de su cartera (7.3.31, extensión *b).</summary>
+    bool VeCarteraCompleta => Tiene(Permisos.Seguridad.VerCarteraCompleta);
 }
 
 public class UsuarioActual(IHttpContextAccessor http) : IUsuarioActual
@@ -25,7 +25,5 @@ public class UsuarioActual(IHttpContextAccessor http) : IUsuarioActual
     public string Id => Usuario.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("El token no trae el id del usuario.");
 
-    public bool EsAdmin => Usuario.IsInRole("Admin");
-    public bool EsSupervisor => Usuario.IsInRole("Supervisor");
-    public bool EsPromotor => Usuario.IsInRole("Promotor");
+    public bool Tiene(string permiso) => Usuario.HasClaim(ClaimsDeSeguridad.Permiso, permiso);
 }

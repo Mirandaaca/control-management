@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ControlGestion.API.Tests.Infraestructura;
+using ControlGestion.API.Seguridad;
 
 namespace ControlGestion.API.Tests;
 
@@ -17,7 +18,7 @@ public class AutenticacionTests(ApiDePrueba api)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.LeerJsonAsync();
         Assert.False(string.IsNullOrEmpty(cuerpo.GetProperty("token").GetString()));
-        Assert.Contains("Admin", cuerpo.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        Assert.Contains(Roles.Administrador, cuerpo.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class AutenticacionTests(ApiDePrueba api)
     [Fact]
     public async Task Un_rol_sin_permiso_responde_403()
     {
-        var promotor = await api.CrearUsuarioAsync("Promotor");
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var cliente = api.ClienteCon(promotor.Token);
         await (await cliente.GetAsync("/api/usuarios")).ProblemaAsync(403, "sin_permiso");
     }
@@ -60,7 +61,7 @@ public class AutenticacionTests(ApiDePrueba api)
     [Fact]
     public async Task El_token_de_un_usuario_desactivado_deja_de_servir()
     {
-        var promotor = await api.CrearUsuarioAsync("Promotor");
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var cliente = api.ClienteCon(promotor.Token);
         using var admin = await api.AdminAsync();
         Assert.Equal(HttpStatusCode.OK, (await cliente.GetAsync("/api/clientes")).StatusCode);
@@ -73,7 +74,7 @@ public class AutenticacionTests(ApiDePrueba api)
     [Fact]
     public async Task El_token_de_un_usuario_borrado_deja_de_servir()
     {
-        var promotor = await api.CrearUsuarioAsync("Promotor");
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var cliente = api.ClienteCon(promotor.Token);
         using var admin = await api.AdminAsync();
         Assert.Equal(HttpStatusCode.OK, (await cliente.GetAsync("/api/clientes")).StatusCode);

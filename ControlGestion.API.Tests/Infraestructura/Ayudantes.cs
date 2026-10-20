@@ -32,6 +32,10 @@ public static class Ayudantes
     public static async Task<HttpClient> AdminAsync(this ApiDePrueba api) =>
         api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoAdmin, api.ContrasenaAdmin));
 
+    /// <summary>Un usuario con todos los permisos, para preparar datos de negocio (zonas, clientes, HP…).</summary>
+    public static async Task<HttpClient> OperadorAsync(this ApiDePrueba api) =>
+        api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoOperador, api.ContrasenaOperador));
+
     public static async Task<UsuarioDePrueba> CrearUsuarioAsync(this ApiDePrueba api, string rol)
     {
         var correo = $"{Unico("t").ToLowerInvariant()}@test.local";

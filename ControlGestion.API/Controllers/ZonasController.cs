@@ -1,6 +1,7 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ public class ZonasController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Parametros.RegistrarZona)]
     public async Task<IActionResult> Create([FromBody] Zona zona)
     {
         _context.Zonas.Add(zona);
@@ -40,7 +41,7 @@ public class ZonasController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Parametros.ModificarZona)]
     public async Task<IActionResult> Update(int id, [FromBody] Zona zona)
     {
         if (id != zona.Id) throw new ReglaDeNegocioException("id_no_coincide", "El id de la URL no coincide con el del cuerpo.");
@@ -51,7 +52,7 @@ public class ZonasController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Parametros.EliminarZona)]
     public async Task<IActionResult> Delete(int id)
     {
         var zona = await _context.Zonas.FindAsync(id);

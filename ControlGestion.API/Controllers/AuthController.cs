@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
             throw new NoAutenticadoException("usuario_inactivo", "Usuario inactivo.");
 
         var roles = await _userManager.GetRolesAsync(user);
-        var token = GenerarToken(user, roles);
+        var token = GenerarToken(user);
 
         return Ok(new LoginResponseDTO
         {
@@ -50,7 +50,8 @@ public class AuthController : ControllerBase
         });
     }
 
-    private string GenerarToken(ApplicationUser user, IList<string> roles)
+    // El token no lleva el rol ni los permisos: se leen de la base en cada petición (SesionDesdeLaBase).
+    private string GenerarToken(ApplicationUser user)
     {
         var claims = new List<Claim>
         {
@@ -58,8 +59,6 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.Email, user.Email!),
             new Claim(ClaimTypes.Name, user.NombreCompleto)
         };
-
-        claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

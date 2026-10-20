@@ -1,6 +1,7 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class ConfiguracionesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -20,10 +21,12 @@ public class ConfiguracionesController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Parametros.ModificarDiasRevisita)]
     public async Task<IActionResult> GetAll() =>
         Ok(await _context.ConfiguracionesGenerales.ToListAsync());
 
     [HttpGet("{clave}")]
+    [Permiso(Permisos.Parametros.ModificarDiasRevisita)]
     public async Task<IActionResult> GetByClave(string clave)
     {
         var config = await _context.ConfiguracionesGenerales.FindAsync(clave);
@@ -31,6 +34,7 @@ public class ConfiguracionesController : ControllerBase
     }
 
     [HttpPut("{clave}")]
+    [Permiso(Permisos.Parametros.ModificarDiasRevisita)]
     public async Task<IActionResult> Upsert(string clave, [FromBody] ConfiguracionGeneral config)
     {
         config.Clave = clave;
@@ -44,7 +48,9 @@ public class ConfiguracionesController : ControllerBase
         return Ok(config);
     }
 
+    // Sin operación propia en el catálogo: queda con el único permiso de este módulo, que es del administrador.
     [HttpDelete("{clave}")]
+    [Permiso(Permisos.Parametros.ModificarDiasRevisita)]
     public async Task<IActionResult> Delete(string clave)
     {
         var config = await _context.ConfiguracionesGenerales.FindAsync(clave);

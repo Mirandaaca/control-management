@@ -3,6 +3,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ public class PedidosController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Pedidos.ConsultarPedidos, Permisos.Pedidos.VerBandeja)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? clienteId,
         [FromQuery] int? estadoId,
@@ -50,6 +52,7 @@ public class PedidosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Pedidos.ConsultarPedidos, Permisos.Pedidos.VerBandeja)]
     public async Task<IActionResult> GetById(int id)
     {
         var pedido = await _db.Pedidos
@@ -71,7 +74,7 @@ public class PedidosController : ControllerBase
         Ok(await _db.EstadosPedido.OrderBy(e => e.Orden).ToListAsync());
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Pedidos.RegistrarPedido)]
     public async Task<IActionResult> Create([FromBody] PedidoCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -125,7 +128,9 @@ public class PedidosController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = pedido.Id }, pedido);
     }
 
+    // Hoy este endpoint hace las tres operaciones; se separa en la tarea de Pedidos.
     [HttpPost("{id}/estado")]
+    [Permiso(Permisos.Pedidos.CambiarEstado, Permisos.Pedidos.RegistrarEntrega, Permisos.Pedidos.AnularPedido)]
     public async Task<IActionResult> CambiarEstado(int id, [FromBody] CambiarEstadoDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -176,6 +181,7 @@ public class PedidosController : ControllerBase
     }
 
     [HttpGet("{id}/historial")]
+    [Permiso(Permisos.Pedidos.ConsultarPedidos, Permisos.Pedidos.VerBandeja)]
     public async Task<IActionResult> GetHistorial(int id)
     {
         var historial = await _db.HistorialEstadosPedido

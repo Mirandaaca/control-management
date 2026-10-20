@@ -18,12 +18,12 @@ public class NumeracionTests(ApiDePrueba api)
     [Fact]
     public async Task Diez_HP_creadas_a_la_vez_reciben_numeros_distintos()
     {
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync();
-        var productoId = await admin.CrearProductoAsync(5m);
-        var clienteId = await admin.CrearClienteAsync(zonaId);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var productoId = await operador.CrearProductoAsync(5m);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
 
-        var respuestas = await Ayudantes.EnviarALaVezAsync(10, _ => admin.PostAsJsonAsync("/api/hojas-pedido", new
+        var respuestas = await Ayudantes.EnviarALaVezAsync(10, _ => operador.PostAsJsonAsync("/api/hojas-pedido", new
         {
             clienteId, zonaId, latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
             detalles = new[] { new { productoId, cantidad = 1 } }
@@ -37,10 +37,10 @@ public class NumeracionTests(ApiDePrueba api)
     [Fact]
     public async Task Ocho_clientes_creados_a_la_vez_reciben_codigos_distintos()
     {
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync();
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
 
-        var respuestas = await Ayudantes.EnviarALaVezAsync(8, i => admin.PostAsJsonAsync("/api/clientes", new
+        var respuestas = await Ayudantes.EnviarALaVezAsync(8, i => operador.PostAsJsonAsync("/api/clientes", new
         {
             nombreCompleto = $"Cliente simultáneo {i}", telefono = "70000000", direccionTexto = "Calle", zonaId
         }));

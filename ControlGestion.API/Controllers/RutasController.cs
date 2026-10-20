@@ -3,6 +3,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Territorial.PlanificarRuta, Permisos.Territorial.SeguirRuta, Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? promotorId,
         [FromQuery] int? zonaId,
@@ -56,6 +58,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Territorial.PlanificarRuta, Permisos.Territorial.SeguirRuta, Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> GetById(int id)
     {
         var ruta = await _db.Rutas
@@ -86,7 +89,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Territorial.PlanificarRuta)]
     public async Task<IActionResult> Create([FromBody] RutaCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -125,6 +128,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpPost("{id}/iniciar")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> Iniciar(int id)
     {
         var ruta = await _db.Rutas.FindAsync(id);
@@ -139,6 +143,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpPost("{id}/completar")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> Completar(int id)
     {
         var ruta = await _db.Rutas.FindAsync(id);
@@ -153,6 +158,7 @@ public class RutasController : ControllerBase
     }
 
     [HttpPost("{rutaId}/detalles/{detalleId}/visita")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> MarcarVisita(int rutaId, int detalleId, [FromBody] MarcarVisitaDTO dto)
     {
         var detalle = await _db.RutasDetalle
