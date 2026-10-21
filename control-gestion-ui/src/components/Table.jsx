@@ -1,6 +1,7 @@
 /**
  * Tabla dentro de su tarjeta. "barra" va arriba (buscador y filtros) y "pie" abajo (paginación); "estado" reemplaza a
- * las filas mientras carga, si no hay datos o si hubo un error.
+ * las filas mientras carga, si no hay datos o si hubo un error. Un encabezado puede ser un texto o
+ * { texto, derecha: true }, para las columnas de montos y cantidades.
  */
 export function Table({ headers, children, empty = 'Sin registros.', barra, estado, pie }) {
   const sinFilas = !children || (Array.isArray(children) && children.length === 0);
@@ -13,11 +14,15 @@ export function Table({ headers, children, empty = 'Sin registros.', barra, esta
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  {headers.map((h) => (
-                    <th key={h} scope="col" className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
+                  {headers.map((h) => {
+                    const { texto, derecha } = typeof h === 'string' ? { texto: h } : h;
+                    return (
+                      <th key={texto} scope="col"
+                        className={`px-4 py-3 ${derecha ? 'text-right' : 'text-left'} text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap`}>
+                        {texto}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
