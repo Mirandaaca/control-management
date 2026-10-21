@@ -20,7 +20,6 @@ export default function Eventos() {
   const [resolviendoId, setResolviendoId] = useState(null);
   const [motivoResolucion, setMotivoResolucion] = useState('');
   const [form, setForm] = useState({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
-  const [archivo, setArchivo] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,7 +31,7 @@ export default function Eventos() {
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
     return api.get('/eventos', { params }).then((r) => {
-      setEventos(r.data);
+      setEventos(r.data.items);
       setLoading(false);
     });
   };
@@ -51,7 +50,7 @@ export default function Eventos() {
     e.preventDefault();
     setSaving(true); setError('');
     try {
-      const r = await api.post('/eventos', {
+      await api.post('/eventos', {
         tipoEventoId: parseInt(form.tipoEventoId),
         clienteId: form.clienteId ? parseInt(form.clienteId) : null,
         pedidoId: form.pedidoId ? parseInt(form.pedidoId) : null,
@@ -60,18 +59,8 @@ export default function Eventos() {
         descripcion: form.descripcion,
       });
 
-      if (archivo && tipoSeleccionado?.requiereEvidencia) {
-        const fd = new FormData();
-        fd.append('archivo', archivo);
-        fd.append('descripcion', 'Evidencia del evento');
-        await api.post(`/eventos/${r.data.id}/anexos`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-      }
-
       setShowForm(false);
       setForm({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
-      setArchivo(null);
       fetchEventos();
     } catch (err) { setError(mensajeDeError(err, 'Error al registrar el evento.')); }
     finally { setSaving(false); }
@@ -85,7 +74,7 @@ export default function Eventos() {
     fetchEventos();
   };
 
-  const pendientes = eventos.filter(e => e.estadoEvento === 0 || e.estadoEvento === 3).length;
+  const pendientes = eventos.filter(e => e.estado === 0 || e.estado === 3).length;
 
   return (
     <Layout>
@@ -180,13 +169,6 @@ export default function Eventos() {
                 placeholder="Describe la incidencia con detalle..."
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
-            {tipoSeleccionado?.requiereEvidencia && (
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Evidencia fotográfica *</label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setArchivo(e.target.files[0])}
-                  className="block w-full text-sm text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-              </div>
-            )}
             <div className="flex gap-2 pt-2">
               <Btn type="submit" variant="primary" size="md" disabled={saving}>
                 {saving ? 'Registrando...' : 'Registrar evento'}
@@ -225,21 +207,21 @@ export default function Eventos() {
           {eventos.map(ev => (
             <Tr key={ev.id}>
               <Td mono>{ev.numero}</Td>
-              <Td><span className="font-medium text-slate-800">{ev.tipoEvento?.nombre}</span></Td>
-              <Td><Badge color={PRIORIDAD_COLOR[ev.tipoEvento?.nivelPrioridad]}>{PRIORIDAD_LABEL[ev.tipoEvento?.nivelPrioridad]}</Badge></Td>
+              <Td><span className="font-medium text-slate-800">{ev.tipo.nombre}</span></Td>
+              <Td><Badge color={PRIORIDAD_COLOR[ev.tipo.nivelPrioridad]}>{PRIORIDAD_LABEL[ev.tipo.nivelPrioridad]}</Badge></Td>
               <Td>{ev.cliente?.nombreCompleto ?? <span className="text-slate-400">—</span>}</Td>
               <Td>{ev.promotor?.nombreCompleto}</Td>
-              <Td><Badge color={ESTADO_COLOR[ev.estadoEvento]}>{ESTADO_LABEL[ev.estadoEvento]}</Badge></Td>
+              <Td><Badge color={ESTADO_COLOR[ev.estado]}>{ESTADO_LABEL[ev.estado]}</Badge></Td>
               <Td>
-                {ev.anexos?.length > 0
-                  ? <Badge color="blue">{ev.anexos.length} archivo{ev.anexos.length > 1 ? 's' : ''}</Badge>
+                {ev.cantidadFotos > 0
+                  ? <Badge color="blue">{ev.cantidadFotos} archivo{ev.cantidadFotos > 1 ? 's' : ''}</Badge>
                   : <span className="text-slate-400 text-xs">Sin archivos</span>
                 }
               </Td>
               <Td>{formatearFecha(ev.fechaEvento)}</Td>
               <Td>
                 <div className="flex gap-1.5">
-                  {ev.estadoEvento !== 2 && (
+                  {ev.estado !== 2 && (
                     <Btn onClick={() => { setResolviendoId(ev.id); setMotivoResolucion(''); }} variant="ghost">
                       Resolver
                     </Btn>
