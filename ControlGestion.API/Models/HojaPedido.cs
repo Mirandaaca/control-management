@@ -35,4 +35,7 @@ public class HojaPedido
     public ApplicationUser? AnuladoPor { get; set; }
 
     public ICollection<DetalleHP> Detalles { get; set; } = new List<DetalleHP>();
+
+    // Una HP a crédito tiene una sola cobranza; es una colección porque la relación de Cobranza ya era de uno a muchos.
+    public ICollection<Cobranza> Cobranzas { get; set; } = new List<Cobranza>();
 }

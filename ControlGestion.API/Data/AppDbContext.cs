@@ -251,7 +251,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Cobranza>()
             .HasOne(c => c.Cliente).WithMany().HasForeignKey(c => c.ClienteId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Cobranza>()
-            .HasOne(c => c.HojaPedido).WithMany().HasForeignKey(c => c.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
+            .HasOne(c => c.HojaPedido).WithMany(h => h.Cobranzas).HasForeignKey(c => c.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Cobranza>()
             .HasOne(c => c.Promotor).WithMany().HasForeignKey(c => c.PromotorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Cobranza>()

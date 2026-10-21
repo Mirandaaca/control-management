@@ -36,8 +36,8 @@ export default function HojasPedido() {
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    return api.get('/hojas-pedido', { params }).then((r) => {
-      setHps(r.data);
+    return api.get('/hojas-pedido', { params: { ...params, tamano: 100 } }).then((r) => {
+      setHps(r.data.items);
       setLoading(false);
     });
   };
@@ -289,7 +289,7 @@ export default function HojasPedido() {
             <div className="space-y-1 mb-4">
               {showDetalle.detalles?.map(d => (
                 <div key={d.id} className="flex justify-between text-sm py-1 border-b border-slate-50">
-                  <span>{d.producto?.descripcion} × {d.cantidad}</span>
+                  <span>{d.descripcion} × {d.cantidad}</span>
                   <span className="font-medium">Bs. {d.subtotal?.toFixed(2)}</span>
                 </div>
               ))}
