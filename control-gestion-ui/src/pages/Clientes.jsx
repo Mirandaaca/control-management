@@ -8,8 +8,8 @@ import Layout from '../components/Layout';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
-  Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
@@ -209,7 +209,13 @@ export default function Clientes() {
 
   const abrirCambioEstado = (cliente) => {
     setErrorEstado('');
-    setCambioEstado({ cliente, valor: cliente.estado.delSistema ? EN_EL_CICLO : String(cliente.estado.id) });
+    setCambioEstado({ cliente, valor: cliente.estado.delSistema ? EN_EL_CICLO : String(cliente.estado.id), confirmando: false });
+  };
+
+  // Un estado manual saca al cliente del ciclo de visitas: es desactivarlo, y eso se confirma. Volver al ciclo, no.
+  const pedirCambioEstado = () => {
+    if (cambioEstado.valor === EN_EL_CICLO) guardarEstado();
+    else setCambioEstado({ ...cambioEstado, confirmando: true });
   };
 
   const guardarEstado = async () => {
@@ -232,6 +238,7 @@ export default function Clientes() {
   const hayFiltros = filtros.texto !== '' || filtros.zonaId !== '' || filtros.estadoId !== '' || filtros.porVisitar;
   const clientes = pagina?.items ?? [];
   const zonaDelFormulario = zonas.find((z) => String(z.id) === formulario?.zonaId);
+  const estadoElegido = estados.find((e) => String(e.id) === cambioEstado?.valor);
   const opcionesDeEstado = [
     { valor: EN_EL_CICLO, texto: 'En el ciclo de visitas (lo decide el sistema)' },
     ...estados.filter((e) => !e.delSistema).map((e) => ({ valor: String(e.id), texto: e.nombre })),
@@ -452,14 +459,14 @@ export default function Clientes() {
 
       {/* Estado asignado a mano */}
       <Modal
-        abierto={cambioEstado !== null}
+        abierto={cambioEstado !== null && !cambioEstado.confirmando}
         onCerrar={() => setCambioEstado(null)}
         titulo={`Estado de ${cambioEstado?.cliente.nombreCompleto ?? ''}`}
         descripcion="Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo de visitas: deja de salir entre los clientes por visitar. Activo y Disponible los asigna el sistema según las visitas."
         pie={(
           <>
             <Btn variant="outline" size="md" onClick={() => setCambioEstado(null)} disabled={guardandoEstado}>Cancelar</Btn>
-            <Btn size="md" onClick={guardarEstado} disabled={guardandoEstado}>
+            <Btn size="md" onClick={pedirCambioEstado} disabled={guardandoEstado}>
               {guardandoEstado && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               Cambiar estado
             </Btn>
@@ -475,6 +482,21 @@ export default function Clientes() {
           </div>
         )}
       </Modal>
+
+      <Confirmar
+        abierto={cambioEstado?.confirmando === true}
+        titulo={`¿Pasar a ${cambioEstado?.cliente.nombreCompleto ?? ''} a “${estadoElegido?.nombre ?? ''}”?`}
+        textoAccion={`Pasar a ${estadoElegido?.nombre ?? ''}`}
+        enviando={guardandoEstado}
+        error={errorEstado}
+        onConfirmar={guardarEstado}
+        onCancelar={() => setCambioEstado(null)}
+      >
+        <p>
+          Sale del ciclo de visitas: deja de aparecer entre los clientes por visitar, y una venta no le cambia el estado.
+          Puedes devolverlo al ciclo cuando quieras, con el botón Estado.
+        </p>
+      </Confirmar>
     </Layout>
   );
 }
