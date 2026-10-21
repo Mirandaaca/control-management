@@ -312,10 +312,10 @@ export default function HojasPedido() {
                 onChange={(tipo) => filtrar({ tipo })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

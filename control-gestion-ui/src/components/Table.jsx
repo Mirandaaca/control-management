@@ -38,9 +38,10 @@ export function Table({ headers, children, empty = 'Sin registros.', barra, esta
   );
 }
 
+// Un código (SKU, HP-2026-00001) no se traduce: el traductor del navegador podría cambiarlo.
 export function Td({ children, mono = false, className = '' }) {
   return (
-    <td className={`px-4 py-2.5 text-slate-900 ${mono ? 'font-mono text-xs' : ''} ${className}`}>
+    <td translate={mono ? 'no' : undefined} className={`px-4 py-2.5 text-slate-900 ${mono ? 'font-mono text-xs whitespace-nowrap' : ''} ${className}`}>
       {children}
     </td>
   );

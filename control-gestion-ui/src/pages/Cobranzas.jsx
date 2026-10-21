@@ -253,10 +253,10 @@ export default function Cobranzas() {
                 onChange={(valor) => filtrar({ estado: valor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Emitida desde" type="date" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <Input label="Emitida desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}
