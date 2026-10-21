@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 export default function Inventario() {
   const [inventario, setInventario] = useState([]);
@@ -102,7 +103,7 @@ export default function Inventario() {
                     {item.bajoMinimo && <span className="ml-2 text-xs text-red-500">▼ bajo mínimo</span>}
                   </Td>
                   <Td>{item.stockMinimo?.toFixed(0)}</Td>
-                  <Td>{new Date(item.ultimaActualizacion).toLocaleString()}</Td>
+                  <Td>{formatearFecha(item.ultimaActualizacion, { hora: true })}</Td>
                   <Td>
                     <div className="flex gap-2">
                       <Btn onClick={() => handleVerMovimientos(item)} variant="ghost">Movimientos</Btn>
@@ -172,7 +173,7 @@ export default function Inventario() {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">{m.referenciaTabla} #{m.referenciaId}</p>
-                      <p className="text-xs text-slate-400">{new Date(m.fecha).toLocaleString()}</p>
+                      <p className="text-xs text-slate-400">{formatearFecha(m.fecha, { hora: true })}</p>
                       <p className="text-xs text-slate-500 mt-1">Stock: {m.stockAnterior} → {m.stockResultante}</p>
                     </div>
                   ))}

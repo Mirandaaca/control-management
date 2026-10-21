@@ -1,6 +1,7 @@
 using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,10 +21,12 @@ public class ProductosController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
     public async Task<IActionResult> GetAll() =>
         Ok(await _context.Productos.Where(p => p.Activo).ToListAsync());
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
     public async Task<IActionResult> GetById(int id)
     {
         var producto = await _context.Productos.FindAsync(id);
@@ -31,7 +34,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Parametros.RegistrarProducto)]
     public async Task<IActionResult> Create([FromBody] Producto producto)
     {
         _context.Productos.Add(producto);
@@ -42,7 +45,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Parametros.ModificarProducto)]
     public async Task<IActionResult> Update(int id, [FromBody] Producto producto)
     {
         if (id != producto.Id) throw new ReglaDeNegocioException("id_no_coincide", "El id de la URL no coincide con el del cuerpo.");
@@ -53,7 +56,7 @@ public class ProductosController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Permiso(Permisos.Parametros.EliminarProducto)]
     public async Task<IActionResult> Delete(int id)
     {
         var producto = await _context.Productos.FindAsync(id);

@@ -1,19 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert } from '../components/ui';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
-
 export default function Dashboard() {
   const [kpis, setKpis] = useState(null);
   const [ventas, setVentas] = useState(null);
-  const [usuarios, setUsuarios] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -21,20 +15,12 @@ export default function Dashboard() {
       setError(mensajeDeError(err, 'No se pudieron cargar algunos datos del tablero.'));
     api.get('/reportes/dashboard').then(r => setKpis(r.data)).catch(avisarError);
     api.get('/reportes/ventas').then(r => setVentas(r.data)).catch(avisarError);
-    api.get('/usuarios/activos').then(r => setUsuarios(r.data)).catch(avisarError);
   }, []);
-
-  const rolesCounts = usuarios.reduce((acc, u) => {
-    const rol = u.roles?.[0] ?? 'Sin rol';
-    acc[rol] = (acc[rol] || 0) + 1;
-    return acc;
-  }, {});
-  const rolesData = Object.entries(rolesCounts).map(([rol, cantidad]) => ({ rol, cantidad }));
 
   return (
     <Layout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Dashboard</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Inicio</h2>
         <p className="text-slate-500 text-sm mt-1">Resumen general del sistema</p>
       </div>
 
@@ -51,22 +37,7 @@ export default function Dashboard() {
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Usuarios por rol */}
-        <ChartCard title="Usuarios por Rol">
-          {rolesData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={rolesData} dataKey="cantidad" nameKey="rol" cx="50%" cy="50%" outerRadius={80} label>
-                  {rolesData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart />}
-        </ChartCard>
-
+      <div className="grid grid-cols-1 gap-6 mb-6">
         {/* Ventas por promotor */}
         <ChartCard title="Ventas por Promotor (mes actual)">
           {ventas?.porPromotor?.length > 0 ? (

@@ -6,10 +6,5 @@ public class LoginDTO
     public string Password { get; set; } = string.Empty;
 }
 
-public class LoginResponseDTO
-{
-    public string Token { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string NombreCompleto { get; set; } = string.Empty;
-    public IList<string> Roles { get; set; } = new List<string>();
-}
+/// <summary>El login devuelve también la sesión, así el panel y la app no necesitan pedir /auth/yo enseguida.</summary>
+public record LoginRespuestaDTO(string Token, SesionDTO Usuario);

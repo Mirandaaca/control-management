@@ -1,7 +1,11 @@
 using System.Security.Cryptography;
+using ControlGestion.API.Data;
+using ControlGestion.API.Models;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
@@ -15,6 +19,8 @@ namespace ControlGestion.API.Tests.Infraestructura;
 public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public const string CorreoAdmin = "admin@control.com";
+    public const string CorreoOperador = "operador@test.local";
+    public const string RolOperador = "Pruebas: todos los permisos";
     private const string PrefijoDeBase = "control_test_";
     private const int PuertoDeDesarrollo = 9093;
 
@@ -22,6 +28,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly string _baseDeDatos = $"{PrefijoDeBase}{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}"[..40];
 
     public string ContrasenaAdmin { get; } = Aleatorio(24) + "9";
+    public string ContrasenaOperador { get; } = Aleatorio(24) + "9";
 
     public ApiDePrueba()
     {
@@ -65,8 +72,36 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     public async Task InitializeAsync()
     {
         await EjecutarAsync($"CREATE DATABASE `{_baseDeDatos}`");
-        // Arrancar el servidor ejecuta Program.cs: aplica las migraciones y siembra el admin.
+        // Arrancar el servidor ejecuta Program.cs: aplica las migraciones, siembra roles y permisos, y crea el admin.
         _ = Server;
+        await CrearOperadorAsync();
+    }
+
+    /// <summary>
+    /// El administrador ya no puede crear zonas, clientes ni HP. Las pruebas que solo necesitan esos datos los crean con
+    /// este usuario, que tiene los 66 permisos; los permisos de cada rol real se prueban aparte.
+    /// </summary>
+    private async Task CrearOperadorAsync()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var usuarios = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var rol = new IdentityRole(RolOperador);
+        Exigir(await roles.CreateAsync(rol));
+        db.RolesPermisos.AddRange(await db.Permisos.Select(p => new RolPermiso { RolId = rol.Id, PermisoId = p.Id }).ToListAsync());
+        await db.SaveChangesAsync();
+
+        var operador = new ApplicationUser { UserName = CorreoOperador, Email = CorreoOperador, NombreCompleto = "Operador de pruebas" };
+        Exigir(await usuarios.CreateAsync(operador, ContrasenaOperador));
+        Exigir(await usuarios.AddToRoleAsync(operador, RolOperador));
+    }
+
+    private static void Exigir(IdentityResult resultado)
+    {
+        if (!resultado.Succeeded)
+            throw new InvalidOperationException(string.Join(" ", resultado.Errors.Select(e => e.Description)));
     }
 
     async Task IAsyncLifetime.DisposeAsync()

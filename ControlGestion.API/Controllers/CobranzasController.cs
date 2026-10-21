@@ -1,5 +1,6 @@
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,19 +12,22 @@ namespace ControlGestion.API.Controllers;
 public class CobranzasController(CobranzaService cobranzas) : ControllerBase
 {
     [HttpGet]
+    [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
     public async Task<ActionResult<List<CobranzaResumenDTO>>> GetAll([FromQuery] FiltrosCobranzaDTO filtros) =>
         await cobranzas.ListarAsync(filtros);
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
     public async Task<ActionResult<CobranzaDetalleDTO>> GetById(int id) =>
         await cobranzas.ObtenerAsync(id);
 
     [HttpPost("{id}/pagos")]
+    [Permiso(Permisos.Cobranzas.RegistrarPago)]
     public async Task<ActionResult<PagoRegistradoDTO>> RegistrarPago(int id, [FromBody] RegistrarPagoDTO dto) =>
         await cobranzas.RegistrarPagoAsync(id, dto);
 
     [HttpPost("{id}/incobrable")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Cobranzas.MarcarIncobrable)]
     public async Task<ActionResult<CobranzaDetalleDTO>> MarcarIncobrable(int id, [FromBody] MarcarIncobrableDTO dto) =>
         await cobranzas.MarcarIncobrableAsync(id, dto.Observacion);
 }

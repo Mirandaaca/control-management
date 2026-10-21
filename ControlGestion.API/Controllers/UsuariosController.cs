@@ -1,116 +1,54 @@
-using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
-using ControlGestion.API.Excepciones;
-using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// El Supervisor solo necesita la lista de activos (para asignar promotores); el resto es solo para Admin.
-// Los atributos se suman: una acción con [Authorize(Roles = "Admin")] exige Admin aunque la clase admita a los dos.
-[Authorize(Roles = "Admin,Supervisor")]
-public class UsuariosController : ControllerBase
+[Authorize]
+public class UsuariosController(UsuarioService usuarios) : ControllerBase
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly AppDbContext _db;
-
-    public UsuariosController(UserManager<ApplicationUser> userManager, AppDbContext db)
-    {
-        _userManager = userManager;
-        _db = db;
-    }
-
-    [HttpPost]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Crear([FromBody] CrearUsuarioDTO dto)
-    {
-        if (await _userManager.FindByEmailAsync(dto.Email) != null)
-            throw new ConflictoException("correo_duplicado", "Ya existe un usuario con ese correo.");
-
-        var user = new ApplicationUser
-        {
-            UserName = dto.Email,
-            Email = dto.Email,
-            NombreCompleto = dto.NombreCompleto.Trim()
-        };
-
-        // Crear el usuario y asignarle el rol van juntos: si lo segundo falla, no queda un usuario sin rol.
-        await using var transaccion = await _db.Database.BeginTransactionAsync();
-
-        var resultado = await _userManager.CreateAsync(user, dto.Password);
-        if (!resultado.Succeeded)
-            throw new ReglaDeNegocioException("usuario_invalido", string.Join(" ", resultado.Errors.Select(e => e.Description)));
-
-        var resultadoRol = await _userManager.AddToRoleAsync(user, dto.Rol);
-        if (!resultadoRol.Succeeded)
-            throw new InvalidOperationException($"No se pudo asignar el rol {dto.Rol} al usuario nuevo.");
-
-        await transaccion.CommitAsync();
-
-        var creado = new UsuarioDTO(user.Id, user.Email!, user.NombreCompleto, user.Activo, new List<string> { dto.Rol });
-        return CreatedAtAction(nameof(GetById), new { id = user.Id }, creado);
-    }
-
     [HttpGet]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAll()
-    {
-        var users = await _userManager.Users.ToListAsync();
-        var result = new List<object>();
-        foreach (var u in users)
-        {
-            var roles = await _userManager.GetRolesAsync(u);
-            result.Add(new { u.Id, u.Email, u.NombreCompleto, u.Activo, u.FechaCreacion, Roles = roles });
-        }
-        return Ok(result);
-    }
+    [Permiso(Permisos.Seguridad.CrearUsuario, Permisos.Seguridad.EditarUsuario, Permisos.Seguridad.ActivarUsuario)]
+    public async Task<ActionResult<List<UsuarioDTO>>> GetAll() =>
+        await usuarios.ListarAsync();
 
-    [HttpGet("activos")]
-    public async Task<IActionResult> GetActivos()
-    {
-        var users = await _userManager.Users.Where(u => u.Activo).OrderBy(u => u.NombreCompleto).ToListAsync();
-        var result = new List<object>();
-        foreach (var u in users)
-        {
-            var roles = await _userManager.GetRolesAsync(u);
-            result.Add(new { u.Id, u.NombreCompleto, Roles = roles });
-        }
-        return Ok(result);
-    }
+    // Para elegir un promotor al asignar pedidos, zonas o rutas: solo el id y el nombre.
+    [HttpGet("promotores")]
+    [Permiso(Permisos.Pedidos.AsignarPedidos, Permisos.Parametros.RegistrarZona, Permisos.Parametros.ModificarZona,
+        Permisos.Territorial.PlanificarRuta)]
+    public async Task<ActionResult<List<UsuarioResumenDTO>>> GetPromotores() =>
+        await usuarios.ListarPromotoresAsync();
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetById(string id)
+    [Permiso(Permisos.Seguridad.CrearUsuario, Permisos.Seguridad.EditarUsuario, Permisos.Seguridad.ActivarUsuario)]
+    public async Task<ActionResult<UsuarioDTO>> GetById(string id) =>
+        await usuarios.ObtenerAsync(id);
+
+    [HttpPost]
+    [Permiso(Permisos.Seguridad.CrearUsuario)]
+    public async Task<ActionResult<UsuarioDTO>> Crear([FromBody] CrearUsuarioDTO dto)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
-        var roles = await _userManager.GetRolesAsync(user);
-        return Ok(new { user.Id, user.Email, user.NombreCompleto, user.Activo, user.FechaCreacion, Roles = roles });
+        var creado = await usuarios.CrearAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
     }
 
+    [HttpPut("{id}")]
+    [Permiso(Permisos.Seguridad.EditarUsuario)]
+    public async Task<ActionResult<UsuarioDTO>> Editar(string id, [FromBody] EditarUsuarioDTO dto) =>
+        await usuarios.EditarAsync(id, dto);
+
+    // Los usuarios no se borran (8.2): se desactivan, y conservan sus ventas, cobros y su rastro en la bitácora.
     [HttpPut("{id}/activar")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> ToggleActivo(string id)
-    {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
-        user.Activo = !user.Activo;
-        await _userManager.UpdateAsync(user);
-        return Ok(new { user.Id, user.Activo });
-    }
+    [Permiso(Permisos.Seguridad.ActivarUsuario)]
+    public async Task<ActionResult<UsuarioDTO>> Activar(string id) =>
+        await usuarios.ActivarAsync(id);
 
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Delete(string id)
-    {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null) throw new NoEncontradoException("No se encontró el usuario.");
-        await _userManager.DeleteAsync(user);
-        return NoContent();
-    }
+    [HttpPut("{id}/desactivar")]
+    [Permiso(Permisos.Seguridad.ActivarUsuario)]
+    public async Task<ActionResult<UsuarioDTO>> Desactivar(string id) =>
+        await usuarios.DesactivarAsync(id);
 }

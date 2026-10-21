@@ -6,3 +6,9 @@ export function mensajeDeError(err, porDefecto = 'Ocurrió un error.') {
   const deLosCampos = Object.values(errors ?? {}).flat();
   return deLosCampos.length > 0 ? deLosCampos.join(' ') : detail ?? porDefecto;
 }
+
+// Los errores de validación por campo ({ email: ['…'] }), para mostrar cada uno debajo de su campo.
+export function erroresPorCampo(err) {
+  const errors = err?.response?.data?.errors ?? {};
+  return Object.fromEntries(Object.entries(errors).map(([campo, mensajes]) => [campo, [].concat(mensajes).join(' ')]));
+}
