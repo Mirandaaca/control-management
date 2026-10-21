@@ -44,6 +44,7 @@ export default function Eventos() {
   const [aviso, setAviso] = useState('');
   const [advertencia, setAdvertencia] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
+  const [errorFiltros, setErrorFiltros] = useState('');
 
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
@@ -53,16 +54,17 @@ export default function Eventos() {
   const [formulario, setFormulario] = useState(null);
   const [resolviendo, setResolviendo] = useState(null);
 
-  // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
-  useEffect(() => {
-    Promise.all([
-      api.get('/eventos/tipos'),
-      api.get('/zonas'),
-      eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
-    ])
-      .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
-  }, [eligePromotor]);
+  // Los catálogos de los filtros. Si fallan, la pantalla igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
+  const cargarFiltros = useCallback(() => Promise.all([
+    api.get('/eventos/tipos'),
+    api.get('/zonas'),
+    eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
+  ])
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
+    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+  [eligePromotor]);
+
+  useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
   const cargar = useCallback(() => api.get('/eventos', {
     params: {
@@ -137,7 +139,7 @@ export default function Eventos() {
   let estado = null;
   if (cargando) estado = <Cargando texto="Cargando eventos…" />;
   else if (errorCarga && !pagina) estado = (
-    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
     <EstadoVacio titulo="Todavía no hay eventos" icono={TriangleAlert}
@@ -170,6 +172,7 @@ export default function Eventos() {
       {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {advertencia && <Alert type="warning" className="mb-4">{advertencia}</Alert>}
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
+      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

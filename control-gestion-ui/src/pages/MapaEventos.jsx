@@ -69,21 +69,23 @@ export default function MapaEventos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
+  const [errorFiltros, setErrorFiltros] = useState('');
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
   const [detalle, setDetalle] = useState(null);
 
-  // Los catálogos de los filtros. Si fallan, el mapa igual funciona: se avisa arriba.
-  useEffect(() => {
-    Promise.all([
-      api.get('/eventos/tipos'),
-      api.get('/zonas'),
-      eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
-    ])
-      .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
-  }, [eligePromotor]);
+  // Los catálogos de los filtros. Si fallan, el mapa igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
+  const cargarFiltros = useCallback(() => Promise.all([
+    api.get('/eventos/tipos'),
+    api.get('/zonas'),
+    eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
+  ])
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
+    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+  [eligePromotor]);
+
+  useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
   const cargar = useCallback(() => api.get('/eventos/mapa', {
     params: {
@@ -118,14 +120,15 @@ export default function MapaEventos() {
   let contenido;
   if (cargando) contenido = <Cargando texto="Cargando el mapa…" />;
   else if (errorCarga && !mapa) contenido = (
-    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (mapa.total === 0 && !hayFiltros) contenido = (
     <EstadoVacio titulo="Todavía no hay eventos" icono={MapPin}>Las incidencias que registren los promotores aparecen en el mapa.</EstadoVacio>
   );
   else contenido = (
     <>
-      <div className="relative h-[26rem] sm:h-[32rem]" role="group" aria-label="Mapa de eventos: cada punto es un evento; elige uno para ver su detalle">
+      {/* isolate: las capas de Leaflet (z-index 400 a 1000) quedan dentro del mapa y no tapan el modal del detalle. */}
+      <div className="relative isolate h-104 sm:h-128" role="group" aria-label="Mapa de eventos: cada punto es un evento; elige uno para ver su detalle">
         <MapContainer center={SANTA_CRUZ} zoom={13} scrollWheelZoom={false} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -148,7 +151,7 @@ export default function MapaEventos() {
           })}
         </MapContainer>
         {puntos.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 z-[500] grid place-items-center p-4">
+          <div className="pointer-events-none absolute inset-0 z-500 grid place-items-center p-4">
             <p className="rounded-lg bg-white px-4 py-2 text-sm text-slate-800 shadow-flotante">Ningún evento coincide con los filtros.</p>
           </div>
         )}
@@ -162,6 +165,7 @@ export default function MapaEventos() {
       <PageHeader title="Mapa de eventos" subtitle="Dónde pasaron las incidencias en campo. Elige un punto para ver su detalle y sus fotos." />
 
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
+      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && mapa && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {recortado && (
         <Alert type="info" className="mb-4">

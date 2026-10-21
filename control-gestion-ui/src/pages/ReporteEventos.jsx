@@ -29,16 +29,18 @@ export default function ReporteEventos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
+  const [errorFiltros, setErrorFiltros] = useState('');
   const [exportando, setExportando] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
 
-  useEffect(() => {
-    Promise.all([api.get('/eventos/tipos'), api.get('/zonas'), api.get('/usuarios/promotores')])
-      .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
-  }, []);
+  // Los catálogos de los filtros. Si fallan, el reporte igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
+  const cargarFiltros = useCallback(() => Promise.all([api.get('/eventos/tipos'), api.get('/zonas'), api.get('/usuarios/promotores')])
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
+    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)), []);
+
+  useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
   const parametros = useCallback((pagina) => ({
     pagina,
@@ -80,7 +82,7 @@ export default function ReporteEventos() {
   let estado = null;
   if (cargando) estado = <Cargando texto="Generando el reporte…" />;
   else if (errorCarga && !reporte) estado = (
-    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (sinEventos && !hayFiltros) estado = (
     <EstadoVacio titulo="Todavía no hay eventos" icono={TriangleAlert}>Las incidencias que se registren aparecen en este reporte.</EstadoVacio>
@@ -102,6 +104,7 @@ export default function ReporteEventos() {
       />
 
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
+      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && reporte && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {sinEventos && hayFiltros && (
         <Alert type="info" className="mb-4">Ningún evento coincide con los filtros: no hay nada que exportar.</Alert>

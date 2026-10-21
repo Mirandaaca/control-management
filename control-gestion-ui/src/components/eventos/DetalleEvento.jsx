@@ -38,7 +38,7 @@ export default function DetalleEvento({ evento, onCerrar, acciones, fotos }) {
             <Dato titulo="Prioridad del tipo">{PRIORIDADES[evento.tipo.nivelPrioridad]}</Dato>
             <Dato titulo="Fecha">{formatearFecha(evento.fechaEvento, { hora: true })}</Dato>
             <Dato titulo="Cliente">{evento.cliente?.nombreCompleto}</Dato>
-            <Dato titulo="Pedido"><span translate="no">{evento.pedido?.numero}</span></Dato>
+            <Dato titulo="Pedido">{evento.pedido && <span translate="no">{evento.pedido.numero}</span>}</Dato>
             <Dato titulo="Zona">{evento.zona?.nombre}</Dato>
             <Dato titulo="Registró">{evento.promotor.nombreCompleto}</Dato>
           </dl>
