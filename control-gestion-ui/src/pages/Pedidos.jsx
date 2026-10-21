@@ -30,7 +30,7 @@ export default function Pedidos() {
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
     return api.get('/pedidos', { params }).then((r) => {
-      setPedidos(r.data);
+      setPedidos(r.data.items);
       setLoading(false);
     });
   };
@@ -93,12 +93,10 @@ export default function Pedidos() {
     setDetalle(r.data);
   };
 
+  const TRANSICIONES = { 1: [2, 5], 2: [3, 5], 3: [4, 5] };
   const transicionesDisponibles = (pedido) => {
-    if (!pedido?.estadoPedido) return [];
-    try {
-      const ids = JSON.parse(pedido.estadoPedido.permiteTransicion ?? '[]');
-      return estados.filter(e => ids.includes(e.id));
-    } catch { return []; }
+    const ids = TRANSICIONES[pedido?.estado?.id] ?? [];
+    return estados.filter(e => ids.includes(e.id));
   };
 
   return (
@@ -209,7 +207,7 @@ export default function Pedidos() {
               <Btn variant="ghost" onClick={cerrarCambioEstado}>✕</Btn>
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              Estado actual: <span className="font-semibold" style={{ color: cambioEstado.estadoPedido?.color }}>{cambioEstado.estadoPedido?.nombre}</span>
+              Estado actual: <span className="font-semibold">{cambioEstado.estado?.nombre}</span>
             </p>
             <div className="space-y-3">
               <div>
@@ -253,7 +251,7 @@ export default function Pedidos() {
             <div className="space-y-1 mb-4">
               {detalle.detalles?.map(d => (
                 <div key={d.id} className="flex justify-between text-sm py-1.5 border-b border-slate-50">
-                  <span>{d.producto?.descripcion} × {d.cantidad}</span>
+                  <span>{d.descripcion} × {d.cantidad}</span>
                   <span className="font-medium">Bs. {d.subtotal?.toFixed(2)}</span>
                 </div>
               ))}
@@ -265,10 +263,10 @@ export default function Pedidos() {
             <div className="space-y-2">
               {detalle.historial?.map(h => (
                 <div key={h.id} className="flex items-start gap-2 text-xs">
-                  <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: h.estadoPedido?.color }} />
+                  <span className="w-2 h-2 rounded-full mt-1 shrink-0 bg-slate-400" />
                   <div>
-                    <span className="font-medium">{h.estadoPedido?.nombre}</span>
-                    <span className="text-slate-400 ml-2">{formatearFecha(h.fechaCambio, { hora: true })}</span>
+                    <span className="font-medium">{h.estado?.nombre}</span>
+                    <span className="text-slate-400 ml-2">{formatearFecha(h.fecha, { hora: true })}</span>
                     {h.observacion && <p className="text-slate-500">{h.observacion}</p>}
                   </div>
                 </div>
@@ -290,16 +288,15 @@ export default function Pedidos() {
               <Td>{p.zona?.nombre}</Td>
               <Td><span className="font-semibold">Bs. {p.total?.toFixed(2)}</span></Td>
               <Td>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: p.estadoPedido?.color + '22', color: p.estadoPedido?.color }}>
-                  {p.estadoPedido?.nombre}
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                  {p.estado?.nombre}
                 </span>
               </Td>
               <Td>{formatearFecha(p.fechaRegistro)}</Td>
               <Td>
                 <div className="flex gap-1.5">
                   <Btn onClick={() => handleVerDetalle(p.id)} variant="ghost">Ver</Btn>
-                  {!p.estadoPedido?.esEstadoFinal && (
+                  {![4, 5].includes(p.estado?.id) && (
                     <Btn onClick={() => { setCambioEstado(p); setEstadoForm({ nuevoEstadoId: '', observacion: '', latitud: '', longitud: '' }); }} variant="outline">
                       Cambiar estado
                     </Btn>

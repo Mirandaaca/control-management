@@ -12,7 +12,7 @@ public class PedidosTests(ApiDePrueba api)
 {
     private static async Task<List<int>> IdsAsync(HttpClient cliente, string consulta = "") =>
         (await (await cliente.GetAsync($"/api/pedidos{consulta}")).LeerJsonAsync())
-            .EnumerateArray().Select(p => p.GetProperty("id").GetInt32()).ToList();
+            .GetProperty("items").EnumerateArray().Select(p => p.GetProperty("id").GetInt32()).ToList();
 
     private static async Task<JsonElement> PedidoDe(HttpClient cliente, int pedidoId) =>
         await (await cliente.GetAsync($"/api/pedidos/{pedidoId}")).LeerJsonAsync();
@@ -31,6 +31,63 @@ public class PedidosTests(ApiDePrueba api)
             descuento,
             detalles
         });
+    }
+
+    /// <summary>Dos promotores, cada uno con una zona, un cliente y un pedido de ese cliente.</summary>
+    private async Task<(UsuarioDePrueba PromotorA, int PedidoDeA, int PedidoDeB)> DosCarterasAsync(HttpClient operador)
+    {
+        var productoId = await operador.CrearProductoAsync(10m);
+        var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
+        var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
+        var pedidoDeA = await operador.CrearPedidoAsync(
+            await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorA.Id)), productoId, 1);
+        var pedidoDeB = await operador.CrearPedidoAsync(
+            await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id)), productoId, 1);
+        return (promotorA, pedidoDeA, pedidoDeB);
+    }
+
+    [Fact]
+    public async Task Un_promotor_solo_ve_los_pedidos_de_los_clientes_de_su_cartera()
+    {
+        using var operador = await api.OperadorAsync();
+        var (promotorA, pedidoDeA, pedidoDeB) = await DosCarterasAsync(operador);
+        using var clienteA = api.ClienteCon(promotorA.Token);
+
+        Assert.Equal([pedidoDeA], await IdsAsync(clienteA));
+        Assert.Equal(pedidoDeA, (await PedidoDe(clienteA, pedidoDeA)).GetProperty("id").GetInt32());
+        await (await clienteA.GetAsync($"/api/pedidos/{pedidoDeB}")).ProblemaAsync(404, "no_encontrado");
+        await (await clienteA.GetAsync($"/api/pedidos/{pedidoDeB}/historial")).ProblemaAsync(404, "no_encontrado");
+    }
+
+    [Fact]
+    public async Task La_busqueda_encuentra_el_pedido_por_su_numero_y_por_el_cliente()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var pedidoId = await operador.CrearPedidoAsync(clienteId, await operador.CrearProductoAsync(10m), 2);
+        var pedido = await PedidoDe(operador, pedidoId);
+        var nombreDelCliente = pedido.GetProperty("cliente").GetProperty("nombreCompleto").GetString();
+
+        Assert.Equal([pedidoId], await IdsAsync(operador, $"?buscar={pedido.GetProperty("numero").GetString()}"));
+        Assert.Equal([pedidoId], await IdsAsync(operador, $"?buscar={Uri.EscapeDataString(nombreDelCliente!)}"));
+        var linea = Assert.Single(pedido.GetProperty("detalles").EnumerateArray());
+        Assert.Equal(2m, linea.GetProperty("cantidad").GetDecimal());
+        Assert.StartsWith("Producto P-", linea.GetProperty("descripcion").GetString());
+    }
+
+    [Fact]
+    public async Task La_lista_viene_paginada()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var productoId = await operador.CrearProductoAsync(10m);
+        for (var i = 0; i < 3; i++) await operador.CrearPedidoAsync(clienteId, productoId, 1);
+
+        var pagina = await (await operador.GetAsync($"/api/pedidos?clienteId={clienteId}&tamano=2&pagina=2")).LeerJsonAsync();
+
+        Assert.Equal(3, pagina.GetProperty("total").GetInt32());
+        Assert.Equal(2, pagina.GetProperty("totalPaginas").GetInt32());
+        Assert.Single(pagina.GetProperty("items").EnumerateArray());
     }
 
     [Fact]
