@@ -90,10 +90,13 @@ public static class Ayudantes
         respuesta.EnsureSuccessStatusCode();
         var id = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
         if (stockInicial != 0)
-            (await admin.PostAsJsonAsync($"/api/inventario/{id}/ajuste",
-                new { cantidad = stockInicial, observacion = "Stock inicial de la prueba" })).EnsureSuccessStatusCode();
+            (await admin.RegistrarIngresoAsync(id, stockInicial)).EnsureSuccessStatusCode();
         return id;
     }
+
+    public static Task<HttpResponseMessage> RegistrarIngresoAsync(this HttpClient cliente, int productoId, decimal cantidad) =>
+        cliente.PostAsJsonAsync($"/api/inventario/{productoId}/ajuste",
+            new { cantidad, observacion = "Ingreso de la prueba" });
 
     /// <summary>Crea un cliente en la zona. Su promotor es el de la zona: para el cliente de un promotor, usa una zona suya.</summary>
     public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId)

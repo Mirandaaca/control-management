@@ -10,11 +10,6 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class NumeracionTests(ApiDePrueba api)
 {
-    private class RelojFijo(DateTimeOffset ahora) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => ahora;
-    }
-
     [Fact]
     public async Task Diez_HP_creadas_a_la_vez_reciben_numeros_distintos()
     {
