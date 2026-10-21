@@ -128,6 +128,20 @@ public record EventoListaDTO(
     ZonaResumenDTO? Zona,
     int CantidadFotos);
 
+/// <summary>Un punto del mapa de eventos (4.3): lo justo para el marcador y su etiqueta. El clic abre el detalle.</summary>
+public record EventoPuntoDTO(
+    int Id,
+    string Numero,
+    TipoEventoDTO Tipo,
+    EstadoEvento Estado,
+    DateTime FechaEvento,
+    decimal Latitud,
+    decimal Longitud,
+    ClienteResumenDTO? Cliente);
+
+/// <summary>Los puntos del mapa, los más recientes primero, y cuántos eventos cumplen los filtros.</summary>
+public record MapaEventosDTO(IReadOnlyList<EventoPuntoDTO> Puntos, int Total);
+
 public record FotoDTO(
     int Id,
     string NombreArchivo,

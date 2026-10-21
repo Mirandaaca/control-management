@@ -17,6 +17,7 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     TimeProvider reloj)
 {
     public const int MaximoDeFotos = 5;
+    public const int MaximoDePuntos = 1000;
 
     private IQueryable<Evento> Visibles => db.Eventos.VisiblesPara(usuario);
 
@@ -36,6 +37,22 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     public async Task<EventoDTO> ObtenerAsync(int id) =>
         await Visibles.Where(e => e.Id == id).Select(EventoConsultas.ComoDetalle).FirstOrDefaultAsync()
         ?? throw new NoEncontradoException("No se encontró el evento.");
+
+    /// <summary>
+    /// El mapa de eventos (4.3), con los filtros de la lista: los más recientes, hasta 1.000, y cuántos cumplen los
+    /// filtros, para avisar cuando el mapa no los muestra todos.
+    /// </summary>
+    public async Task<MapaEventosDTO> MapaAsync(FiltrosEventoDTO filtros)
+    {
+        var consulta = Visibles.Filtrar(filtros);
+        var total = await consulta.CountAsync();
+        var puntos = await consulta
+            .OrderByDescending(e => e.FechaEvento).ThenByDescending(e => e.Id)
+            .Take(MaximoDePuntos)
+            .Select(EventoConsultas.ComoPunto)
+            .ToListAsync();
+        return new MapaEventosDTO(puntos, total);
+    }
 
     public Task<List<TipoEventoDTO>> TiposAsync() =>
         db.TiposEvento.Where(t => t.Activo).OrderBy(t => t.Id).Select(EventoConsultas.TipoComoDTO).ToListAsync();

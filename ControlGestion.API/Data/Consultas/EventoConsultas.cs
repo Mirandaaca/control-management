@@ -72,6 +72,16 @@ public static class EventoConsultas
         e.Cliente == null ? null : new ZonaResumenDTO(e.Cliente.Zona!.Id, e.Cliente.Zona.Nombre),
         e.Evidencias.Count);
 
+    public static readonly Expression<Func<Evento, EventoPuntoDTO>> ComoPunto = e => new EventoPuntoDTO(
+        e.Id,
+        e.Numero,
+        new TipoEventoDTO(e.TipoEvento!.Id, e.TipoEvento.Nombre, e.TipoEvento.RequiereEvidencia, e.TipoEvento.NivelPrioridad),
+        e.EstadoEvento,
+        e.FechaEvento,
+        e.Latitud,
+        e.Longitud,
+        e.Cliente == null ? null : new ClienteResumenDTO(e.Cliente.Id, e.Cliente.NombreCompleto));
+
     public static readonly Expression<Func<Evento, EventoDTO>> ComoDetalle = e => new EventoDTO(
         e.Id,
         e.Numero,

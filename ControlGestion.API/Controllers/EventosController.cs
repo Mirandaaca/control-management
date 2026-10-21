@@ -12,10 +12,10 @@ namespace ControlGestion.API.Controllers;
 public class EventosController(EventoService eventos) : ControllerBase
 {
     // Quien opera sobre un evento también necesita verlo: la lista y el detalle se abren con cualquiera de estos
-    // permisos, siempre filtrados por cartera. El gerente general entra por el mapa hasta que tenga su pantalla.
+    // permisos, siempre filtrados por cartera.
     [HttpGet]
     [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.RegistrarEvento, Permisos.Eventos.ModificarEvento,
-        Permisos.Eventos.ResolverEvento, Permisos.Eventos.AgregarFoto, Permisos.Eventos.EliminarFoto, Permisos.Eventos.VerMapa)]
+        Permisos.Eventos.ResolverEvento, Permisos.Eventos.AgregarFoto, Permisos.Eventos.EliminarFoto)]
     public async Task<ActionResult<Pagina<EventoListaDTO>>> GetAll([FromQuery] FiltrosEventoDTO filtros) =>
         await eventos.ListarAsync(filtros);
 
@@ -25,6 +25,11 @@ public class EventosController(EventoService eventos) : ControllerBase
         Permisos.Eventos.ResolverEvento, Permisos.Eventos.AgregarFoto, Permisos.Eventos.EliminarFoto, Permisos.Eventos.VerMapa)]
     public async Task<ActionResult<EventoDTO>> GetById(int id) =>
         await eventos.ObtenerAsync(id);
+
+    [HttpGet("mapa")]
+    [Permiso(Permisos.Eventos.VerMapa)]
+    public async Task<ActionResult<MapaEventosDTO>> GetMapa([FromQuery] FiltrosEventoDTO filtros) =>
+        await eventos.MapaAsync(filtros);
 
     [HttpGet("tipos")]
     public async Task<ActionResult<List<TipoEventoDTO>>> GetTipos() =>
