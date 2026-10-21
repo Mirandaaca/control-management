@@ -103,6 +103,18 @@ public class ClientesTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Las_opciones_traen_la_direccion_del_cliente_para_proponerla_en_un_pedido()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        var opcion = (await (await operador.GetAsync("/api/clientes/opciones")).LeerJsonAsync()).EnumerateArray()
+            .Single(c => c.GetProperty("id").GetInt32() == clienteId);
+
+        Assert.Equal("Calle de prueba", opcion.GetProperty("direccionTexto").GetString());
+    }
+
+    [Fact]
     public async Task Un_promotor_ve_solo_los_clientes_de_su_cartera()
     {
         var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);

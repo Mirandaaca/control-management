@@ -112,7 +112,8 @@ public record ClienteDTO(
     DateTime FechaCreacion);
 
 /// <summary>Lo justo para elegir un cliente en un formulario (HP, pedido, evento, ruta).</summary>
-public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId);
+/// <summary>Para los selectores. La dirección se propone como dirección de entrega de un pedido.</summary>
+public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto);
 
 public record ClienteMapaDTO(
     int Id,

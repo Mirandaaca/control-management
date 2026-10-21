@@ -20,9 +20,11 @@ public class SeguridadDeDatosTests(ApiDePrueba api)
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
         var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, productoId, 1, credito: false);
+        var pedidoId = await vendedor.CrearPedidoAsync(clienteId, productoId, 1);
 
         foreach (var ruta in new[] { "/api/zonas", $"/api/clientes/{clienteId}", "/api/hojas-pedido", $"/api/hojas-pedido/{hojaId}",
-                                     $"/api/inventario/{productoId}/movimientos" })
+                                     $"/api/inventario/{productoId}/movimientos", "/api/pedidos", $"/api/pedidos/{pedidoId}",
+                                     $"/api/pedidos/{pedidoId}/historial" })
         {
             var cuerpo = await (await operador.GetAsync(ruta)).Content.ReadAsStringAsync();
             Assert.Contains("nombreCompleto", cuerpo);

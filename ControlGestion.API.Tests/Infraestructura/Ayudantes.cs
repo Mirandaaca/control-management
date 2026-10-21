@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ControlGestion.API.Configuracion;
 
 namespace ControlGestion.API.Tests.Infraestructura;
 
@@ -140,6 +141,24 @@ public static class Ayudantes
         return cobranzas.GetProperty("items").EnumerateArray()
             .Single(c => c.GetProperty("hojaPedido").GetProperty("id").GetInt32() == hojaId)
             .GetProperty("id").GetInt32();
+    }
+
+    /// <summary>Mañana a esa hora de Bolivia, como la manda el panel: sin zona.</summary>
+    public static string MananaEnBolivia(int hora = 10) =>
+        $"{HoraBolivia.Hoy(TimeProvider.System).AddDays(1):yyyy-MM-dd}T{hora:00}:00:00";
+
+    /// <summary>Registra un pedido Pendiente del cliente, con entrega mañana a las 10 de Bolivia. Su zona es la del cliente.</summary>
+    public static async Task<int> CrearPedidoAsync(this HttpClient vendedor, int clienteId, int productoId, decimal cantidad)
+    {
+        var respuesta = await vendedor.PostAsJsonAsync("/api/pedidos", new
+        {
+            clienteId,
+            fechaEntregaEstimada = MananaEnBolivia(),
+            direccionEntrega = "Calle de entrega de prueba",
+            detalles = new[] { new { productoId, cantidad } }
+        });
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
     /// <summary>Lanza todas las peticiones a la vez: ninguna sale hasta que todas están listas.</summary>

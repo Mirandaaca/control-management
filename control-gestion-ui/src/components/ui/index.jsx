@@ -213,14 +213,17 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
 
 /**
  * Pide confirmación antes de desactivar, anular o eliminar (docs/diseno.md, Mensajes). Con variante="primary" sirve
- * para una acción que no destruye pero tampoco se deshace, como confirmar una venta.
+ * para una acción que no destruye pero tampoco se deshace, como confirmar una venta. Con ancho="lg" entra un mapa.
  */
-export function Confirmar({ abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger' }) {
+export function Confirmar({
+  abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger', ancho = 'md',
+}) {
   return (
     <Modal
       abierto={abierto}
       onCerrar={onCancelar}
       titulo={titulo}
+      ancho={ancho}
       pie={(
         <>
           <Btn variant="outline" size="md" onClick={onCancelar} disabled={enviando}>Cancelar</Btn>
@@ -267,8 +270,8 @@ export function BarraDeFiltros({ children, resultado, hayFiltros, onLimpiar }) {
   return (
     <div className="flex flex-col gap-3 p-4 border-b border-slate-200 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">{children}</div>
-      <div className="flex items-center gap-3 text-sm text-slate-600 lg:h-10">
-        <span aria-live="polite">{resultado}</span>
+      <div className="flex shrink-0 items-center gap-3 text-sm text-slate-600 lg:h-10">
+        <span aria-live="polite" className="whitespace-nowrap">{resultado}</span>
         {hayFiltros && (
           <button
             type="button"

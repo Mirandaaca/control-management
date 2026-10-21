@@ -47,6 +47,9 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
             DbUpdateConcurrencyException => (409, "conflicto_concurrencia", "Conflicto",
                 "El registro cambió mientras lo editabas. Vuelve a intentarlo."),
             DbUpdateException { InnerException: MySqlException mysql } => TraducirMySql(mysql.Number, traceId),
+            // Un error pasajero de MySQL, como un deadlock, llega envuelto: EF sugiere reintentar con EnableRetryOnFailure.
+            InvalidOperationException { InnerException: DbUpdateException { InnerException: MySqlException mysql } } =>
+                TraducirMySql(mysql.Number, traceId),
             BadHttpRequestException e => (e.StatusCode, "solicitud_invalida", "Datos inválidos", "La solicitud no es válida."),
             _ => Interno(traceId)
         };
@@ -60,6 +63,10 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
         1048 => (400, "dato_obligatorio", "Datos inválidos", "Falta un dato obligatorio."),
         1264 => (400, "valor_fuera_de_rango", "Datos inválidos", "Uno de los valores está fuera del rango permitido."),
         1406 => (400, "dato_demasiado_largo", "Datos inválidos", "Uno de los datos es demasiado largo."),
+        // Dos operaciones a la vez sobre las mismas filas: MySQL deshace entera la transacción de una de ellas (1213) o
+        // la corta por esperar demasiado (1205). No se guardó nada de esa operación, y reintentarla funciona.
+        1213 or 1205 => (409, "conflicto_concurrencia", "Conflicto",
+            "Otra operación cambió los mismos datos al mismo tiempo. Vuelve a intentarlo."),
         _ => Interno(traceId)
     };
 
