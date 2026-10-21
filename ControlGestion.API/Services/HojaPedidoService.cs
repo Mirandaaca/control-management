@@ -49,8 +49,15 @@ public class HojaPedidoService(
 
     public async Task<HojaPedidoDTO> RegistrarAsync(RegistrarHojaPedidoDTO dto)
     {
-        var cliente = await db.Clientes.FindAsync(dto.ClienteId)
-            ?? throw new ReglaDeNegocioException("cliente_no_existe", "Cliente no encontrado.");
+        // Un cliente de otra cartera responde lo mismo que uno que no existe: no se le confirma que existe.
+        var cliente = await db.Clientes.VisiblesPara(usuario)
+            .Where(c => c.Id == dto.ClienteId)
+            .Select(c => new { c.Id, c.ZonaId, c.EstadoClienteId })
+            .FirstOrDefaultAsync()
+            ?? throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
+        if (cliente.EstadoClienteId == EstadosDeCliente.Inactivo)
+            throw new ReglaDeNegocioException("cliente_inactivo",
+                "El cliente está inactivo: para venderle, primero devuélvelo al ciclo de visitas.");
 
         var idsDeProductos = dto.Detalles.Select(d => d.ProductoId).Distinct().ToList();
         var productos = await db.Productos
@@ -64,10 +71,11 @@ public class HojaPedidoService(
             Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.HojaPedido),
             ClienteId = cliente.Id,
             PromotorId = usuario.Id,
-            ZonaId = dto.ZonaId,
+            // La venta cuenta en la zona del cliente: así los reportes por zona no dependen de lo que se eligió.
+            ZonaId = cliente.ZonaId,
             FechaRegistro = Ahora,
-            Latitud = dto.Latitud,
-            Longitud = dto.Longitud,
+            Latitud = dto.Latitud!.Value,
+            Longitud = dto.Longitud!.Value,
             PrecisionGPS = dto.PrecisionGPS,
             TipoVenta = dto.TipoVenta,
             Descuento = dto.Descuento,

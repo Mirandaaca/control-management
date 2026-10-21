@@ -75,7 +75,7 @@ public class PermisosTests(ApiDePrueba api)
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
-        var deOtro = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 1);
+        var deOtro = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
         var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
 
         var ids = async (string token) => (await (await api.ClienteCon(token).GetAsync("/api/cobranzas")).LeerJsonAsync())

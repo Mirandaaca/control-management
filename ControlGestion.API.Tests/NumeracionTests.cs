@@ -20,7 +20,7 @@ public class NumeracionTests(ApiDePrueba api)
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(10, _ => operador.PostAsJsonAsync("/api/hojas-pedido", new
         {
-            clienteId, zonaId, latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
+            clienteId, latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
             detalles = new[] { new { productoId, cantidad = 1 } }
         }));
 

@@ -12,26 +12,46 @@ public record DetalleHojaPedidoEntradaDTO
     public decimal Cantidad { get; init; }
 
     /// <summary>Descuento por unidad, en Bs.</summary>
+    [Range(0, 99_999_999, ErrorMessage = "El descuento no puede ser negativo.")]
     public decimal Descuento { get; init; }
 }
 
-public record RegistrarHojaPedidoDTO
+/// <summary>La zona de la HP no se elige: es la del cliente.</summary>
+public record RegistrarHojaPedidoDTO : IValidatableObject
 {
     [Range(1, int.MaxValue, ErrorMessage = "Elige el cliente.")]
     public int ClienteId { get; init; }
 
-    public int ZonaId { get; init; }
-    public decimal Latitud { get; init; }
-    public decimal Longitud { get; init; }
+    // Sin ubicación no se guarda la HP: en la app la da el GPS sola (2.1).
+    [Required(ErrorMessage = "Falta la ubicación de la venta.")]
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Required(ErrorMessage = "Falta la ubicación de la venta.")]
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
+
+    /// <summary>Precisión del GPS en metros, si el dispositivo la da.</summary>
+    [Range(0, 100_000, ErrorMessage = "La precisión del GPS no puede ser negativa.")]
     public float? PrecisionGPS { get; init; }
+
+    [EnumDataType(typeof(TipoVenta), ErrorMessage = "El tipo de venta debe ser contado o crédito.")]
     public TipoVenta TipoVenta { get; init; } = TipoVenta.Contado;
 
     /// <summary>Descuento sobre el total de la HP, en Bs.</summary>
+    [Range(0, 99_999_999, ErrorMessage = "El descuento no puede ser negativo.")]
     public decimal Descuento { get; init; }
 
     [Required(ErrorMessage = "Agrega al menos un producto.")]
     [MinLength(1, ErrorMessage = "Agrega al menos un producto.")]
     public List<DetalleHojaPedidoEntradaDTO> Detalles { get; init; } = [];
+
+    // 0,0 es lo que llega cuando nadie tomó la ubicación: un punto en el océano, no una venta real.
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (Latitud == 0 && Longitud == 0)
+            yield return new ValidationResult("Falta la ubicación de la venta.", [nameof(Latitud)]);
+    }
 }
 
 public record AnularHojaPedidoDTO

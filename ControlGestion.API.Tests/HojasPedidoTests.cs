@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
@@ -14,6 +15,14 @@ public class HojasPedidoTests(ApiDePrueba api)
     private static async Task<JsonElement> HojaDe(HttpClient cliente, int hojaId) =>
         await (await cliente.GetAsync($"/api/hojas-pedido/{hojaId}")).LeerJsonAsync();
 
+    private static Task<HttpResponseMessage> RegistrarAsync(HttpClient cliente, int clienteId, int productoId,
+        decimal? latitud = -17.7833m, decimal? longitud = -63.1821m, int tipoVenta = 0, int? zonaId = null) =>
+        cliente.PostAsJsonAsync("/api/hojas-pedido", new
+        {
+            clienteId, zonaId, latitud, longitud, tipoVenta,
+            detalles = new[] { new { productoId, cantidad = 1 } }
+        });
+
     /// <summary>Dos promotores, cada uno con una zona, un cliente y una HP de ese cliente.</summary>
     private async Task<(UsuarioDePrueba PromotorA, int HojaDeA, int HojaDeB)> DosCarterasAsync(HttpClient operador)
     {
@@ -22,8 +31,8 @@ public class HojasPedidoTests(ApiDePrueba api)
         var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
         var zonaA = await operador.CrearZonaAsync(promotorA.Id);
         var zonaB = await operador.CrearZonaAsync(promotorB.Id);
-        var hojaDeA = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaA), zonaA, productoId, 1);
-        var hojaDeB = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaB), zonaB, productoId, 1);
+        var hojaDeA = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaA), productoId, 1);
+        var hojaDeB = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaB), productoId, 1);
         return (promotorA, hojaDeA, hojaDeB);
     }
 
@@ -58,7 +67,7 @@ public class HojasPedidoTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        var hojaId = await operador.CrearHojaPedidoAsync(clienteId, zonaId, await operador.CrearProductoAsync(10m), 1);
+        var hojaId = await operador.CrearHojaPedidoAsync(clienteId, await operador.CrearProductoAsync(10m), 1);
         var hoyEnBolivia = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-4));
 
         var deHoy = await IdsAsync(operador, $"?clienteId={clienteId}&desde={hoyEnBolivia:yyyy-MM-dd}&hasta={hoyEnBolivia:yyyy-MM-dd}");
@@ -79,11 +88,76 @@ public class HojasPedidoTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Un_promotor_no_registra_HP_para_un_cliente_fuera_de_su_cartera()
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await operador.CrearProductoAsync(10m);
+        var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
+        var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
+        var clienteDeB = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id));
+        using var clienteA = api.ClienteCon(promotorA.Token);
+
+        // Responde igual que si el cliente no existiera: no se le confirma que existe.
+        await (await RegistrarAsync(clienteA, clienteDeB, productoId)).ProblemaAsync(400, "cliente_no_existe");
+        await (await RegistrarAsync(clienteA, 999999, productoId)).ProblemaAsync(400, "cliente_no_existe");
+    }
+
+    [Fact]
+    public async Task Un_cliente_inactivo_no_recibe_HP()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        (await operador.PutAsJsonAsync($"/api/clientes/{clienteId}/estado", new { estadoClienteId = 4 })).EnsureSuccessStatusCode();
+
+        await (await RegistrarAsync(operador, clienteId, await operador.CrearProductoAsync(10m))).ProblemaAsync(400, "cliente_inactivo");
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(0.0, 0.0)]
+    public async Task Sin_ubicacion_no_se_guarda_la_HP(double? latitud, double? longitud)
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        var problema = await (await RegistrarAsync(operador, clienteId, await operador.CrearProductoAsync(10m),
+            (decimal?)latitud, (decimal?)longitud)).ProblemaAsync(400, "validacion");
+
+        Assert.True(problema.GetProperty("errors").TryGetProperty("latitud", out _));
+    }
+
+    [Fact]
+    public async Task Un_tipo_de_venta_que_no_existe_responde_400()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        var problema = await (await RegistrarAsync(operador, clienteId, await operador.CrearProductoAsync(10m), tipoVenta: 5))
+            .ProblemaAsync(400, "validacion");
+
+        Assert.True(problema.GetProperty("errors").TryGetProperty("tipoVenta", out _));
+    }
+
+    [Fact]
+    public async Task La_zona_de_la_HP_es_la_del_cliente_aunque_se_envie_otra()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaDelCliente = await operador.CrearZonaAsync();
+        var otraZona = await operador.CrearZonaAsync();
+        var clienteId = await operador.CrearClienteAsync(zonaDelCliente);
+
+        var hoja = await (await RegistrarAsync(operador, clienteId, await operador.CrearProductoAsync(10m), zonaId: otraZona))
+            .LeerJsonAsync();
+
+        Assert.Equal(zonaDelCliente, hoja.GetProperty("zona").GetProperty("id").GetInt32());
+    }
+
+    [Fact]
     public async Task La_busqueda_encuentra_la_HP_por_su_numero()
     {
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
-        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), zonaId,
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId),
             await operador.CrearProductoAsync(10m), 2);
         var hoja = await HojaDe(operador, hojaId);
 

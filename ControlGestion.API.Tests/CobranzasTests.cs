@@ -32,8 +32,8 @@ public class CobranzasTests(ApiDePrueba api)
         var (operador, zonaId, productoId) = escenario;
         var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
         var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
-        var deA = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorA.Id)), zonaId, productoId, 1);
-        var deB = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id)), zonaId, productoId, 1);
+        var deA = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorA.Id)), productoId, 1);
+        var deB = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id)), productoId, 1);
         using var clienteA = api.ClienteCon(promotorA.Token);
 
         var visibles = await IdsDeCobranzasAsync(clienteA);
@@ -50,7 +50,7 @@ public class CobranzasTests(ApiDePrueba api)
         var (operador, zonaId, productoId) = escenario;
         var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);
         var promotorB = await api.CrearUsuarioAsync(Roles.Promotor);
-        var deB = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id)), zonaId, productoId, 1);
+        var deB = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorB.Id)), productoId, 1);
         using var clienteA = api.ClienteCon(promotorA.Token);
 
         await (await clienteA.GetAsync($"/api/cobranzas/{deB}")).ProblemaAsync(404, "no_encontrado");
@@ -66,7 +66,7 @@ public class CobranzasTests(ApiDePrueba api)
         using var escenario = await PrepararAsync();
         var (operador, zonaId, productoId) = escenario;
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
-        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id)), zonaId, productoId, 1);
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id)), productoId, 1);
         using var cliente = api.ClienteCon(promotor.Token);
 
         var respuesta = await cliente.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto = 4, metodoPago = 0 });
@@ -83,7 +83,7 @@ public class CobranzasTests(ApiDePrueba api)
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
-        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 1);
+        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, productoId, 1);
 
         (await operador.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
 
@@ -98,7 +98,7 @@ public class CobranzasTests(ApiDePrueba api)
         using var escenario = await PrepararAsync();
         var (operador, zonaId, productoId) = escenario;
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, 1);
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
         var hoyEnBolivia = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-4));
 
         var deHoy = await IdsDeCobranzasAsync(operador, $"?clienteId={clienteId}&desde={hoyEnBolivia:yyyy-MM-dd}&hasta={hoyEnBolivia:yyyy-MM-dd}");
@@ -113,7 +113,7 @@ public class CobranzasTests(ApiDePrueba api)
     {
         using var escenario = await PrepararAsync();
         var (operador, zonaId, productoId) = escenario;
-        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 1);
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
 
         var problema = await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", new { observacion = "" }))
             .ProblemaAsync(400, "validacion");

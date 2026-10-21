@@ -16,7 +16,7 @@ public class SaldoDelClienteTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, zonaId, await operador.CrearProductoAsync(250m), 1);
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(250m), 1);
         Assert.Equal(250m, await SaldoAsync(operador, clienteId));
 
         (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto = 100, metodoPago = 0 })).EnsureSuccessStatusCode();
@@ -30,8 +30,8 @@ public class SaldoDelClienteTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        var incobrable = await operador.CrearCobranzaAsync(clienteId, zonaId, await operador.CrearProductoAsync(23m), 1);
-        await operador.CrearCobranzaAsync(clienteId, zonaId, await operador.CrearProductoAsync(10m), 1);
+        var incobrable = await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(23m), 1);
+        await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(10m), 1);
         Assert.Equal(33m, await SaldoAsync(operador, clienteId));
 
         (await operador.PostAsJsonAsync($"/api/cobranzas/{incobrable}/incobrable",
@@ -48,8 +48,8 @@ public class SaldoDelClienteTests(ApiDePrueba api)
         var clienteId = await operador.CrearClienteAsync(zonaId);
         var cobranzas = new[]
         {
-            (Id: await operador.CrearCobranzaAsync(clienteId, zonaId, await operador.CrearProductoAsync(10m), 1), Monto: 10m),
-            (Id: await operador.CrearCobranzaAsync(clienteId, zonaId, await operador.CrearProductoAsync(20m), 1), Monto: 20m)
+            (Id: await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(10m), 1), Monto: 10m),
+            (Id: await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(20m), 1), Monto: 20m)
         };
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(2, i =>

@@ -114,13 +114,13 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
-    public static async Task<int> CrearHojaPedidoAsync(this HttpClient vendedor, int clienteId, int zonaId, int productoId,
+    /// <summary>Registra una HP en borrador. Su zona es la del cliente.</summary>
+    public static async Task<int> CrearHojaPedidoAsync(this HttpClient vendedor, int clienteId, int productoId,
         decimal cantidad, bool credito = true)
     {
         var respuesta = await vendedor.PostAsJsonAsync("/api/hojas-pedido", new
         {
             clienteId,
-            zonaId,
             latitud = -17.7833m,
             longitud = -63.1821m,
             tipoVenta = credito ? 1 : 0,
@@ -131,10 +131,9 @@ public static class Ayudantes
     }
 
     /// <summary>Crea y confirma una HP a crédito, y devuelve el id de la cobranza que se generó.</summary>
-    public static async Task<int> CrearCobranzaAsync(this HttpClient vendedor, int clienteId, int zonaId, int productoId,
-        decimal cantidad)
+    public static async Task<int> CrearCobranzaAsync(this HttpClient vendedor, int clienteId, int productoId, decimal cantidad)
     {
-        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, cantidad);
+        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, productoId, cantidad);
         (await vendedor.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
 
         var cobranzas = await (await vendedor.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync();

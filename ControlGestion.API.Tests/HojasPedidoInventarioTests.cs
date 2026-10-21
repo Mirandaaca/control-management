@@ -30,7 +30,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         var productoId = await operador.CrearProductoAsync(12.5m, stockInicial: 100);
         var clienteId = await operador.CrearClienteAsync(zonaId);
 
-        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, cantidad: 3);
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, productoId, cantidad: 3);
 
         var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
         Assert.Equal(37.5m, cobranza.GetProperty("montoTotal").GetDecimal());
@@ -45,7 +45,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m, stockInicial: 100);
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        var hojaId = await operador.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 4, credito: false);
+        var hojaId = await operador.CrearHojaPedidoAsync(clienteId, productoId, 4, credito: false);
 
         (await operador.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
 
@@ -62,7 +62,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
-        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), zonaId,
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId),
             await operador.CrearProductoAsync(10m), 1);
 
         var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
@@ -77,7 +77,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
-        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 1);
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
         (await operador.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
 
         await (await operador.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).ProblemaAsync(400, "hp_no_es_borrador");
@@ -90,7 +90,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m, stockInicial: 50);
-        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 5);
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), productoId, 5);
 
         (await AnularAsync(operador, hojaId)).EnsureSuccessStatusCode();
 
@@ -105,7 +105,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
-        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), zonaId,
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId),
             await operador.CrearProductoAsync(10m), 1);
         (await AnularAsync(operador, hojaId)).EnsureSuccessStatusCode();
 
@@ -117,7 +117,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
-        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), zonaId,
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId),
             await operador.CrearProductoAsync(10m), 1);
 
         var problema = await (await AnularAsync(operador, hojaId, motivo: "")).ProblemaAsync(400, "validacion");
