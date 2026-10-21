@@ -161,6 +161,21 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
+    /// <summary>Registra un evento Pendiente del cliente, con una ubicación válida. El tipo 3 no pide evidencia.</summary>
+    public static async Task<int> CrearEventoAsync(this HttpClient promotor, int clienteId, int tipoEventoId = 3)
+    {
+        var respuesta = await promotor.PostAsJsonAsync("/api/eventos", new
+        {
+            tipoEventoId,
+            clienteId,
+            latitud = -17.7833m,
+            longitud = -63.1821m,
+            descripcion = $"Evento {Unico("E")}"
+        });
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
+    }
+
     /// <summary>Lanza todas las peticiones a la vez: ninguna sale hasta que todas están listas.</summary>
     public static async Task<HttpResponseMessage[]> EnviarALaVezAsync(int cantidad, Func<int, Task<HttpResponseMessage>> peticion)
     {
