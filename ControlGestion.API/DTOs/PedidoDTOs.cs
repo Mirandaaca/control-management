@@ -2,22 +2,47 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.DTOs;
 
-public class DetallePedidoEntradaDTO
+public record LineaDePedidoDTO
 {
-    [Required] public int ProductoId { get; set; }
-    [Required][Range(0.001, double.MaxValue)] public decimal Cantidad { get; set; }
-    public decimal Descuento { get; set; } = 0;
+    [Range(1, int.MaxValue, ErrorMessage = "Elige el producto.")]
+    public int ProductoId { get; init; }
+
+    [Range(0.001, 9_999_999, ErrorMessage = "La cantidad debe ser mayor que cero.")]
+    public decimal Cantidad { get; init; }
+
+    /// <summary>Descuento por unidad, en Bs.</summary>
+    [Range(0, 99_999_999, ErrorMessage = "El descuento no puede ser negativo.")]
+    public decimal Descuento { get; init; }
 }
 
-public class PedidoCreateDTO
+/// <summary>Lo que se puede cambiar de un pedido (1.1): todo menos el cliente.</summary>
+public record ModificarPedidoDTO
 {
-    [Required] public int ClienteId { get; set; }
-    [Required] public int ZonaId { get; set; }
-    public int? HojaPedidoId { get; set; }
-    public DateTime? FechaEntregaEstimada { get; set; }
-    public decimal Descuento { get; set; } = 0;
-    public string? Observaciones { get; set; }
-    [Required][MinLength(1)] public List<DetallePedidoEntradaDTO> Detalles { get; set; } = new();
+    /// <summary>Sin zona se entiende como hora de Bolivia, que es lo que manda el panel.</summary>
+    [Required(ErrorMessage = "Elige la fecha y la hora de entrega.")]
+    public DateTime? FechaEntregaEstimada { get; init; }
+
+    [Required(ErrorMessage = "Escribe la dirección de entrega.")]
+    [MaxLength(300, ErrorMessage = "La dirección no puede superar los 300 caracteres.")]
+    public string DireccionEntrega { get; init; } = string.Empty;
+
+    /// <summary>Descuento sobre el total del pedido, en Bs.</summary>
+    [Range(0, 99_999_999, ErrorMessage = "El descuento no puede ser negativo.")]
+    public decimal Descuento { get; init; }
+
+    [MaxLength(500, ErrorMessage = "Las observaciones no pueden superar los 500 caracteres.")]
+    public string? Observaciones { get; init; }
+
+    [Required(ErrorMessage = "Agrega al menos un producto.")]
+    [MinLength(1, ErrorMessage = "Agrega al menos un producto.")]
+    public List<LineaDePedidoDTO> Detalles { get; init; } = [];
+}
+
+/// <summary>La zona y el promotor del pedido no se eligen: son los del cliente.</summary>
+public record RegistrarPedidoDTO : ModificarPedidoDTO
+{
+    [Range(1, int.MaxValue, ErrorMessage = "Elige el cliente.")]
+    public int ClienteId { get; init; }
 }
 
 public class CambiarEstadoDTO
@@ -67,8 +92,9 @@ public record PedidoListaDTO(
     decimal Total,
     DateTime FechaRegistro,
     DateTime? FechaEntregaEstimada,
+    string DireccionEntrega,
     ClienteResumenDTO Cliente,
-    UsuarioResumenDTO Promotor,
+    UsuarioResumenDTO? Promotor,
     UsuarioResumenDTO? Repartidor,
     ZonaResumenDTO Zona);
 
@@ -103,10 +129,12 @@ public record PedidoDTO(
     DateTime FechaRegistro,
     DateTime? FechaEntregaEstimada,
     DateTime? FechaEntregaReal,
+    string DireccionEntrega,
     decimal? LatitudEntrega,
     decimal? LongitudEntrega,
     ClienteResumenDTO Cliente,
-    UsuarioResumenDTO Promotor,
+    UsuarioResumenDTO? Promotor,
+    UsuarioResumenDTO RegistradoPor,
     UsuarioResumenDTO? Repartidor,
     ZonaResumenDTO Zona,
     HojaPedidoResumenDTO? HojaPedido,

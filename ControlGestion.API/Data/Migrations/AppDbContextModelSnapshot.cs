@@ -961,6 +961,11 @@ namespace ControlGestion.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("DireccionEntrega")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
                     b.Property<int>("EstadoPedidoId")
                         .HasColumnType("int");
 
@@ -992,6 +997,9 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("PromotorId")
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("RegistradoPorId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
@@ -1021,6 +1029,8 @@ namespace ControlGestion.API.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("PromotorId");
+
+                    b.HasIndex("RegistradoPorId");
 
                     b.HasIndex("RepartidorId");
 
@@ -1755,6 +1765,11 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
                         .WithMany()
                         .HasForeignKey("PromotorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "RegistradoPor")
+                        .WithMany()
+                        .HasForeignKey("RegistradoPorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1776,6 +1791,8 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("HojaPedido");
 
                     b.Navigation("Promotor");
+
+                    b.Navigation("RegistradoPor");
 
                     b.Navigation("Repartidor");
 

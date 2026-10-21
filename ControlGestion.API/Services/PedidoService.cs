@@ -59,7 +59,46 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     public Task<List<EstadoPedidoDTO>> EstadosAsync() =>
         db.EstadosPedido.OrderBy(e => e.Orden).Select(e => new EstadoPedidoDTO(e.Id, e.Nombre)).ToListAsync();
 
-    public async Task<PedidoDTO> RegistrarAsync(PedidoCreateDTO dto)
+    public async Task<PedidoDTO> RegistrarAsync(RegistrarPedidoDTO dto)
+    {
+        // Un cliente de otra cartera responde lo mismo que uno que no existe, como en la HP: no se le confirma que existe.
+        var cliente = await db.Clientes.VisiblesPara(usuario)
+            .Where(c => c.Id == dto.ClienteId)
+            .Select(c => new { c.Id, c.ZonaId, c.PromotorId, c.EstadoClienteId })
+            .FirstOrDefaultAsync()
+            ?? throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
+        if (cliente.EstadoClienteId == EstadosDeCliente.Inactivo)
+            throw new ReglaDeNegocioException("cliente_inactivo",
+                "El cliente está inactivo: para registrarle un pedido, primero devuélvelo al ciclo de visitas.");
+
+        var entrega = HoraBolivia.AUtc(dto.FechaEntregaEstimada!.Value);
+        ExigirFutura(entrega);
+
+        var pedido = new Pedido
+        {
+            ClienteId = cliente.Id,
+            // El pedido es de la cartera del cliente (7.5), aunque lo registre la secretaria, y cuenta en su zona.
+            PromotorId = cliente.PromotorId,
+            RegistradoPorId = usuario.Id,
+            ZonaId = cliente.ZonaId,
+            FechaRegistro = Ahora,
+            EstadoPedidoId = EstadosDePedido.Pendiente
+        };
+        await CopiarAsync(dto, pedido, entrega);
+        // El número se pide después de validar: un pedido rechazado no gasta un número.
+        pedido.Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Pedido);
+        pedido.Historial.Add(Entrada(EstadosDePedido.Pendiente, "Pedido registrado"));
+
+        db.Pedidos.Add(pedido);
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(pedido.Id);
+    }
+
+    /// <summary>
+    /// Copia lo que se puede cambiar de un pedido y rearma sus líneas con el precio vigente de cada producto, que es el
+    /// que muestra el formulario.
+    /// </summary>
+    private async Task CopiarAsync(ModificarPedidoDTO dto, Pedido pedido, DateTime entrega)
     {
         var idsDeProductos = dto.Detalles.Select(d => d.ProductoId).Distinct().ToList();
         var productos = await db.Productos
@@ -68,21 +107,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         if (productos.Count != idsDeProductos.Count)
             throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
 
-        var ahora = Ahora;
-        var pedido = new Pedido
-        {
-            Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Pedido),
-            ClienteId = dto.ClienteId,
-            PromotorId = usuario.Id,
-            ZonaId = dto.ZonaId,
-            HojaPedidoId = dto.HojaPedidoId,
-            FechaRegistro = ahora,
-            FechaEntregaEstimada = dto.FechaEntregaEstimada,
-            EstadoPedidoId = EstadosDePedido.Pendiente,
-            Descuento = dto.Descuento,
-            Observaciones = dto.Observaciones
-        };
-
+        pedido.Detalles.Clear();
         foreach (var item in dto.Detalles)
         {
             var producto = productos[item.ProductoId];
@@ -97,19 +122,31 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         }
 
         pedido.SubTotal = pedido.Detalles.Sum(d => d.Subtotal);
+        pedido.Descuento = dto.Descuento;
         pedido.Total = pedido.SubTotal - pedido.Descuento;
-        pedido.Historial.Add(new HistorialEstadoPedido
-        {
-            EstadoPedidoId = EstadosDePedido.Pendiente,
-            UsuarioId = usuario.Id,
-            FechaCambio = ahora,
-            Observacion = "Pedido creado"
-        });
+        if (pedido.Total <= 0)
+            throw new ReglaDeNegocioException("total_invalido",
+                $"El total del pedido debe ser mayor a cero. Subtotal: {pedido.SubTotal:F2}, Descuento: {pedido.Descuento:F2}, Total: {pedido.Total:F2}");
 
-        db.Pedidos.Add(pedido);
-        await db.SaveChangesAsync();
-        return await ObtenerAsync(pedido.Id);
+        pedido.FechaEntregaEstimada = entrega;
+        pedido.DireccionEntrega = dto.DireccionEntrega.Trim();
+        pedido.Observaciones = string.IsNullOrWhiteSpace(dto.Observaciones) ? null : dto.Observaciones.Trim();
     }
+
+    private void ExigirFutura(DateTime entregaUtc)
+    {
+        if (entregaUtc <= Ahora)
+            throw new ReglaDeNegocioException("fecha_en_el_pasado", "La fecha y la hora de entrega ya pasaron: elige unas futuras.");
+    }
+
+    /// <summary>Una entrada del historial: quién, cuándo y con qué observación pasó el pedido a ese estado.</summary>
+    private HistorialEstadoPedido Entrada(int estadoId, string? observacion) => new()
+    {
+        EstadoPedidoId = estadoId,
+        UsuarioId = usuario.Id,
+        FechaCambio = Ahora,
+        Observacion = observacion
+    };
 
     // Hoy esta operación hace tres: avanzar, entregar y anular. Se separa en los pasos siguientes de la tarea 08.
     public async Task<PedidoDTO> CambiarEstadoAsync(int id, CambiarEstadoDTO dto)

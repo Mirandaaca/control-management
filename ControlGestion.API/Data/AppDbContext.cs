@@ -193,6 +193,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Pedido>()
             .HasOne(p => p.Promotor).WithMany().HasForeignKey(p => p.PromotorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
+            .HasOne(p => p.RegistradoPor).WithMany().HasForeignKey(p => p.RegistradoPorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
             .HasOne(p => p.Repartidor).WithMany().HasForeignKey(p => p.RepartidorId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Pedido>()
             .HasOne(p => p.Zona).WithMany().HasForeignKey(p => p.ZonaId).OnDelete(DeleteBehavior.Restrict);
@@ -202,6 +204,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(p => p.EstadoPedido).WithMany().HasForeignKey(p => p.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
             .HasIndex(p => p.Numero).IsUnique();
+        builder.Entity<Pedido>().Property(p => p.DireccionEntrega).HasMaxLength(300);
         builder.Entity<Pedido>().Property(p => p.SubTotal).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.Descuento).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.Total).HasPrecision(18, 2);

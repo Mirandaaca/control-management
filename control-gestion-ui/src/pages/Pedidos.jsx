@@ -10,14 +10,13 @@ export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
   const [estados, setEstados] = useState([]);
   const [clientes, setClientes] = useState([]);
-  const [zonas, setZonas] = useState([]);
   const [productos, setProductos] = useState([]);
   const [filtros, setFiltros] = useState({ estadoId: '', desde: '', hasta: '' });
   const [showForm, setShowForm] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [cambioEstado, setCambioEstado] = useState(null);
   const [errorEstado, setErrorEstado] = useState('');
-  const [form, setForm] = useState({ clienteId: '', zonaId: '', fechaEntregaEstimada: '', descuento: 0, observaciones: '' });
+  const [form, setForm] = useState({ clienteId: '', fechaEntregaEstimada: '', direccionEntrega: '', descuento: 0, observaciones: '' });
   const [lineas, setLineas] = useState([{ productoId: '', cantidad: 1, descuento: 0 }]);
   const [estadoForm, setEstadoForm] = useState({ nuevoEstadoId: '', observacion: '', latitud: '', longitud: '' });
   const [saving, setSaving] = useState(false);
@@ -39,7 +38,6 @@ export default function Pedidos() {
     Promise.all([
       api.get('/pedidos/estados').then(r => setEstados(r.data)),
       api.get('/clientes/opciones').then(r => setClientes(r.data)),
-      api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/productos/opciones').then(r => setProductos(r.data)),
     ]);
     fetchPedidos();
@@ -59,8 +57,8 @@ export default function Pedidos() {
     try {
       await api.post('/pedidos', {
         clienteId: parseInt(form.clienteId),
-        zonaId: parseInt(form.zonaId),
         fechaEntregaEstimada: form.fechaEntregaEstimada || null,
+        direccionEntrega: form.direccionEntrega,
         descuento: parseFloat(form.descuento) || 0,
         observaciones: form.observaciones,
         detalles: lineas.map(l => ({ productoId: parseInt(l.productoId), cantidad: parseFloat(l.cantidad), descuento: parseFloat(l.descuento) || 0 })),
@@ -146,15 +144,8 @@ export default function Pedidos() {
                   {clientes.map(c => <option key={c.id} value={c.id}>{c.nombreCompleto}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Zona *</label>
-                <select value={form.zonaId} onChange={e => setForm({ ...form, zonaId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                  <option value="">Seleccionar...</option>
-                  {zonas.map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
-                </select>
-              </div>
-              <Input label="Entrega estimada" type="date" value={form.fechaEntregaEstimada} onChange={e => setForm({ ...form, fechaEntregaEstimada: e.target.value })} />
+              <Input label="Dirección de entrega" value={form.direccionEntrega} onChange={e => setForm({ ...form, direccionEntrega: e.target.value })} />
+              <Input label="Entrega" type="datetime-local" value={form.fechaEntregaEstimada} onChange={e => setForm({ ...form, fechaEntregaEstimada: e.target.value })} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">

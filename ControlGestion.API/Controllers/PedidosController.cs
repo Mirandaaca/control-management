@@ -40,7 +40,7 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
 
     [HttpPost]
     [Permiso(Permisos.Pedidos.RegistrarPedido)]
-    public async Task<ActionResult<PedidoDTO>> Registrar([FromBody] PedidoCreateDTO dto)
+    public async Task<ActionResult<PedidoDTO>> Registrar([FromBody] RegistrarPedidoDTO dto)
     {
         var registrado = await pedidos.RegistrarAsync(dto);
         return CreatedAtAction(nameof(GetById), new { id = registrado.Id }, registrado);

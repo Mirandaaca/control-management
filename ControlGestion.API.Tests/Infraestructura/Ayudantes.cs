@@ -147,16 +147,12 @@ public static class Ayudantes
     public static string MananaEnBolivia(int hora = 10) =>
         $"{HoraBolivia.Hoy(TimeProvider.System).AddDays(1):yyyy-MM-dd}T{hora:00}:00:00";
 
-    /// <summary>Registra un pedido Pendiente del cliente, con entrega mañana a las 10 de Bolivia.</summary>
+    /// <summary>Registra un pedido Pendiente del cliente, con entrega mañana a las 10 de Bolivia. Su zona es la del cliente.</summary>
     public static async Task<int> CrearPedidoAsync(this HttpClient vendedor, int clienteId, int productoId, decimal cantidad)
     {
-        // La API vieja pide la zona del pedido.
-        var zonaId = (await (await vendedor.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync())
-            .GetProperty("zona").GetProperty("id").GetInt32();
         var respuesta = await vendedor.PostAsJsonAsync("/api/pedidos", new
         {
             clienteId,
-            zonaId,
             fechaEntregaEstimada = MananaEnBolivia(),
             direccionEntrega = "Calle de entrega de prueba",
             detalles = new[] { new { productoId, cantidad } }
