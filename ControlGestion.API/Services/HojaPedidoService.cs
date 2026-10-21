@@ -125,6 +125,19 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
 
         // La transacción incluye el número de la cobranza, que el numerador pide con su propia sentencia.
         await using var tx = await db.Database.BeginTransactionAsync();
+        await CerrarVentaAsync(hp);
+        await GuardarAsync("La HP, el stock o el cliente cambiaron mientras confirmabas. Vuelve a intentarlo.");
+        await tx.CommitAsync();
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Cierra la venta: la HP queda confirmada, se descuenta el stock con su salida en el kardex, se registra la visita
+    /// y, si es a crédito, nace la deuda. La HP ya tiene que estar guardada (el kardex y la deuda usan su id) y traer
+    /// sus líneas y su cliente. No guarda: lo hace quien llama, dentro de su transacción.
+    /// </summary>
+    private async Task CerrarVentaAsync(HojaPedido hp)
+    {
         var ahora = Ahora;
         hp.EstadoHP = EstadoHP.Confirmada;
         await inventario.DescontarPorVentaAsync(hp);
@@ -140,10 +153,6 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
 
         if (hp.TipoVenta == TipoVenta.Credito)
             await cobranzas.CrearPorVentaAsync(hp);
-
-        await GuardarAsync("La HP, el stock o el cliente cambiaron mientras confirmabas. Vuelve a intentarlo.");
-        await tx.CommitAsync();
-        return await ObtenerAsync(id);
     }
 
     /// <summary>
