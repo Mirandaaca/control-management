@@ -92,7 +92,9 @@ export const PANTALLAS = {
   clientes: [ventas.registrarCliente, ventas.editarCliente, ventas.asignarEstadoCliente, ventas.verUbicacionCliente],
   hojasPedido: [ventas.consultarHp, ventas.anularHp],
   inventario: [ventas.consultarProductos, ventas.consultarKardex, ventas.registrarIngreso],
-  pedidos: [pedidos.consultarPedidos, pedidos.verBandeja],
+  // Como en la API: quien opera sobre un pedido también tiene que verlo.
+  pedidos: [pedidos.consultarPedidos, pedidos.verBandeja, pedidos.modificarPedido, pedidos.anularPedido, pedidos.cambiarEstado,
+    pedidos.reprogramarEntrega, pedidos.asignarPedidos, pedidos.registrarEntrega],
   eventos: [eventos.consultarEventos, eventos.verMapa],
   cobranzas: [cobranzas.consultarDeudas, cobranzas.consultarPagos],
   rutas: [territorial.planificarRuta, territorial.seguirRuta, territorial.recorrerRuta],

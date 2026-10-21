@@ -26,6 +26,23 @@ export function formatearFecha(valor, { hora = false } = {}) {
   return hora ? `${dia} ${p.hour}:${p.minute}` : dia;
 }
 
+/**
+ * Un momento exacto como valor de un <input type="datetime-local">: aaaa-mm-ddThh:mm en la hora de Bolivia. La API
+ * entiende ese valor, que va sin zona, como hora de Bolivia.
+ */
+export function aCampoFechaHora(valor) {
+  if (!valor) return '';
+  const fecha = leerFechaUtc(valor);
+  if (Number.isNaN(fecha.getTime())) return '';
+  const p = Object.fromEntries(partesDeFecha.formatToParts(fecha).map(({ type, value }) => [type, value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+}
+
+/** Ahora en Bolivia, para el mínimo de un <input type="datetime-local">. */
+export function ahoraEnBolivia() {
+  return aCampoFechaHora(new Date());
+}
+
 /** Solo la hora (hh:mm) de un momento exacto, en la hora de Bolivia. */
 export function formatearHora(valor) {
   const completa = formatearFecha(valor, { hora: true });

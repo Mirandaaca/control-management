@@ -267,8 +267,8 @@ export function BarraDeFiltros({ children, resultado, hayFiltros, onLimpiar }) {
   return (
     <div className="flex flex-col gap-3 p-4 border-b border-slate-200 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">{children}</div>
-      <div className="flex items-center gap-3 text-sm text-slate-600 lg:h-10">
-        <span aria-live="polite">{resultado}</span>
+      <div className="flex shrink-0 items-center gap-3 text-sm text-slate-600 lg:h-10">
+        <span aria-live="polite" className="whitespace-nowrap">{resultado}</span>
         {hayFiltros && (
           <button
             type="button"
