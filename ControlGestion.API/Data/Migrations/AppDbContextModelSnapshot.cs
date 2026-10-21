@@ -1059,20 +1059,31 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Categoria")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
 
                     b.Property<decimal>("Precio")
-                        .HasColumnType("decimal(65,30)");
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PrecioCompra")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("SKU")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SKU")
+                        .IsUnique();
 
                     b.ToTable("Productos");
                 });
@@ -1656,8 +1667,8 @@ namespace ControlGestion.API.Data.Migrations
             modelBuilder.Entity("ControlGestion.API.Models.InventarioProducto", b =>
                 {
                     b.HasOne("ControlGestion.API.Models.Producto", "Producto")
-                        .WithMany()
-                        .HasForeignKey("ProductoId")
+                        .WithOne("Inventario")
+                        .HasForeignKey("ControlGestion.API.Models.InventarioProducto", "ProductoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -1896,6 +1907,11 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("Detalles");
 
                     b.Navigation("Historial");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.Producto", b =>
+                {
+                    b.Navigation("Inventario");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Ruta", b =>

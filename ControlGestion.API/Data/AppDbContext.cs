@@ -107,9 +107,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
 
-        // InventarioProducto
+        // Producto (7.3)
+        builder.Entity<Producto>().Property(p => p.SKU).HasMaxLength(50);
+        builder.Entity<Producto>().HasIndex(p => p.SKU).IsUnique();
+        builder.Entity<Producto>().Property(p => p.Descripcion).HasMaxLength(150);
+        builder.Entity<Producto>().Property(p => p.Categoria).HasMaxLength(80);
+        builder.Entity<Producto>().Property(p => p.Precio).HasPrecision(18, 2);
+        builder.Entity<Producto>().Property(p => p.PrecioCompra).HasPrecision(18, 2);
+
+        // InventarioProducto: una fila por producto.
         builder.Entity<InventarioProducto>()
-            .HasOne(i => i.Producto).WithMany().HasForeignKey(i => i.ProductoId).OnDelete(DeleteBehavior.Restrict);
+            .HasOne(i => i.Producto).WithOne(p => p.Inventario).HasForeignKey<InventarioProducto>(i => i.ProductoId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<InventarioProducto>()
             .HasIndex(i => i.ProductoId).IsUnique();
         builder.Entity<InventarioProducto>()

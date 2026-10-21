@@ -46,7 +46,7 @@ export default function HojasPedido() {
     Promise.all([
       api.get('/clientes/opciones').then(r => setClientes(r.data)),
       api.get('/zonas').then(r => setZonas(r.data)),
-      api.get('/productos').then(r => setProductos(r.data)),
+      api.get('/productos/opciones').then(r => setProductos(r.data)),
     ]);
     fetchHPs();
   }, []);

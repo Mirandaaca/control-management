@@ -86,7 +86,7 @@ public static class Ayudantes
     {
         var sku = Unico("P");
         var respuesta = await admin.PostAsJsonAsync("/api/productos",
-            new { sku, descripcion = $"Producto {sku}", precio, categoria = "Pruebas" });
+            new { sku, descripcion = $"Producto {sku}", precio, precioCompra = precio, categoria = "Pruebas" });
         respuesta.EnsureSuccessStatusCode();
         var id = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
         if (stockInicial != 0)
