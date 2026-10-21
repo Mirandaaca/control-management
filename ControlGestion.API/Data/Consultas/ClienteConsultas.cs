@@ -64,7 +64,7 @@ public static class ClienteConsultas
         c.FechaCreacion);
 
     public static readonly Expression<Func<Cliente, ClienteOpcionDTO>> ComoOpcion =
-        c => new ClienteOpcionDTO(c.Id, c.Codigo, c.NombreCompleto, c.ZonaId);
+        c => new ClienteOpcionDTO(c.Id, c.Codigo, c.NombreCompleto, c.ZonaId, c.DireccionTexto);
 
     public static readonly Expression<Func<Cliente, ClienteMapaDTO>> ComoMapa = c => new ClienteMapaDTO(
         c.Id,
