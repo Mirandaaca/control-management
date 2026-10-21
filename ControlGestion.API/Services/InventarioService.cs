@@ -1,23 +1,70 @@
 using ControlGestion.API.Data;
+using ControlGestion.API.Data.Consultas;
+using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
-public class InventarioService
+/// <summary>Stock de cada producto y su kardex (2.5).</summary>
+public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
 {
-    private readonly AppDbContext _db;
-
-    public InventarioService(AppDbContext db)
+    public async Task<Pagina<InventarioDTO>> ListarAsync(FiltrosInventarioDTO filtros)
     {
-        _db = db;
+        var consulta = db.Productos.Where(p => p.Activo).Buscar(filtros.Buscar);
+        if (filtros.SoloBajoMinimo) consulta = consulta.BajoElMinimo();
+
+        var total = await consulta.CountAsync();
+        var items = await consulta
+            .OrderBy(p => p.Descripcion).ThenBy(p => p.Id)
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(InventarioConsultas.ComoInventario)
+            .ToListAsync();
+        return new Pagina<InventarioDTO>(items, total, filtros.Pagina, filtros.Tamano);
+    }
+
+    public async Task<InventarioDTO> ObtenerAsync(int productoId) =>
+        await db.Productos.Where(p => p.Id == productoId).Select(InventarioConsultas.ComoInventario).FirstOrDefaultAsync()
+        ?? throw new NoEncontradoException("No se encontró el producto.");
+
+    /// <summary>Los movimientos de un producto, del más reciente al más antiguo.</summary>
+    public async Task<Pagina<MovimientoDTO>> KardexAsync(int productoId, FiltrosKardexDTO filtros)
+    {
+        if (!await db.Productos.AnyAsync(p => p.Id == productoId))
+            throw new NoEncontradoException("No se encontró el producto.");
+
+        var consulta = db.MovimientosInventario.Where(m => m.ProductoId == productoId);
+        var total = await consulta.CountAsync();
+        var items = await consulta
+            .OrderByDescending(m => m.Fecha).ThenByDescending(m => m.Id)
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(m => new MovimientoDTO(
+                m.Id,
+                m.Fecha,
+                m.TipoMovimiento,
+                m.Cantidad,
+                // El signo sale del stock y no del tipo: los ajustes viejos guardaban la cantidad sin signo.
+                m.StockResultante - m.StockAnterior,
+                m.StockAnterior,
+                m.StockResultante,
+                m.ReferenciaTabla == MovimientoInventario.ReferenciaHojaPedido
+                    ? db.HojasPedido.Where(h => h.Id == m.ReferenciaId).Select(h => new HojaPedidoResumenDTO(h.Id, h.Numero)).FirstOrDefault()
+                    : null,
+                m.Observacion,
+                new UsuarioResumenDTO(m.Usuario!.Id, m.Usuario.NombreCompleto)))
+            .ToListAsync();
+        return new Pagina<MovimientoDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
     public async Task DescontarStockPorHP(HojaPedido hp, string usuarioId)
     {
         foreach (var detalle in hp.Detalles)
         {
-            var inventario = await _db.InventariosProducto
+            var inventario = await db.InventariosProducto
                 .FirstOrDefaultAsync(i => i.ProductoId == detalle.ProductoId);
 
             if (inventario == null)
@@ -27,57 +74,63 @@ public class InventarioService
                     ProductoId = detalle.ProductoId,
                     StockActual = 0
                 };
-                _db.InventariosProducto.Add(inventario);
-                await _db.SaveChangesAsync();
+                db.InventariosProducto.Add(inventario);
+                await db.SaveChangesAsync();
             }
 
             var stockAnterior = inventario.StockActual;
             inventario.StockActual -= detalle.Cantidad;
-            inventario.UltimaActualizacion = DateTime.UtcNow;
+            inventario.UltimaActualizacion = Ahora;
 
-            _db.MovimientosInventario.Add(new MovimientoInventario
+            db.MovimientosInventario.Add(new MovimientoInventario
             {
                 ProductoId = detalle.ProductoId,
                 TipoMovimiento = TipoMovimiento.Salida,
                 Cantidad = detalle.Cantidad,
                 StockAnterior = stockAnterior,
                 StockResultante = inventario.StockActual,
-                ReferenciaTabla = "HojaPedido",
+                ReferenciaTabla = MovimientoInventario.ReferenciaHojaPedido,
                 ReferenciaId = hp.Id,
                 UsuarioId = usuarioId,
-                Fecha = DateTime.UtcNow
+                Fecha = Ahora
             });
         }
     }
 
-    public async Task AjustarStock(int productoId, decimal cantidad, string usuarioId, string observacion)
+    public async Task<InventarioDTO> AjustarStockAsync(int productoId, AjusteStockDTO dto)
     {
-        var inventario = await _db.InventariosProducto.FirstOrDefaultAsync(i => i.ProductoId == productoId);
+        if (!await db.Productos.AnyAsync(p => p.Id == productoId))
+            throw new NoEncontradoException("No se encontró el producto.");
+
+        var inventario = await db.InventariosProducto.FirstOrDefaultAsync(i => i.ProductoId == productoId);
         if (inventario == null)
         {
             // Productos dados de alta antes de que el alta creara su fila de inventario.
             inventario = new InventarioProducto { ProductoId = productoId };
-            _db.InventariosProducto.Add(inventario);
+            db.InventariosProducto.Add(inventario);
         }
 
         var stockAnterior = inventario.StockActual;
-        inventario.StockActual += cantidad;
-        inventario.UltimaActualizacion = DateTime.UtcNow;
+        inventario.StockActual += dto.Cantidad;
+        inventario.UltimaActualizacion = Ahora;
 
-        _db.MovimientosInventario.Add(new MovimientoInventario
+        db.MovimientosInventario.Add(new MovimientoInventario
         {
             ProductoId = productoId,
             TipoMovimiento = TipoMovimiento.Ajuste,
-            Cantidad = Math.Abs(cantidad),
+            Cantidad = Math.Abs(dto.Cantidad),
             StockAnterior = stockAnterior,
             StockResultante = inventario.StockActual,
             ReferenciaTabla = "Ajuste",
             ReferenciaId = 0,
-            UsuarioId = usuarioId,
-            Fecha = DateTime.UtcNow,
-            Observacion = observacion
+            UsuarioId = usuario.Id,
+            Fecha = Ahora,
+            Observacion = dto.Observacion
         });
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(productoId);
     }
+
+    private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;
 }

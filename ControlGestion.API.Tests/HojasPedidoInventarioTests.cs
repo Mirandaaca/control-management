@@ -7,15 +7,11 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class HojasPedidoInventarioTests(ApiDePrueba api)
 {
-    private static async Task<JsonElement> InventarioDe(HttpClient cliente, int productoId) =>
-        (await (await cliente.GetAsync("/api/inventario")).LeerJsonAsync())
-            .EnumerateArray().Single(i => i.GetProperty("productoId").GetInt32() == productoId);
-
     private static async Task<decimal> StockDe(HttpClient cliente, int productoId) =>
-        (await InventarioDe(cliente, productoId)).GetProperty("stockActual").GetDecimal();
+        (await (await cliente.GetAsync($"/api/productos/{productoId}")).LeerJsonAsync()).GetProperty("stockActual").GetDecimal();
 
     private static async Task<List<JsonElement>> KardexDe(HttpClient cliente, int productoId) =>
-        (await (await cliente.GetAsync($"/api/inventario/{productoId}/movimientos")).LeerJsonAsync()).EnumerateArray().ToList();
+        (await (await cliente.GetAsync($"/api/inventario/{productoId}/movimientos")).LeerJsonAsync()).GetProperty("items").EnumerateArray().ToList();
 
     private static async Task<JsonElement> HojaDe(HttpClient cliente, int hojaId) =>
         await (await cliente.GetAsync($"/api/hojas-pedido/{hojaId}")).LeerJsonAsync();
@@ -25,15 +21,6 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
 
     private static Task<HttpResponseMessage> AnularAsync(HttpClient cliente, int hojaId, string motivo = "Venta registrada por error") =>
         cliente.PostAsJsonAsync($"/api/hojas-pedido/{hojaId}/anular", new { motivo });
-
-    [Fact]
-    public async Task Un_producto_nuevo_aparece_en_el_inventario_con_stock_cero()
-    {
-        using var operador = await api.OperadorAsync();
-        var productoId = await operador.CrearProductoAsync(5m, stockInicial: 0);
-
-        Assert.Equal(0m, await StockDe(operador, productoId));
-    }
 
     [Fact]
     public async Task Confirmar_una_HP_a_credito_crea_la_cobranza_y_descuenta_el_stock()

@@ -18,7 +18,7 @@ export default function Inventario() {
   const [loading, setLoading] = useState(true);
 
   const fetchInventario = () => {
-    api.get('/inventario').then(r => { setInventario(r.data); setLoading(false); });
+    api.get('/inventario', { params: { tamano: 100 } }).then(r => { setInventario(r.data.items); setLoading(false); });
   };
 
   useEffect(() => { fetchInventario(); }, []);
@@ -26,7 +26,7 @@ export default function Inventario() {
   const handleVerMovimientos = async (item) => {
     setSelectedProducto(item);
     const r = await api.get(`/inventario/${item.productoId}/movimientos`);
-    setMovimientos(r.data);
+    setMovimientos(r.data.items);
     setShowMovimientos(true);
     setShowAjuste(false);
   };
@@ -86,16 +86,16 @@ export default function Inventario() {
           ) : (
             <Table headers={['Producto', 'SKU', 'Stock actual', 'Mínimo', 'Última actualización', 'Acciones']}>
               {inventario.map(item => (
-                <Tr key={item.id}>
+                <Tr key={item.productoId}>
                   <Td>
                     <div>
-                      <p className="font-medium text-slate-800">{item.producto?.descripcion}</p>
-                      {item.producto?.categoria && (
-                        <Badge color="blue">{item.producto.categoria}</Badge>
+                      <p className="font-medium text-slate-800">{item.descripcion}</p>
+                      {item.categoria && (
+                        <Badge color="blue">{item.categoria}</Badge>
                       )}
                     </div>
                   </Td>
-                  <Td mono>{item.producto?.sku}</Td>
+                  <Td mono>{item.sku}</Td>
                   <Td>
                     <span className={`text-lg font-bold ${item.bajoMinimo ? 'text-red-600' : 'text-slate-800'}`}>
                       {item.stockActual?.toFixed(0)}
@@ -126,7 +126,7 @@ export default function Inventario() {
                 </h3>
                 <Btn variant="ghost" onClick={() => { setShowAjuste(false); setShowMovimientos(false); }}>✕</Btn>
               </div>
-              <p className="text-xs text-slate-500 mb-4 font-medium">{selectedProducto?.producto?.descripcion}</p>
+              <p className="text-xs text-slate-500 mb-4 font-medium">{selectedProducto?.descripcion}</p>
 
               {showAjuste && (
                 <form onSubmit={handleSubmitAjuste} className="space-y-3">
