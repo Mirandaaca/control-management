@@ -102,6 +102,31 @@ public class SesionesTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Cerrar_sesion_anula_el_token_aunque_alguien_lo_haya_copiado()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var cliente = api.ClienteCon(promotor.Token);
+        using var copia = api.ClienteCon(promotor.Token);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await cliente.PostAsync("/api/auth/logout", null)).StatusCode);
+
+        await (await copia.GetAsync("/api/auth/yo")).ProblemaAsync(401, "sesion_terminada");
+        Assert.NotNull((await LeerSesionAsync(SesionDelToken(promotor.Token))).CerradaEn);
+    }
+
+    [Fact]
+    public async Task Cerrar_una_sesion_no_cierra_las_otras_del_mismo_usuario()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var enLaApp = api.ClienteCon(
+            await api.IniciarSesionAsync(promotor.Correo, promotor.Contrasena, Ayudantes.OrigenApp));
+
+        (await api.ClienteCon(promotor.Token).PostAsync("/api/auth/logout", null)).EnsureSuccessStatusCode();
+
+        Assert.Equal(HttpStatusCode.OK, (await enLaApp.GetAsync("/api/auth/yo")).StatusCode);
+    }
+
+    [Fact]
     public async Task Un_token_sin_sesion_o_invalido_responde_sesion_terminada()
     {
         // Así son los tokens de antes de las sesiones en el servidor: firmados con la misma clave, pero sin "sid".

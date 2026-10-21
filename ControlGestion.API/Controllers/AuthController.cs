@@ -20,4 +20,13 @@ public class AuthController(SesionService sesiones, PerfilService perfil) : Cont
     [HttpGet("yo")]
     public async Task<ActionResult<SesionDTO>> Yo() =>
         await perfil.ObtenerMiSesionAsync();
+
+    // Cierra solo la sesión de este token: desde ahí no sirve, aunque alguien lo haya copiado. Es del propio usuario,
+    // así que no pide un permiso del catálogo.
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        await sesiones.CerrarAsync();
+        return NoContent();
+    }
 }

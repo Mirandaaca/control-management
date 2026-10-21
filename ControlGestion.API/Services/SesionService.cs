@@ -22,6 +22,7 @@ namespace ControlGestion.API.Services;
 public class SesionService(
     AppDbContext db,
     UserManager<ApplicationUser> usuarios,
+    IUsuarioActual actual,
     IOptions<JwtOptions> jwt,
     IOptions<SesionOptions> opciones,
     TimeProvider reloj)
@@ -49,6 +50,16 @@ public class SesionService(
 
         var datos = await db.Users.Where(u => u.Id == usuario.Id).ComoSesion(db).FirstAsync();
         return new LoginRespuestaDTO(GenerarToken(usuario, sesion.Id, ahora), datos);
+    }
+
+    /// <summary>Cierra la sesión del token. Repetirlo no hace daño: solo cambia una sesión que sigue abierta.</summary>
+    public Task CerrarAsync()
+    {
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var sesionId = actual.SesionId;
+        return db.Sesiones
+            .Where(s => s.Id == sesionId && s.CerradaEn == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CerradaEn, ahora));
     }
 
     // El token no lleva el rol ni los permisos: se leen de la base en cada petición (SesionDesdeLaBase), junto con la sesión.
