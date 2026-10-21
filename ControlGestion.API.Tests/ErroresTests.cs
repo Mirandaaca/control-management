@@ -37,14 +37,15 @@ public class ErroresTests(ApiDePrueba api)
     public async Task Una_referencia_a_un_id_que_no_existe_responde_400_y_no_500()
     {
         using var operador = await api.OperadorAsync();
-        var zonaId = await operador.CrearZonaAsync();
-        var productoId = await operador.CrearProductoAsync(1m);
 
-        await (await operador.PostAsJsonAsync("/api/pedidos", new
+        // Rutas todavía no valida la zona: la ruta llega a la base y la FK responde el error 1452 de MySQL. Cuando
+        // Rutas se migre y valide la zona, esta prueba tiene que pasar a otro endpoint que siga llegando a la FK.
+        await (await operador.PostAsJsonAsync("/api/rutas", new
         {
-            clienteId = 999999,
-            zonaId,
-            detalles = new[] { new { productoId, cantidad = 1 } }
+            nombre = Ayudantes.Unico("Ruta"),
+            zonaId = 999999,
+            fechaPlanificada = DateTime.UtcNow.AddDays(1),
+            clientes = Array.Empty<object>()
         })).ProblemaAsync(400, "referencia_invalida");
     }
 

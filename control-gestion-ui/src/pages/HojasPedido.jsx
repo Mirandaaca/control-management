@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, LocateFixed, Plus, Trash2 } from 'lucide-react';
+import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, Plus } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
+import CampoUbicacion from '../components/CampoUbicacion';
 import Layout from '../components/Layout';
+import LineasDeProductos from '../components/LineasDeProductos';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
@@ -13,8 +15,10 @@ import {
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useUbicacionDelNavegador } from '../hooks/useUbicacionDelNavegador';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
+import { totalDe } from '../utils/lineas';
 
 const { ventas, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -50,11 +54,6 @@ function Dato({ titulo, children }) {
   );
 }
 
-const subtotalDe = (linea, productos) => {
-  const precio = productos.find((p) => String(p.id) === linea.productoId)?.precio ?? 0;
-  return (precio - (Number(linea.descuento) || 0)) * (Number(linea.cantidad) || 0);
-};
-
 export default function HojasPedido() {
   const { usuario: yo, tiene } = useAuth();
   const puedeRegistrar = tiene(ventas.registrarHp);
@@ -82,7 +81,7 @@ export default function HojasPedido() {
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const [buscandoGps, setBuscandoGps] = useState(false);
+  const gps = useUbicacionDelNavegador();
 
   const [confirmando, setConfirmando] = useState(null);
   const [anulando, setAnulando] = useState(null);
@@ -126,29 +125,13 @@ export default function HojasPedido() {
   const quitarErrorDeUbicacion = () => quitarError('latitud');
 
   // La ubicación de la venta la da el GPS del celular (en la app). En el panel se toma del navegador o se marca en el mapa.
-  const tomarUbicacion = () => {
-    if (!navigator.geolocation) {
-      setErroresCampo((e) => ({ ...e, latitud: 'Este navegador no puede dar tu ubicación: márcala en el mapa.' }));
-      return;
-    }
-    setBuscandoGps(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setFormulario((f) => f && {
-          ...f,
-          ubicacion: { latitud: coords.latitude, longitud: coords.longitude },
-          precisionGPS: Math.round(coords.accuracy),
-        });
-        quitarErrorDeUbicacion();
-        setBuscandoGps(false);
-      },
-      () => {
-        setErroresCampo((e) => ({ ...e, latitud: 'No se pudo obtener tu ubicación: márcala en el mapa.' }));
-        setBuscandoGps(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  };
+  const tomarUbicacion = () => gps.tomar({
+    onUbicacion: (ubicacion, precisionGPS) => {
+      setFormulario((f) => f && { ...f, ubicacion, precisionGPS });
+      quitarErrorDeUbicacion();
+    },
+    onError: (mensaje) => setErroresCampo((e) => ({ ...e, latitud: mensaje })),
+  });
 
   const nuevaLinea = () => ({ clave: siguienteLinea.current++, productoId: '', cantidad: '1', descuento: '' });
 
@@ -253,9 +236,7 @@ export default function HojasPedido() {
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const hojas = pagina?.items ?? [];
-  const totalFormulario = formulario
-    ? formulario.lineas.reduce((suma, l) => suma + subtotalDe(l, productos), 0) - (Number(formulario.descuento) || 0)
-    : 0;
+  const totalFormulario = formulario ? totalDe(formulario.lineas, productos, formulario.descuento) : 0;
 
   let estado = null;
   if (cargando) estado = <Cargando texto="Cargando hojas de pedido…" />;
@@ -457,48 +438,15 @@ export default function HojasPedido() {
                 onChange={(tipoVenta) => cambiarCampo('tipoVenta', tipoVenta)} />
             </div>
 
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-slate-700 mb-1">Productos</legend>
-              {erroresCampo.detalles && <Alert type="error">{erroresCampo.detalles}</Alert>}
-              {formulario.lineas.map((linea, i) => {
-                const producto = productos.find((p) => String(p.id) === linea.productoId);
-                // El stock se valida al confirmar; aquí solo se avisa, porque puede llegar mercadería antes.
-                let ayudaDelProducto;
-                if (producto) {
-                  ayudaDelProducto = Number(linea.cantidad) > producto.stockActual
-                    ? `Hay ${formatearCantidad(producto.stockActual)} en stock: con esta cantidad no se podrá confirmar.`
-                    : `Hay ${formatearCantidad(producto.stockActual)} en stock.`;
-                }
-                return (
-                  <div key={linea.clave} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_auto] sm:items-start">
-                    <Selector label={`Producto ${i + 1}`} placeholder="Elige el producto" value={linea.productoId}
-                      error={erroresCampo[`detalles[${i}].productoId`]}
-                      opciones={productos.map((p) => ({ valor: String(p.id), texto: `${p.descripcion} · ${formatearMonto(p.precio)}` }))}
-                      ayuda={ayudaDelProducto}
-                      onChange={(productoId) => cambiarLinea(linea.clave, i, { productoId })} />
-                    <Input label="Cantidad" type="number" inputMode="decimal" min="0" step="1" value={linea.cantidad} autoComplete="off"
-                      error={erroresCampo[`detalles[${i}].cantidad`]}
-                      onChange={(e) => cambiarLinea(linea.clave, i, { cantidad: e.target.value })} />
-                    <Input label="Descuento c/u" type="number" inputMode="decimal" min="0" step="0.01" value={linea.descuento}
-                      placeholder="0,00" autoComplete="off" error={erroresCampo[`detalles[${i}].descuento`]}
-                      onChange={(e) => cambiarLinea(linea.clave, i, { descuento: e.target.value })} />
-                    <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:pt-7">
-                      <span className="text-sm font-semibold tabular-nums whitespace-nowrap">{formatearMonto(subtotalDe(linea, productos))}</span>
-                      {formulario.lineas.length > 1 && (
-                        <Btn variant="ghost" aria-label={`Quitar el producto ${i + 1}`}
-                          onClick={() => setFormulario((f) => ({ ...f, lineas: f.lineas.filter((l) => l.clave !== linea.clave) }))}>
-                          <Trash2 size={14} aria-hidden="true" />
-                        </Btn>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <Btn variant="outline" onClick={() => setFormulario((f) => ({ ...f, lineas: [...f.lineas, nuevaLinea()] }))}>
-                <Plus size={14} aria-hidden="true" />
-                Agregar producto
-              </Btn>
-            </fieldset>
+            <LineasDeProductos
+              lineas={formulario.lineas}
+              productos={productos}
+              errores={erroresCampo}
+              sinStock="con esta cantidad no se podrá confirmar."
+              onCambiar={cambiarLinea}
+              onQuitar={(clave) => setFormulario((f) => ({ ...f, lineas: f.lineas.filter((l) => l.clave !== clave) }))}
+              onAgregar={() => setFormulario((f) => ({ ...f, lineas: [...f.lineas, nuevaLinea()] }))}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
               <Input label="Descuento sobre el total (Bs, opcional)" type="number" inputMode="decimal" min="0" step="0.01"
@@ -509,31 +457,20 @@ export default function HojasPedido() {
               </p>
             </div>
 
-            <div>
-              <p className="text-sm font-medium text-slate-700 mb-1">Ubicación de la venta</p>
-              <MapaUbicacion
-                valor={formulario.ubicacion}
-                etiqueta="Mapa: haz clic donde se hace la venta para marcar la ubicación"
-                onCambiar={(ubicacion) => {
-                  setFormulario((f) => ({ ...f, ubicacion, precisionGPS: null }));
-                  quitarErrorDeUbicacion();
-                }}
-              />
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-600 tabular-nums" aria-live="polite">
-                  {buscandoGps && 'Tomando tu ubicación…'}
-                  {!buscandoGps && (formulario.ubicacion
-                    ? `Marcada en ${Number(formulario.ubicacion.latitud).toFixed(6)}, ${Number(formulario.ubicacion.longitud).toFixed(6)}${
-                      formulario.precisionGPS != null ? `, con ${formulario.precisionGPS} m de precisión` : ''}.`
-                    : 'Haz clic en el mapa donde se hace la venta.')}
-                </p>
-                <Btn variant="outline" onClick={tomarUbicacion} disabled={buscandoGps}>
-                  {buscandoGps ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <LocateFixed size={14} aria-hidden="true" />}
-                  Usar mi ubicación
-                </Btn>
-              </div>
-              {erroresCampo.latitud && <Alert type="error" className="mt-2">{erroresCampo.latitud}</Alert>}
-            </div>
+            <CampoUbicacion
+              titulo="Ubicación de la venta"
+              valor={formulario.ubicacion}
+              precision={formulario.precisionGPS}
+              buscando={gps.buscando}
+              error={erroresCampo.latitud}
+              etiquetaMapa="Mapa: haz clic donde se hace la venta para marcar la ubicación"
+              sinPunto="Haz clic en el mapa donde se hace la venta."
+              onMarcar={(ubicacion) => {
+                setFormulario((f) => ({ ...f, ubicacion, precisionGPS: null }));
+                quitarErrorDeUbicacion();
+              }}
+              onUsarMiUbicacion={tomarUbicacion}
+            />
           </form>
         )}
       </Modal>

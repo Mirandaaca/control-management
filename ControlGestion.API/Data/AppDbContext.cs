@@ -193,6 +193,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Pedido>()
             .HasOne(p => p.Promotor).WithMany().HasForeignKey(p => p.PromotorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
+            .HasOne(p => p.RegistradoPor).WithMany().HasForeignKey(p => p.RegistradoPorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Pedido>()
             .HasOne(p => p.Repartidor).WithMany().HasForeignKey(p => p.RepartidorId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Pedido>()
             .HasOne(p => p.Zona).WithMany().HasForeignKey(p => p.ZonaId).OnDelete(DeleteBehavior.Restrict);
@@ -202,11 +204,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(p => p.EstadoPedido).WithMany().HasForeignKey(p => p.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
             .HasIndex(p => p.Numero).IsUnique();
+        // Una HP es la venta de un solo pedido. MySQL admite varios NULL en un índice único: los pedidos sin entregar.
+        builder.Entity<Pedido>()
+            .HasIndex(p => p.HojaPedidoId).IsUnique();
+        builder.Entity<Pedido>().Property(p => p.RecibidoPor).HasMaxLength(150);
+        builder.Entity<Pedido>().Property(p => p.DireccionEntrega).HasMaxLength(300);
         builder.Entity<Pedido>().Property(p => p.SubTotal).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.Descuento).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.Total).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.LatitudEntrega).HasPrecision(10, 8);
         builder.Entity<Pedido>().Property(p => p.LongitudEntrega).HasPrecision(11, 8);
+        builder.Entity<Pedido>()
+            .Property(p => p.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // DetallePedido
         builder.Entity<DetallePedido>()

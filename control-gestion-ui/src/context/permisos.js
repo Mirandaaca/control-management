@@ -92,7 +92,11 @@ export const PANTALLAS = {
   clientes: [ventas.registrarCliente, ventas.editarCliente, ventas.asignarEstadoCliente, ventas.verUbicacionCliente],
   hojasPedido: [ventas.consultarHp, ventas.anularHp],
   inventario: [ventas.consultarProductos, ventas.consultarKardex, ventas.registrarIngreso],
-  pedidos: [pedidos.consultarPedidos, pedidos.verBandeja],
+  // Como en la API: quien opera sobre un pedido también tiene que verlo. La bandeja tiene su propia pantalla.
+  pedidos: [pedidos.consultarPedidos, pedidos.modificarPedido, pedidos.anularPedido, pedidos.cambiarEstado,
+    pedidos.reprogramarEntrega, pedidos.asignarPedidos, pedidos.registrarEntrega],
+  bandeja: [pedidos.verBandeja],
+  reportePedidos: [pedidos.generarReporte],
   eventos: [eventos.consultarEventos, eventos.verMapa],
   cobranzas: [cobranzas.consultarDeudas, cobranzas.consultarPagos],
   rutas: [territorial.planificarRuta, territorial.seguirRuta, territorial.recorrerRuta],
@@ -105,6 +109,7 @@ export const PANTALLAS = {
     seguridad.consultarBitacora],
 };
 
-// Quien asigna pedidos, zonas o rutas puede pedir la lista de promotores (GET /usuarios/promotores).
+// Quien asigna pedidos, zonas o rutas, o filtra el reporte de pedidos, puede pedir la lista de promotores
+// (GET /usuarios/promotores).
 export const ELIGEN_PROMOTOR = [pedidos.asignarPedidos, parametros.registrarZona, parametros.modificarZona,
-  territorial.planificarRuta];
+  territorial.planificarRuta, pedidos.generarReporte];

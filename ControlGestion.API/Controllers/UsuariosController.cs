@@ -16,10 +16,10 @@ public class UsuariosController(UsuarioService usuarios) : ControllerBase
     public async Task<ActionResult<List<UsuarioDTO>>> GetAll() =>
         await usuarios.ListarAsync();
 
-    // Para elegir un promotor al asignar pedidos, zonas o rutas: solo el id y el nombre.
+    // Para elegir un promotor al asignar pedidos, zonas o rutas, o al filtrar el reporte de pedidos: solo el id y el nombre.
     [HttpGet("promotores")]
     [Permiso(Permisos.Pedidos.AsignarPedidos, Permisos.Parametros.RegistrarZona, Permisos.Parametros.ModificarZona,
-        Permisos.Territorial.PlanificarRuta)]
+        Permisos.Territorial.PlanificarRuta, Permisos.Pedidos.GenerarReporte)]
     public async Task<ActionResult<List<UsuarioResumenDTO>>> GetPromotores() =>
         await usuarios.ListarPromotoresAsync();
 
