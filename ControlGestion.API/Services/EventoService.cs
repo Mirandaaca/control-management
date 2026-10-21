@@ -36,25 +36,64 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     public Task<List<TipoEventoDTO>> TiposAsync() =>
         db.TiposEvento.Where(t => t.Activo).OrderBy(t => t.Id).Select(EventoConsultas.TipoComoDTO).ToListAsync();
 
+    /// <summary>
+    /// Registrar (4.1): queda Pendiente y a nombre de quien lo registra, con la ubicación del momento. El evento siempre
+    /// guarda a su cliente: si viene el pedido, es el del pedido.
+    /// </summary>
     public async Task<EventoDTO> RegistrarAsync(RegistrarEventoDTO dto)
     {
+        await ExigirTipoActivoAsync(dto.TipoEventoId);
+        var (clienteId, pedidoId) = await VinculoAsync(dto);
+
         var evento = new Evento
         {
-            Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Evento),
             TipoEventoId = dto.TipoEventoId,
-            ClienteId = dto.ClienteId,
-            PedidoId = dto.PedidoId,
+            ClienteId = clienteId,
+            PedidoId = pedidoId,
             PromotorId = usuario.Id,
             FechaEvento = Ahora,
-            Latitud = dto.Latitud,
-            Longitud = dto.Longitud,
-            Descripcion = dto.Descripcion,
+            Latitud = dto.Latitud!.Value,
+            Longitud = dto.Longitud!.Value,
+            Descripcion = dto.Descripcion.Trim(),
             EstadoEvento = EstadoEvento.Registrado
         };
+        // El número se pide después de validar: un evento rechazado no gasta un número.
+        evento.Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Evento);
 
         db.Eventos.Add(evento);
         await db.SaveChangesAsync();
         return await ObtenerAsync(evento.Id);
+    }
+
+    private async Task ExigirTipoActivoAsync(int tipoEventoId)
+    {
+        if (!await db.TiposEvento.AnyAsync(t => t.Id == tipoEventoId && t.Activo))
+            throw new ReglaDeNegocioException("tipo_no_valido", "Elige un tipo de evento de la lista.");
+    }
+
+    /// <summary>
+    /// El cliente y el pedido del evento, los dos visibles para quien registra. Uno ajeno responde lo mismo que uno que no
+    /// existe, como en la HP. Un cliente inactivo se acepta: el evento puede explicar justo por qué quedó inactivo.
+    /// </summary>
+    private async Task<(int ClienteId, int? PedidoId)> VinculoAsync(ModificarEventoDTO dto)
+    {
+        if (dto.PedidoId is { } pedidoId)
+        {
+            var pedido = await db.Pedidos.VisiblesPara(usuario)
+                .Where(p => p.Id == pedidoId)
+                .Select(p => new { p.Id, p.Numero, p.ClienteId })
+                .FirstOrDefaultAsync()
+                ?? throw new ReglaDeNegocioException("pedido_no_existe", "No se encontró el pedido.");
+            if (dto.ClienteId is { } elegido && elegido != pedido.ClienteId)
+                throw new ReglaDeNegocioException("cliente_no_coincide",
+                    $"El pedido {pedido.Numero} es de otro cliente: elige el cliente del pedido.");
+            return (pedido.ClienteId, pedido.Id);
+        }
+
+        var clienteId = dto.ClienteId!.Value;
+        if (!await db.Clientes.VisiblesPara(usuario).AnyAsync(c => c.Id == clienteId))
+            throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
+        return (clienteId, null);
     }
 
     public async Task<EventoDTO> ResolverAsync(int id)
