@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
@@ -133,6 +134,10 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         pedido.Observaciones = string.IsNullOrWhiteSpace(dto.Observaciones) ? null : dto.Observaciones.Trim();
     }
 
+    /// <summary>Una fecha y hora para un texto del historial: dd/mm/aaaa hh:mm, en la hora de Bolivia.</summary>
+    private static string EnBolivia(DateTime utc) =>
+        HoraBolivia.DesdeUtc(utc).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
+
     private void ExigirFutura(DateTime entregaUtc)
     {
         if (entregaUtc <= Ahora)
@@ -159,6 +164,53 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         pedido.EstadoPedidoId = siguiente;
         pedido.Historial.Add(Entrada(siguiente, string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim()));
         await GuardarAsync("El pedido cambió mientras lo avanzabas. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Modificar (1.1): todo menos el cliente, y solo mientras el pedido no salió a entregarse (Pendiente o En
+    /// proceso). Para otro cliente se anula el pedido y se registra uno nuevo.
+    /// </summary>
+    public async Task<PedidoDTO> ModificarAsync(int id, ModificarPedidoDTO dto)
+    {
+        var pedido = await Visibles.Include(p => p.Detalles).FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el pedido.");
+        if (pedido.EstadoPedidoId is not (EstadosDePedido.Pendiente or EstadosDePedido.EnProceso))
+        {
+            var estado = pedido.EstadoPedidoId switch
+            {
+                EstadosDePedido.EnRuta => "está en ruta",
+                EstadosDePedido.Entregado => "ya se entregó",
+                _ => "está anulado",
+            };
+            throw new ReglaDeNegocioException("pedido_no_modificable",
+                $"El pedido {pedido.Numero} {estado}: solo se modifica mientras está pendiente o en proceso.");
+        }
+
+        var entrega = HoraBolivia.AUtc(dto.FechaEntregaEstimada!.Value);
+        // Un pedido atrasado se puede corregir sin tocar su fecha: la fecha se exige futura solo si cambió.
+        if (entrega != pedido.FechaEntregaEstimada) ExigirFutura(entrega);
+        await CopiarAsync(dto, pedido, entrega);
+        pedido.Historial.Add(Entrada(pedido.EstadoPedidoId, "Pedido modificado"));
+        await GuardarAsync("El pedido cambió mientras lo modificabas. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Reprogramar (1.2): nueva fecha y hora de entrega, con motivo. El pedido vuelve a Pendiente y conserva al
+    /// promotor que tenga asignado.
+    /// </summary>
+    public async Task<PedidoDTO> ReprogramarAsync(int id, ReprogramarPedidoDTO dto)
+    {
+        var pedido = await BuscarAbiertoAsync(id);
+        var entrega = HoraBolivia.AUtc(dto.FechaEntregaEstimada!.Value);
+        ExigirFutura(entrega);
+
+        pedido.FechaEntregaEstimada = entrega;
+        pedido.EstadoPedidoId = EstadosDePedido.Pendiente;
+        pedido.Historial.Add(Entrada(EstadosDePedido.Pendiente,
+            $"Entrega reprogramada para el {EnBolivia(entrega)}. Motivo: {dto.Motivo.Trim()}"));
+        await GuardarAsync("El pedido cambió mientras lo reprogramabas. Vuelve a intentarlo.");
         return await ObtenerAsync(id);
     }
 

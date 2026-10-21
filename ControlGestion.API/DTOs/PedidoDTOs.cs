@@ -51,6 +51,17 @@ public record AvanzarPedidoDTO
     public string? Observacion { get; init; }
 }
 
+public record ReprogramarPedidoDTO
+{
+    /// <summary>Sin zona se entiende como hora de Bolivia, que es lo que manda el panel.</summary>
+    [Required(ErrorMessage = "Elige la nueva fecha y hora de entrega.")]
+    public DateTime? FechaEntregaEstimada { get; init; }
+
+    [Required(ErrorMessage = "Escribe el motivo de la reprogramación.")]
+    [MaxLength(500, ErrorMessage = "El motivo no puede superar los 500 caracteres.")]
+    public string Motivo { get; init; } = string.Empty;
+}
+
 public record AnularPedidoDTO
 {
     [Required(ErrorMessage = "Escribe el motivo de la anulación.")]

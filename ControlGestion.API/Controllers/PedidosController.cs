@@ -46,6 +46,16 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = registrado.Id }, registrado);
     }
 
+    [HttpPut("{id:int}")]
+    [Permiso(Permisos.Pedidos.ModificarPedido)]
+    public async Task<ActionResult<PedidoDTO>> Modificar(int id, [FromBody] ModificarPedidoDTO dto) =>
+        await pedidos.ModificarAsync(id, dto);
+
+    [HttpPost("{id:int}/reprogramar")]
+    [Permiso(Permisos.Pedidos.ReprogramarEntrega)]
+    public async Task<ActionResult<PedidoDTO>> Reprogramar(int id, [FromBody] ReprogramarPedidoDTO dto) =>
+        await pedidos.ReprogramarAsync(id, dto);
+
     [HttpPost("{id:int}/avanzar")]
     [Permiso(Permisos.Pedidos.CambiarEstado)]
     public async Task<ActionResult<PedidoDTO>> Avanzar(int id, [FromBody] AvanzarPedidoDTO dto) =>
