@@ -26,7 +26,7 @@ export default function ImagenConSesion({ evidenciaId, alt, className = '' }) {
 
   if (foto.id !== evidenciaId) {
     return (
-      <div role="status" className={`grid place-items-center bg-slate-100 text-slate-600 ${className}`}>
+      <div role="status" className={`grid min-h-24 min-w-24 place-items-center bg-slate-100 text-slate-600 ${className}`}>
         <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
         <span className="sr-only">Cargando la foto…</span>
       </div>
@@ -34,9 +34,9 @@ export default function ImagenConSesion({ evidenciaId, alt, className = '' }) {
   }
   if (foto.error) {
     return (
-      <div className={`grid place-items-center gap-1 bg-slate-100 p-2 text-center text-xs text-slate-700 ${className}`}>
+      <div className={`grid min-h-24 min-w-24 place-items-center gap-1 bg-slate-100 p-2 text-center text-xs text-slate-700 ${className}`}>
         <ImageOff size={18} aria-hidden="true" />
-        No se pudo cargar la foto.
+        No se pudo cargar la foto. Cierra y vuelve a abrirla.
       </div>
     );
   }

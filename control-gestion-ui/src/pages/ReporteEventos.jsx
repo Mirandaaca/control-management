@@ -115,7 +115,7 @@ export default function ReporteEventos() {
             <Indicador titulo="Resueltos" icono={CircleCheck} valor={porEstado(RESUELTO)} detalle="Con su solución." />
           </section>
           <section aria-labelledby="titulo-por-tipo">
-            <h2 id="titulo-por-tipo" className="sr-only">Totales por tipo</h2>
+            <h3 id="titulo-por-tipo" className="sr-only">Totales por tipo</h3>
             <Table headers={['Tipo', { texto: 'Eventos', derecha: true }]}>
               {reporte.porTipo.map((t) => (
                 <Tr key={t.tipoEventoId}>

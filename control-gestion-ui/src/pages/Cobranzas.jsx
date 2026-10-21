@@ -167,7 +167,7 @@ export default function Cobranzas() {
       if (fallo) {
         abrirDetalle(cobranza.id, {
           tipo: 'warning',
-          texto: `El pago quedó registrado, pero el comprobante no se subió: ${fallo} Adjúntalo desde los pagos, con "Adjuntar".`,
+          texto: `El pago quedó registrado, pero el comprobante no se subió: ${fallo} Adjúntalo desde los pagos, con “Adjuntar”.`,
         });
       } else if (desdeDetalle) {
         abrirDetalle(cobranza.id);
@@ -488,7 +488,9 @@ export default function Cobranzas() {
                   </Btn>
                 </div>
               ) : (
-                <BotonDeFoto onElegir={(archivo) => cambiarPago('comprobante', archivo)}>Elegir foto</BotonDeFoto>
+                <BotonDeFoto onElegir={(archivo) => cambiarPago('comprobante', archivo)} aria-label="Elegir foto del comprobante">
+                  Elegir foto
+                </BotonDeFoto>
               )}
               <p className="mt-1 text-sm text-slate-600">La foto del comprobante del QR o del recibo. Se sube después de registrar el pago.</p>
             </div>

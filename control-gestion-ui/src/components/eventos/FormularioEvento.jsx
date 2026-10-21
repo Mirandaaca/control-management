@@ -190,7 +190,8 @@ export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregar
               <p className="text-sm font-medium text-slate-700">
                 Fotos (opcional) <span className="font-normal text-slate-600 tabular-nums">· {fotos.length} de {MAXIMO_DE_FOTOS}</span>
               </p>
-              <BotonDeFoto disabled={fotos.length >= MAXIMO_DE_FOTOS} onElegir={(foto) => setFotos((f) => [...f, foto])}>
+              <BotonDeFoto disabled={fotos.length >= MAXIMO_DE_FOTOS} onElegir={(foto) => setFotos((f) => [...f, foto])}
+                aria-label="Elegir foto del evento">
                 Elegir foto
               </BotonDeFoto>
             </div>
