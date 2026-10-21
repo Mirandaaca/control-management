@@ -33,9 +33,19 @@ export function AuthProvider({ children }) {
     return data.usuario;
   };
 
-  const logout = () => {
+  // Cierra la sesión en la API, así ese token deja de servir aunque alguien lo haya copiado. La sesión local se borra
+  // antes: una petición de la pantalla que responda 401 por este cierre ya no se toma como una sesión terminada. Si la
+  // API no responde, la sesión del servidor vence sola por inactividad.
+  const logout = async () => {
+    const token = leerToken();
     borrarSesion();
-    setUsuario(null);
+    try {
+      if (token) await api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (err) {
+      console.warn('No se pudo cerrar la sesión en el servidor; vencerá por inactividad.', err);
+    } finally {
+      setUsuario(null);
+    }
   };
 
   // Basta con uno de los permisos, igual que [Permiso(...)] en la API.

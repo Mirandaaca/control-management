@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../context/auth';
 import { mensajeDeError } from '../api/errores';
@@ -61,6 +61,9 @@ function Marca({ grande = false }) {
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [parametros] = useSearchParams();
+  // El interceptor de axios llega aquí con ?sesion=terminada cuando la API responde sesion_terminada.
+  const [sesionTerminada, setSesionTerminada] = useState(() => parametros.get('sesion') === 'terminada');
   const [form, setForm] = useState({ email: '', password: '' });
   const [verContrasena, setVerContrasena] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +72,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSesionTerminada(false);
     setLoading(true);
     try {
       await login(form.email, form.password);
@@ -105,6 +109,8 @@ export default function Login() {
         <div className="w-full max-w-sm">
           <h1 className="text-2xl font-semibold text-slate-900">Inicia sesión</h1>
           <p className="mt-1 mb-6 text-sm text-slate-600">Con el correo y la contraseña que te dio el administrador.</p>
+
+          {sesionTerminada && <Alert type="warning" className="mb-4">Tu sesión terminó: vuelve a entrar.</Alert>}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
