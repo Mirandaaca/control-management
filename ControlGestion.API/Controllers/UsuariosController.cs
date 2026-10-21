@@ -19,7 +19,8 @@ public class UsuariosController(UsuarioService usuarios) : ControllerBase
     // Para elegir un promotor al asignar pedidos, zonas o rutas, o al filtrar el reporte de pedidos: solo el id y el nombre.
     [HttpGet("promotores")]
     [Permiso(Permisos.Pedidos.AsignarPedidos, Permisos.Parametros.RegistrarZona, Permisos.Parametros.ModificarZona,
-        Permisos.Territorial.PlanificarRuta, Permisos.Pedidos.GenerarReporte)]
+        Permisos.Territorial.PlanificarRuta, Permisos.Pedidos.GenerarReporte, Permisos.Eventos.VerMapa,
+        Permisos.Eventos.GenerarReporte)]
     public async Task<ActionResult<List<UsuarioResumenDTO>>> GetPromotores() =>
         await usuarios.ListarPromotoresAsync();
 

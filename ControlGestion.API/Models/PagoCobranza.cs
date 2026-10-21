@@ -26,8 +26,9 @@ public class PagoCobranza
     [MaxLength(500)]
     public string? Observaciones { get; set; }
 
-    public int? AnexoId { get; set; }
-    public Anexo? Comprobante { get; set; }
+    /// <summary>El comprobante del pago: una foto opcional (3.1). Uno nuevo reemplaza al anterior.</summary>
+    public int? EvidenciaId { get; set; }
+    public Evidencia? Comprobante { get; set; }
 
     // La genera quien envía el pago. Si el mismo pago llega dos veces, la clave repetida evita duplicarlo.
     public Guid? ClaveIdempotencia { get; set; }
