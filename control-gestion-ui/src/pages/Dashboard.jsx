@@ -32,7 +32,7 @@ export default function Dashboard() {
         <KpiCard label="HPs este mes"       value={kpis?.pedidosMes ?? '—'}         color="emerald" />
         <KpiCard label="Ventas del mes"     value={kpis ? `Bs ${kpis.ventasMes?.toFixed(0)}` : '—'} color="amber" />
         <KpiCard label="Por cobrar"         value={kpis ? `Bs ${kpis.cobranzasPendientes?.toFixed(0)}` : '—'} color="red" />
-        <KpiCard label="Eventos abiertos"   value={kpis?.eventosAbiertos ?? '—'}    color="purple" />
+        <KpiCard label="Eventos pendientes" value={kpis?.eventosAbiertos ?? '—'}    color="purple" />
         <KpiCard label="Stock bajo mínimo"  value={kpis?.stockBajo ?? '—'}          color="orange" />
       </div>
 

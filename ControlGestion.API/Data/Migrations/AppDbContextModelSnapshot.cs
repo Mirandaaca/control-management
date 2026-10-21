@@ -613,7 +613,8 @@ namespace ControlGestion.API.Data.Migrations
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<int>("EstadoEvento")
                         .HasColumnType("int");
@@ -646,8 +647,18 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("ResueltoPorId")
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("Solucion")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
                     b.Property<int>("TipoEventoId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                     b.HasKey("Id");
 

@@ -41,5 +41,5 @@ public class EventosController(EventoService eventos) : ControllerBase
     [HttpPost("{id:int}/resolver")]
     [Permiso(Permisos.Eventos.ResolverEvento)]
     public async Task<ActionResult<EventoDTO>> Resolver(int id, [FromBody] ResolverEventoDTO dto) =>
-        await eventos.ResolverAsync(id);
+        await eventos.ResolverAsync(id, dto.Solucion);
 }

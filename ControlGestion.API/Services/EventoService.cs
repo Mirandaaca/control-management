@@ -55,7 +55,7 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             Latitud = dto.Latitud!.Value,
             Longitud = dto.Longitud!.Value,
             Descripcion = dto.Descripcion.Trim(),
-            EstadoEvento = EstadoEvento.Registrado
+            EstadoEvento = EstadoEvento.Pendiente
         };
         // El número se pide después de validar: un evento rechazado no gasta un número.
         evento.Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Evento);
@@ -96,16 +96,40 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         return (clienteId, null);
     }
 
-    public async Task<EventoDTO> ResolverAsync(int id)
+    /// <summary>Resolver (4.1): guarda la solución, la fecha y quién lo resolvió. Un evento resuelto ya no cambia.</summary>
+    public async Task<EventoDTO> ResolverAsync(int id, string solucion)
+    {
+        var evento = await BuscarPendienteAsync(id, "ya está resuelto");
+
+        evento.EstadoEvento = EstadoEvento.Resuelto;
+        evento.Solucion = solucion.Trim();
+        evento.ResueltoPorId = usuario.Id;
+        evento.FechaResolucion = Ahora;
+        await GuardarAsync("El evento cambió mientras lo resolvías. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Un evento visible que todavía está pendiente: un evento resuelto no se modifica ni se resuelve otra vez.</summary>
+    private async Task<Evento> BuscarPendienteAsync(int id, string siEstaResuelto)
     {
         var evento = await Visibles.FirstOrDefaultAsync(e => e.Id == id)
             ?? throw new NoEncontradoException("No se encontró el evento.");
+        if (evento.EstadoEvento == EstadoEvento.Resuelto)
+            throw new ReglaDeNegocioException("evento_resuelto", $"El evento {evento.Numero} {siEstaResuelto}.");
+        return evento;
+    }
 
-        evento.EstadoEvento = EstadoEvento.Resuelto;
-        evento.ResueltoPorId = usuario.Id;
-        evento.FechaResolucion = Ahora;
-        await db.SaveChangesAsync();
-        return await ObtenerAsync(id);
+    // Otra petición cambió el evento entre que se leyó y se guardó.
+    private async Task GuardarAsync(string mensajeDeConflicto)
+    {
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia", mensajeDeConflicto);
+        }
     }
 
     private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;

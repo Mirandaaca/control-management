@@ -6,8 +6,8 @@ import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
 import { formatearFecha } from '../utils/formato';
 
-const ESTADO_COLOR = { 0: 'blue', 1: 'yellow', 2: 'green', 3: 'red' };
-const ESTADO_LABEL = { 0: 'Registrado', 1: 'Revisado', 2: 'Resuelto', 3: 'Escalado' };
+const ESTADO_COLOR = { 0: 'yellow', 1: 'blue' };
+const ESTADO_LABEL = { 0: 'Pendiente', 1: 'Resuelto' };
 const PRIORIDAD_COLOR = { 0: 'gray', 1: 'yellow', 2: 'red' };
 const PRIORIDAD_LABEL = { 0: 'Bajo', 1: 'Medio', 2: 'Alto' };
 
@@ -68,13 +68,13 @@ export default function Eventos() {
 
   const handleResolver = async () => {
     if (!motivoResolucion.trim()) return;
-    await api.post(`/eventos/${resolviendoId}/resolver`, { observacion: motivoResolucion });
+    await api.post(`/eventos/${resolviendoId}/resolver`, { solucion: motivoResolucion });
     setResolviendoId(null);
     setMotivoResolucion('');
     fetchEventos();
   };
 
-  const pendientes = eventos.filter(e => e.estado === 0 || e.estado === 3).length;
+  const pendientes = eventos.filter(e => e.estado === 0).length;
 
   return (
     <Layout>
@@ -110,10 +110,8 @@ export default function Eventos() {
             <select value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">Todos</option>
-              <option value="0">Registrado</option>
-              <option value="1">Revisado</option>
-              <option value="2">Resuelto</option>
-              <option value="3">Escalado</option>
+              <option value="0">Pendiente</option>
+              <option value="1">Resuelto</option>
             </select>
           </div>
           <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
@@ -221,7 +219,7 @@ export default function Eventos() {
               <Td>{formatearFecha(ev.fechaEvento)}</Td>
               <Td>
                 <div className="flex gap-1.5">
-                  {ev.estado !== 2 && (
+                  {ev.estado === 0 && (
                     <Btn onClick={() => { setResolviendoId(ev.id); setMotivoResolucion(''); }} variant="ghost">
                       Resolver
                     </Btn>

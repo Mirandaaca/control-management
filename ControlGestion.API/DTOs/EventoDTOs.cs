@@ -49,8 +49,9 @@ public record RegistrarEventoDTO : ModificarEventoDTO
 
 public record ResolverEventoDTO
 {
-    [Required(ErrorMessage = "Escribe cómo se resolvió.")]
-    public string Observacion { get; init; } = string.Empty;
+    [Required(ErrorMessage = "Escribe la solución.")]
+    [MaxLength(1000, ErrorMessage = "La solución no puede superar los 1000 caracteres.")]
+    public string Solucion { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -125,6 +126,7 @@ public record EventoDTO(
     PedidoResumenDTO? Pedido,
     UsuarioResumenDTO Promotor,
     ZonaResumenDTO? Zona,
+    string? Solucion,
     DateTime? FechaResolucion,
     UsuarioResumenDTO? ResueltoPor,
     IReadOnlyList<FotoDTO> Fotos);

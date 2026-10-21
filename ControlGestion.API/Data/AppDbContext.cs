@@ -257,6 +257,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasIndex(e => e.Numero).IsUnique();
         builder.Entity<Evento>().Property(e => e.Latitud).HasPrecision(10, 8);
         builder.Entity<Evento>().Property(e => e.Longitud).HasPrecision(11, 8);
+        builder.Entity<Evento>().Property(e => e.Descripcion).HasMaxLength(1000);
+        builder.Entity<Evento>().Property(e => e.Solucion).HasMaxLength(1000);
+        builder.Entity<Evento>()
+            .Property(e => e.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // Anexo
         builder.Entity<Anexo>()

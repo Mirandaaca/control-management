@@ -85,6 +85,7 @@ public static class EventoConsultas
         e.Pedido == null ? null : new PedidoResumenDTO(e.Pedido.Id, e.Pedido.Numero),
         new UsuarioResumenDTO(e.Promotor!.Id, e.Promotor.NombreCompleto),
         e.Cliente == null ? null : new ZonaResumenDTO(e.Cliente.Zona!.Id, e.Cliente.Zona.Nombre),
+        e.Solucion,
         e.FechaResolucion,
         e.ResueltoPor == null ? null : new UsuarioResumenDTO(e.ResueltoPor.Id, e.ResueltoPor.NombreCompleto),
         e.Anexos
