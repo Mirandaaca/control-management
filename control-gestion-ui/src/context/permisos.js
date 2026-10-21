@@ -100,6 +100,7 @@ export const PANTALLAS = {
   eventos: [eventos.consultarEventos, eventos.registrarEvento, eventos.modificarEvento, eventos.resolverEvento,
     eventos.agregarFoto, eventos.eliminarFoto],
   mapaEventos: [eventos.verMapa],
+  reporteEventos: [eventos.generarReporte],
   cobranzas: [cobranzas.consultarDeudas, cobranzas.consultarPagos],
   rutas: [territorial.planificarRuta, territorial.seguirRuta, territorial.recorrerRuta],
   zonas: [parametros.registrarZona, parametros.modificarZona, parametros.eliminarZona],
@@ -111,7 +112,7 @@ export const PANTALLAS = {
     seguridad.consultarBitacora],
 };
 
-// Quien asigna pedidos, zonas o rutas, o filtra el reporte de pedidos o el mapa de eventos, puede pedir la lista de
-// promotores (GET /usuarios/promotores).
+// Quien asigna pedidos, zonas o rutas, o filtra el reporte de pedidos, el mapa de eventos o el reporte de incidencias,
+// puede pedir la lista de promotores (GET /usuarios/promotores).
 export const ELIGEN_PROMOTOR = [pedidos.asignarPedidos, parametros.registrarZona, parametros.modificarZona,
-  territorial.planificarRuta, pedidos.generarReporte, eventos.verMapa];
+  territorial.planificarRuta, pedidos.generarReporte, eventos.verMapa, eventos.generarReporte];
