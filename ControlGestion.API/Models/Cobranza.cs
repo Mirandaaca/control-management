@@ -2,7 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.Models;
 
-public enum EstadoCobranza { Pendiente = 0, Parcial = 1, Pagada = 2, Vencida = 3, Incobrable = 4 }
+/// <summary>Anulada: su HP se anuló (2.1). Como Incobrable, deja de contar en el saldo del cliente.</summary>
+public enum EstadoCobranza { Pendiente = 0, Parcial = 1, Pagada = 2, Vencida = 3, Incobrable = 4, Anulada = 5 }
 
 public class Cobranza
 {

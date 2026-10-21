@@ -54,6 +54,13 @@ export function formatearMonto(valor) {
   return `Bs ${montoBolivia.format(Number(valor ?? 0))}`;
 }
 
+const cantidadBolivia = new Intl.NumberFormat('es-BO', { maximumFractionDigits: 3 });
+
+/** Una cantidad de stock o de una línea de venta: "1.250" o "2,5", con hasta 3 decimales. */
+export function formatearCantidad(valor) {
+  return cantidadBolivia.format(Number(valor ?? 0));
+}
+
 /**
  * Cuántos días de calendario de Bolivia faltan para un momento (negativo si ya pasó). Se cuentan días, no horas:
  * una visita para mañana a las 8 está "en 1 día" aunque falten 30 horas.

@@ -19,7 +19,7 @@ public class SeguridadDeDatosTests(ApiDePrueba api)
         var productoId = await operador.CrearProductoAsync(10m);
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
-        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 1, credito: false);
+        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, productoId, 1, credito: false);
 
         foreach (var ruta in new[] { "/api/zonas", $"/api/clientes/{clienteId}", "/api/hojas-pedido", $"/api/hojas-pedido/{hojaId}",
                                      $"/api/inventario/{productoId}/movimientos" })

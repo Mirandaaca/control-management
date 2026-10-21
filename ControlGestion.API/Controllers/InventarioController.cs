@@ -1,76 +1,28 @@
-using ControlGestion.API.Data;
-using ControlGestion.API.Excepciones;
-using ControlGestion.API.Services;
+using ControlGestion.API.DTOs;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class InventarioController : ControllerBase
+public class InventarioController(InventarioService inventario) : ControllerBase
 {
-    private readonly AppDbContext _db;
-    private readonly InventarioService _inventario;
-
-    public InventarioController(AppDbContext db, InventarioService inventario)
-    {
-        _db = db;
-        _inventario = inventario;
-    }
-
     [HttpGet]
     [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Ventas.ConsultarKardex, Permisos.Ventas.RegistrarIngreso)]
-    public async Task<IActionResult> GetAll()
-    {
-        var result = await _db.InventariosProducto
-            .Include(i => i.Producto)
-            .OrderBy(i => i.Producto!.Descripcion)
-            .Select(i => new
-            {
-                i.Id,
-                i.ProductoId,
-                Producto = new { i.Producto!.SKU, i.Producto.Descripcion, i.Producto.Categoria },
-                i.StockActual,
-                i.StockMinimo,
-                i.StockMaximo,
-                i.UltimaActualizacion,
-                BajoMinimo = i.StockActual <= i.StockMinimo
-            })
-            .ToListAsync();
+    public async Task<ActionResult<Pagina<InventarioDTO>>> GetAll([FromQuery] FiltrosInventarioDTO filtros) =>
+        await inventario.ListarAsync(filtros);
 
-        return Ok(result);
-    }
-
-    [HttpGet("{productoId}/movimientos")]
+    [HttpGet("{productoId:int}/movimientos")]
     [Permiso(Permisos.Ventas.ConsultarKardex)]
-    public async Task<IActionResult> GetMovimientos(int productoId, [FromQuery] int limit = 50)
-    {
-        var movimientos = await _db.MovimientosInventario
-            .Include(m => m.Usuario)
-            .Where(m => m.ProductoId == productoId)
-            .OrderByDescending(m => m.Fecha)
-            .Take(limit)
-            .ToListAsync();
+    public async Task<ActionResult<Pagina<MovimientoDTO>>> GetMovimientos(int productoId, [FromQuery] FiltrosKardexDTO filtros) =>
+        await inventario.KardexAsync(productoId, filtros);
 
-        return Ok(movimientos);
-    }
-
-    [HttpPost("{productoId}/ajuste")]
+    [HttpPost("{productoId:int}/ingresos")]
     [Permiso(Permisos.Ventas.RegistrarIngreso)]
-    public async Task<IActionResult> Ajustar(int productoId, [FromBody] AjusteStockDTO dto)
-    {
-        if (!await _db.Productos.AnyAsync(p => p.Id == productoId))
-            throw new NoEncontradoException("No se encontró el producto.");
-
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _inventario.AjustarStock(productoId, dto.Cantidad, userId, dto.Observacion);
-        return Ok(new { mensaje = "Stock ajustado correctamente." });
-    }
+    public async Task<ActionResult<InventarioDTO>> RegistrarIngreso(int productoId, [FromBody] RegistrarIngresoDTO dto) =>
+        await inventario.RegistrarIngresoAsync(productoId, dto);
 }
-
-public record AjusteStockDTO(decimal Cantidad, string Observacion);

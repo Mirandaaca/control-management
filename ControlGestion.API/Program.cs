@@ -96,6 +96,9 @@ builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
 builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
+builder.Services.AddScoped<ControlGestion.API.Services.HojaPedidoService>();
+builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
 builder.Services.AddCors(options =>

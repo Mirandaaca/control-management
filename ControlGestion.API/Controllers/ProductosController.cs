@@ -1,68 +1,51 @@
-using ControlGestion.API.Data;
-using ControlGestion.API.Excepciones;
-using ControlGestion.API.Models;
+using ControlGestion.API.DTOs;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ProductosController : ControllerBase
+public class ProductosController(ProductoService productos) : ControllerBase
 {
-    private readonly AppDbContext _context;
-
-    public ProductosController(AppDbContext context)
-    {
-        _context = context;
-    }
-
     [HttpGet]
-    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
-    public async Task<IActionResult> GetAll() =>
-        Ok(await _context.Productos.Where(p => p.Activo).ToListAsync());
+    [Permiso(Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
+    public async Task<ActionResult<Pagina<ProductoDTO>>> GetAll([FromQuery] FiltrosProductoDTO filtros) =>
+        await productos.ListarAsync(filtros);
 
-    [HttpGet("{id}")]
-    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var producto = await _context.Productos.FindAsync(id);
-        return Ok(producto ?? throw new NoEncontradoException("No se encontró el producto."));
-    }
+    // Quien vende elige productos sin ver el precio de compra.
+    [HttpGet("opciones")]
+    [Permiso(Permisos.Ventas.ConsultarProductos, Permisos.Ventas.RegistrarHp, Permisos.Pedidos.RegistrarPedido)]
+    public async Task<ActionResult<List<ProductoOpcionDTO>>> GetOpciones([FromQuery] string? buscar) =>
+        await productos.OpcionesAsync(buscar);
+
+    [HttpGet("{id:int}")]
+    [Permiso(Permisos.Parametros.RegistrarProducto, Permisos.Parametros.ModificarProducto, Permisos.Parametros.EliminarProducto)]
+    public async Task<ActionResult<ProductoDTO>> GetById(int id) =>
+        await productos.ObtenerAsync(id);
 
     [HttpPost]
     [Permiso(Permisos.Parametros.RegistrarProducto)]
-    public async Task<IActionResult> Create([FromBody] Producto producto)
+    public async Task<ActionResult<ProductoDTO>> Crear([FromBody] GuardarProductoDTO dto)
     {
-        _context.Productos.Add(producto);
-        // Sin su fila de inventario, el producto no aparece en el inventario ni acepta ajustes de stock.
-        _context.InventariosProducto.Add(new InventarioProducto { Producto = producto });
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = producto.Id }, producto);
+        var creado = await productos.CrearAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = creado.Id }, creado);
     }
 
-    [HttpPut("{id}")]
+    [HttpPut("{id:int}")]
     [Permiso(Permisos.Parametros.ModificarProducto)]
-    public async Task<IActionResult> Update(int id, [FromBody] Producto producto)
-    {
-        if (id != producto.Id) throw new ReglaDeNegocioException("id_no_coincide", "El id de la URL no coincide con el del cuerpo.");
-        if (!await _context.Productos.AnyAsync(p => p.Id == id)) throw new NoEncontradoException("No se encontró el producto.");
-        _context.Entry(producto).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-        return NoContent();
-    }
+    public async Task<ActionResult<ProductoDTO>> Editar(int id, [FromBody] GuardarProductoDTO dto) =>
+        await productos.EditarAsync(id, dto);
 
-    [HttpDelete("{id}")]
+    // Eliminar deja el producto inactivo: las HP y el kardex siguen apuntando a él.
+    [HttpDelete("{id:int}")]
     [Permiso(Permisos.Parametros.EliminarProducto)]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Desactivar(int id)
     {
-        var producto = await _context.Productos.FindAsync(id);
-        if (producto == null) throw new NoEncontradoException("No se encontró el producto.");
-        producto.Activo = false;
-        await _context.SaveChangesAsync();
+        await productos.DesactivarAsync(id);
         return NoContent();
     }
 }

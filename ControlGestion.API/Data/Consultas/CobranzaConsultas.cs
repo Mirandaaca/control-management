@@ -15,6 +15,14 @@ public static class CobranzaConsultas
         return cobranzas.Where(c => c.Cliente!.PromotorId == usuarioId);
     }
 
+    /// <summary>Busca en el número de la cobranza y en el nombre y el código del cliente.</summary>
+    public static IQueryable<Cobranza> Buscar(this IQueryable<Cobranza> cobranzas, string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return cobranzas;
+        var t = texto.Trim();
+        return cobranzas.Where(c => c.Numero.Contains(t) || c.Cliente!.NombreCompleto.Contains(t) || c.Cliente.Codigo.Contains(t));
+    }
+
     // Las proyecciones se traducen a SQL: la base devuelve solo estas columnas, no la entidad completa.
     public static readonly Expression<Func<Cobranza, CobranzaResumenDTO>> ComoResumen = c => new CobranzaResumenDTO(
         c.Id,
@@ -29,7 +37,7 @@ public static class CobranzaConsultas
         new ClienteResumenDTO(c.Cliente!.Id, c.Cliente.NombreCompleto),
         new UsuarioResumenDTO(c.Promotor!.Id, c.Promotor.NombreCompleto),
         c.HojaPedido == null ? null : new HojaPedidoResumenDTO(c.HojaPedido.Id, c.HojaPedido.Numero),
-        c.Pagos.Count);
+        c.Pagos.Count(p => !p.Anulado));
 
     public static readonly Expression<Func<Cobranza, CobranzaDetalleDTO>> ComoDetalle = c => new CobranzaDetalleDTO(
         c.Id,
@@ -48,6 +56,6 @@ public static class CobranzaConsultas
         c.Pagos
             .OrderBy(p => p.FechaPago)
             .Select(p => new PagoDTO(p.Id, p.Monto, p.MetodoPago, p.FechaPago, p.Referencia, p.Observaciones,
-                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto)))
+                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto), p.Anulado, p.MotivoAnulacion))
             .ToList());
 }

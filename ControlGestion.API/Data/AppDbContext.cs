@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +62,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(rp => rp.Permiso).WithMany().HasForeignKey(rp => rp.PermisoId).OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
+        // Solo se insertan al migrar: si después alguien cambia el valor, la siembra no lo pisa.
+        builder.Entity<ConfiguracionGeneral>().HasData(
+            new ConfiguracionGeneral
+            {
+                Clave = ClavesDeConfiguracion.DiasRevisita,
+                Valor = ClavesDeConfiguracion.DiasRevisitaPorDefecto.ToString(),
+                Descripcion = "Días entre una visita al cliente y la siguiente (7.1)."
+            },
+            new ConfiguracionGeneral
+            {
+                Clave = ClavesDeConfiguracion.DiasVencimientoCredito,
+                Valor = ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto.ToString(),
+                Descripcion = "Días de plazo de una venta a crédito."
+            });
 
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
@@ -92,9 +107,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
 
-        // InventarioProducto
+        // Producto (7.3)
+        builder.Entity<Producto>().Property(p => p.SKU).HasMaxLength(50);
+        builder.Entity<Producto>().HasIndex(p => p.SKU).IsUnique();
+        builder.Entity<Producto>().Property(p => p.Descripcion).HasMaxLength(150);
+        builder.Entity<Producto>().Property(p => p.Categoria).HasMaxLength(80);
+        builder.Entity<Producto>().Property(p => p.Precio).HasPrecision(18, 2);
+        builder.Entity<Producto>().Property(p => p.PrecioCompra).HasPrecision(18, 2);
+
+        // InventarioProducto: una fila por producto.
         builder.Entity<InventarioProducto>()
-            .HasOne(i => i.Producto).WithMany().HasForeignKey(i => i.ProductoId).OnDelete(DeleteBehavior.Restrict);
+            .HasOne(i => i.Producto).WithOne(p => p.Inventario).HasForeignKey<InventarioProducto>(i => i.ProductoId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<InventarioProducto>()
             .HasIndex(i => i.ProductoId).IsUnique();
         builder.Entity<InventarioProducto>()
@@ -142,6 +166,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .Property(h => h.Descuento).HasPrecision(18, 2);
         builder.Entity<HojaPedido>()
             .Property(h => h.Total).HasPrecision(18, 2);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // DetalleHP
         builder.Entity<DetalleHP>()
@@ -227,7 +257,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Cobranza>()
             .HasOne(c => c.Cliente).WithMany().HasForeignKey(c => c.ClienteId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Cobranza>()
-            .HasOne(c => c.HojaPedido).WithMany().HasForeignKey(c => c.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
+            .HasOne(c => c.HojaPedido).WithMany(h => h.Cobranzas).HasForeignKey(c => c.HojaPedidoId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Cobranza>()
             .HasOne(c => c.Promotor).WithMany().HasForeignKey(c => c.PromotorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Cobranza>()

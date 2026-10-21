@@ -10,11 +10,6 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class NumeracionTests(ApiDePrueba api)
 {
-    private class RelojFijo(DateTimeOffset ahora) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => ahora;
-    }
-
     [Fact]
     public async Task Diez_HP_creadas_a_la_vez_reciben_numeros_distintos()
     {
@@ -25,7 +20,7 @@ public class NumeracionTests(ApiDePrueba api)
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(10, _ => operador.PostAsJsonAsync("/api/hojas-pedido", new
         {
-            clienteId, zonaId, latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
+            clienteId, latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
             detalles = new[] { new { productoId, cantidad = 1 } }
         }));
 
