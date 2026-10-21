@@ -40,6 +40,10 @@ public class Pedido
     public decimal Total { get; set; }
     public string? Observaciones { get; set; }
 
+    // Token de concurrencia (mismo patrón que HojaPedido): sin él, dos cambios a la vez sobre el mismo pedido (anularlo
+    // mientras se entrega, por ejemplo) se pisarían.
+    public DateTime VersionConcurrencia { get; set; }
+
     public ICollection<DetallePedido> Detalles { get; set; } = new List<DetallePedido>();
     public ICollection<HistorialEstadoPedido> Historial { get; set; } = new List<HistorialEstadoPedido>();
 }

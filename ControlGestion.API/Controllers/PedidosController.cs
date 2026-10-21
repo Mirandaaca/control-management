@@ -46,6 +46,16 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = registrado.Id }, registrado);
     }
 
+    [HttpPost("{id:int}/avanzar")]
+    [Permiso(Permisos.Pedidos.CambiarEstado)]
+    public async Task<ActionResult<PedidoDTO>> Avanzar(int id, [FromBody] AvanzarPedidoDTO dto) =>
+        await pedidos.AvanzarAsync(id, dto.Observacion);
+
+    [HttpPost("{id:int}/anular")]
+    [Permiso(Permisos.Pedidos.AnularPedido)]
+    public async Task<ActionResult<PedidoDTO>> Anular(int id, [FromBody] AnularPedidoDTO dto) =>
+        await pedidos.AnularAsync(id, dto.Motivo);
+
     // Hoy este endpoint hace las tres operaciones; se separa en los pasos siguientes de la tarea 08.
     [HttpPost("{id:int}/estado")]
     [Permiso(Permisos.Pedidos.CambiarEstado, Permisos.Pedidos.RegistrarEntrega, Permisos.Pedidos.AnularPedido)]

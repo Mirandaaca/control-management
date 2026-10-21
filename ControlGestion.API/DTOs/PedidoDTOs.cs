@@ -45,6 +45,19 @@ public record RegistrarPedidoDTO : ModificarPedidoDTO
     public int ClienteId { get; init; }
 }
 
+public record AvanzarPedidoDTO
+{
+    [MaxLength(500, ErrorMessage = "La observación no puede superar los 500 caracteres.")]
+    public string? Observacion { get; init; }
+}
+
+public record AnularPedidoDTO
+{
+    [Required(ErrorMessage = "Escribe el motivo de la anulación.")]
+    [MaxLength(500, ErrorMessage = "El motivo no puede superar los 500 caracteres.")]
+    public string Motivo { get; init; } = string.Empty;
+}
+
 public class CambiarEstadoDTO
 {
     [Required] public int NuevoEstadoId { get; set; }

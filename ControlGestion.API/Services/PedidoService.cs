@@ -148,6 +148,55 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         Observacion = observacion
     };
 
+    /// <summary>Pasa el pedido al estado siguiente: de Pendiente a En proceso, y de ahí a En ruta.</summary>
+    public async Task<PedidoDTO> AvanzarAsync(int id, string? observacion)
+    {
+        var pedido = await BuscarAbiertoAsync(id);
+        var siguiente = EstadosDePedido.Siguiente(pedido.EstadoPedidoId)
+            ?? throw new ReglaDeNegocioException("transicion_no_permitida",
+                "El pedido ya está en ruta: lo que sigue es registrar la entrega.");
+
+        pedido.EstadoPedidoId = siguiente;
+        pedido.Historial.Add(Entrada(siguiente, string.IsNullOrWhiteSpace(observacion) ? null : observacion.Trim()));
+        await GuardarAsync("El pedido cambió mientras lo avanzabas. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Anular (1.1): el motivo queda en el historial. Un pedido entregado o ya anulado no se anula.</summary>
+    public async Task<PedidoDTO> AnularAsync(int id, string motivo)
+    {
+        var pedido = await BuscarAbiertoAsync(id);
+        pedido.EstadoPedidoId = EstadosDePedido.Anulado;
+        pedido.Historial.Add(Entrada(EstadosDePedido.Anulado, motivo.Trim()));
+        await GuardarAsync("El pedido cambió mientras lo anulabas. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Un pedido visible que todavía puede cambiar: ni entregado ni anulado.</summary>
+    private async Task<Pedido> BuscarAbiertoAsync(int id)
+    {
+        var pedido = await Visibles.FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el pedido.");
+        if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó: no cambia más.");
+        if (pedido.EstadoPedidoId == EstadosDePedido.Anulado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} está anulado: no cambia más.");
+        return pedido;
+    }
+
+    // Otra petición cambió el pedido (o el stock, el cliente o la cobranza al entregar) entre que se leyó y se guardó.
+    private async Task GuardarAsync(string mensajeDeConflicto)
+    {
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia", mensajeDeConflicto);
+        }
+    }
+
     // Hoy esta operación hace tres: avanzar, entregar y anular. Se separa en los pasos siguientes de la tarea 08.
     public async Task<PedidoDTO> CambiarEstadoAsync(int id, CambiarEstadoDTO dto)
     {

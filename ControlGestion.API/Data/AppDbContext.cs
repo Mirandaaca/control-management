@@ -210,6 +210,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Pedido>().Property(p => p.Total).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.LatitudEntrega).HasPrecision(10, 8);
         builder.Entity<Pedido>().Property(p => p.LongitudEntrega).HasPrecision(11, 8);
+        builder.Entity<Pedido>()
+            .Property(p => p.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // DetallePedido
         builder.Entity<DetallePedido>()

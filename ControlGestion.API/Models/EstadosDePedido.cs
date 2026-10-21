@@ -11,4 +11,15 @@ public static class EstadosDePedido
 
     /// <summary>Un pedido entregado o anulado ya no cambia.</summary>
     public static readonly int[] Finales = [Entregado, Anulado];
+
+    /// <summary>
+    /// Los estados solo avanzan (1.2): Pendiente → En proceso → En ruta. Desde En ruta lo que sigue es la entrega, y
+    /// "Anulado" tiene su propia operación: por eso las transiciones están aquí y no en EstadoPedido.PermiteTransicion.
+    /// </summary>
+    public static int? Siguiente(int estado) => estado switch
+    {
+        Pendiente => EnProceso,
+        EnProceso => EnRuta,
+        _ => null,
+    };
 }
