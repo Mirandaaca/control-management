@@ -68,6 +68,8 @@ class SesionNotifier extends Notifier<EstadoDeSesion> {
 
   /// Los errores ([ErrorDeApi]) los muestra la pantalla de inicio de sesión.
   Future<void> iniciar(String email, String password) async {
+    // El aviso de la sesión terminada se va cuando vuelve a intentar.
+    if (state case SinSesion(aviso: _?)) state = const SinSesion();
     state = ConSesion(await ref.read(sesionRepositoryProvider).iniciar(email, password));
   }
 

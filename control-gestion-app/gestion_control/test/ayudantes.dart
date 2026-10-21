@@ -80,9 +80,9 @@ Widget conLaApp(Widget pantalla, {List<Override> overrides = const []}) => Provi
   ),
 );
 
-/// Como en un celular de 360 × 640 dp, con la letra del sistema al tamaño indicado (2.0 es el 200 %).
-void tamanoDeCelular(WidgetTester tester, {double letra = 1}) {
-  tester.view.physicalSize = const Size(360, 640) * 3;
+/// Como en un celular de 360 dp de ancho, con la letra del sistema al tamaño indicado (2.0 es el 200 %).
+void tamanoDeCelular(WidgetTester tester, {double letra = 1, double alto = 800}) {
+  tester.view.physicalSize = Size(360, alto) * 3;
   tester.view.devicePixelRatio = 3;
   tester.platformDispatcher.textScaleFactorTestValue = letra;
   addTearDown(() {
