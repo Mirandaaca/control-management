@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Ban, Banknote, CircleAlert, Clock, Eye, LoaderCircle, Wallet } from 'lucide-react';
+import { Ban, Banknote, CircleAlert, Clock, Eye, LoaderCircle, Wallet, X } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
+import { subirComprobante } from '../api/fotos';
+import BotonDeFoto from '../components/BotonDeFoto';
+import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
@@ -68,6 +71,12 @@ export default function Cobranzas() {
   const [errorAccion, setErrorAccion] = useState('');
 
   const [detalle, setDetalle] = useState(null);
+  // Un aviso dentro del detalle: el comprobante que se adjuntó, o el que no se pudo subir. { tipo, texto }
+  const [avisoDetalle, setAvisoDetalle] = useState(null);
+  const [comprobanteAbierto, setComprobanteAbierto] = useState(null);
+  const [subiendoComprobante, setSubiendoComprobante] = useState(null);
+  // Reemplazar borra el comprobante anterior: se confirma. { pago, archivo }
+  const [reemplazo, setReemplazo] = useState(null);
 
   const [pago, setPago] = useState(null);
   const pagoRef = useRef(null);
@@ -100,12 +109,14 @@ export default function Cobranzas() {
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
-  const abrirDetalle = (id) => {
+  const abrirDetalle = (id, aviso = null) => {
     setErrorAccion('');
     return api.get(`/cobranzas/${id}`)
-      .then(({ data }) => setDetalle(data))
+      .then(({ data }) => { setDetalle(data); setAvisoDetalle(aviso); })
       .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la cobranza.')));
   };
+
+  const cerrarDetalle = () => { setDetalle(null); setAvisoDetalle(null); };
 
   // Una clave nueva cada vez que se abre el formulario: si el mismo pago se envía dos veces, la API no lo duplica.
   // crypto.randomUUID solo existe en localhost o con HTTPS; si falta, el pago se envía sin clave.
@@ -115,7 +126,7 @@ export default function Cobranzas() {
     setErrorPago('');
     setDetalle(null);
     setPago({
-      cobranza, desdeDetalle, monto: '', metodoPago: '0', referencia: '', observaciones: '',
+      cobranza, desdeDetalle, monto: '', metodoPago: '0', referencia: '', observaciones: '', comprobante: null,
       claveIdempotencia: crypto.randomUUID?.() ?? null,
     });
   };
@@ -137,13 +148,30 @@ export default function Cobranzas() {
         observaciones: pago.observaciones.trim() || null,
         claveIdempotencia: pago.claveIdempotencia,
       });
+      const { desdeDetalle, cobranza, comprobante } = pago;
+      // El comprobante se sube aparte, con el id del pago. Si falla, el pago igual quedó registrado: nunca lo frena.
+      let fallo = '';
+      if (comprobante) {
+        try {
+          await subirComprobante(cobranza.id, data.id, comprobante);
+        } catch (err) {
+          fallo = mensajeDeError(err, 'No se pudo subir el comprobante.');
+        }
+      }
+      const conComprobante = comprobante && !fallo ? ', con su comprobante' : '';
       setAviso(data.saldoPendiente > 0
-        ? `Se registró el pago en ${pago.cobranza.numero}: quedan ${formatearMonto(data.saldoPendiente)} por cobrar.`
-        : `Se registró el pago: ${pago.cobranza.numero} quedó pagada.`);
-      const { desdeDetalle, cobranza } = pago;
+        ? `Se registró el pago en ${cobranza.numero}${conComprobante}: quedan ${formatearMonto(data.saldoPendiente)} por cobrar.`
+        : `Se registró el pago${conComprobante}: ${cobranza.numero} quedó pagada.`);
       setPago(null);
       cargar();
-      if (desdeDetalle) abrirDetalle(cobranza.id);
+      if (fallo) {
+        abrirDetalle(cobranza.id, {
+          tipo: 'warning',
+          texto: `El pago quedó registrado, pero el comprobante no se subió: ${fallo} Adjúntalo desde los pagos, con "Adjuntar".`,
+        });
+      } else if (desdeDetalle) {
+        abrirDetalle(cobranza.id);
+      }
     } catch (err) {
       const { codigo, detail } = err.response?.data ?? {};
       flushSync(() => {
@@ -158,9 +186,28 @@ export default function Cobranzas() {
     }
   };
 
+  const adjuntarComprobante = async (pagoElegido, archivo) => {
+    setReemplazo(null);
+    setSubiendoComprobante(pagoElegido.id);
+    setAvisoDetalle(null);
+    try {
+      setDetalle(await subirComprobante(detalle.id, pagoElegido.id, archivo));
+      setAvisoDetalle({ tipo: 'success', texto: `Se adjuntó el comprobante del pago de ${formatearMonto(pagoElegido.monto)}.` });
+    } catch (err) {
+      setAvisoDetalle({ tipo: 'error', texto: mensajeDeError(err, 'No se pudo subir el comprobante.') });
+    } finally {
+      setSubiendoComprobante(null);
+    }
+  };
+
+  const elegirComprobante = (pagoElegido, archivo) => {
+    if (pagoElegido.comprobanteId) setReemplazo({ pago: pagoElegido, archivo });
+    else adjuntarComprobante(pagoElegido, archivo);
+  };
+
   const pedirMotivo = (tipo, cobranza, pagoElegido = null) => {
     setAviso('');
-    setDetalle(null);
+    cerrarDetalle();
     setMotivo({ tipo, cobranza, pago: pagoElegido, texto: '', error: '', errorCampo: '' });
   };
 
@@ -297,12 +344,12 @@ export default function Cobranzas() {
       {/* Detalle */}
       <Modal
         abierto={detalle !== null}
-        onCerrar={() => setDetalle(null)}
+        onCerrar={cerrarDetalle}
         ancho="lg"
         titulo={detalle ? `${detalle.numero} · ${detalle.cliente.nombreCompleto}` : ''}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setDetalle(null)}>Cerrar</Btn>
+            <Btn variant="outline" size="md" onClick={cerrarDetalle}>Cerrar</Btn>
             {detalle && puedeMarcarIncobrable && abierta(detalle) && (
               <Btn variant="danger" size="md" onClick={() => pedirMotivo('incobrable', detalle)}>
                 <Ban size={16} aria-hidden="true" />Marcar incobrable
@@ -318,6 +365,7 @@ export default function Cobranzas() {
       >
         {detalle && (
           <div className="space-y-4">
+            {avisoDetalle && <Alert type={avisoDetalle.tipo}>{avisoDetalle.texto}</Alert>}
             {detalle.estado === 4 && detalle.observaciones && (
               <Alert type="warning">Marcada como incobrable: {detalle.observaciones}</Alert>
             )}
@@ -341,7 +389,8 @@ export default function Cobranzas() {
               {detalle.pagos.length === 0 ? (
                 <p className="text-sm text-slate-600">Todavía no tiene pagos.</p>
               ) : (
-                <Table headers={['Fecha', 'Método', 'Registrado por', { texto: 'Monto', derecha: true }, ...(puedeAnularPago ? [''] : [])]}>
+                <Table headers={['Fecha', 'Método', 'Registrado por', { texto: 'Monto', derecha: true }, 'Comprobante',
+                  ...(puedeAnularPago ? [{ texto: 'Anular', oculto: true }] : [])]}>
                   {detalle.pagos.map((p) => (
                     <Tr key={p.id}>
                       <Td className="whitespace-nowrap tabular-nums">{formatearFecha(p.fechaPago, { hora: true })}</Td>
@@ -356,6 +405,25 @@ export default function Cobranzas() {
                       <Td className="whitespace-nowrap">{p.registradoPor.nombreCompleto}</Td>
                       <Td className={`text-right tabular-nums whitespace-nowrap ${p.anulado ? 'line-through text-slate-600' : ''}`}>
                         {formatearMonto(p.monto)}
+                      </Td>
+                      <Td>
+                        <div className="flex items-center gap-1">
+                          {p.comprobanteId && (
+                            <Btn variant="ghost" onClick={() => setComprobanteAbierto(p)}
+                              aria-label={`Ver el comprobante del pago de ${formatearMonto(p.monto)}`}>
+                              <Eye size={14} aria-hidden="true" />
+                              Ver
+                            </Btn>
+                          )}
+                          {puedePagar && !p.anulado && (
+                            <BotonDeFoto variant="ghost" enviando={subiendoComprobante === p.id} disabled={subiendoComprobante !== null}
+                              onElegir={(archivo) => elegirComprobante(p, archivo)}
+                              aria-label={`${p.comprobanteId ? 'Reemplazar' : 'Adjuntar'} el comprobante del pago de ${formatearMonto(p.monto)}`}>
+                              {p.comprobanteId ? 'Reemplazar' : 'Adjuntar'}
+                            </BotonDeFoto>
+                          )}
+                          {!p.comprobanteId && !(puedePagar && !p.anulado) && <span className="text-slate-600">—</span>}
+                        </div>
                       </Td>
                       {puedeAnularPago && (
                         <Td>
@@ -410,9 +478,56 @@ export default function Cobranzas() {
               onChange={(e) => cambiarPago('referencia', e.target.value)} />
             <AreaDeTexto label="Observaciones (opcional)" rows={2} value={pago.observaciones} autoComplete="off"
               error={erroresPago.observaciones} onChange={(e) => cambiarPago('observaciones', e.target.value)} />
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-1">Comprobante (opcional)</p>
+              {pago.comprobante ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 truncate">{pago.comprobante.name}</span>
+                  <Btn variant="ghost" onClick={() => cambiarPago('comprobante', null)} aria-label={`Quitar ${pago.comprobante.name}`}>
+                    <X size={14} aria-hidden="true" />Quitar
+                  </Btn>
+                </div>
+              ) : (
+                <BotonDeFoto onElegir={(archivo) => cambiarPago('comprobante', archivo)}>Elegir foto</BotonDeFoto>
+              )}
+              <p className="mt-1 text-sm text-slate-600">La foto del comprobante del QR o del recibo. Se sube después de registrar el pago.</p>
+            </div>
           </form>
         )}
       </Modal>
+
+      <Modal
+        abierto={comprobanteAbierto !== null}
+        onCerrar={() => setComprobanteAbierto(null)}
+        ancho="lg"
+        titulo={comprobanteAbierto ? `Comprobante del pago de ${formatearMonto(comprobanteAbierto.monto)}` : ''}
+        descripcion={comprobanteAbierto
+          ? `Pago del ${formatearFecha(comprobanteAbierto.fechaPago, { hora: true })}, registrado por ${comprobanteAbierto.registradoPor.nombreCompleto}.`
+          : undefined}
+        pie={<Btn variant="outline" size="md" onClick={() => setComprobanteAbierto(null)}>Cerrar</Btn>}
+      >
+        {comprobanteAbierto && (
+          <ImagenConSesion evidenciaId={comprobanteAbierto.comprobanteId}
+            alt={`Comprobante del pago de ${formatearMonto(comprobanteAbierto.monto)}`}
+            className="mx-auto max-h-[65vh] w-auto max-w-full rounded-lg object-contain" />
+        )}
+      </Modal>
+
+      <Confirmar
+        abierto={reemplazo !== null}
+        titulo="¿Reemplazar el comprobante?"
+        textoAccion="Reemplazar comprobante"
+        enviando={subiendoComprobante !== null}
+        onConfirmar={() => adjuntarComprobante(reemplazo.pago, reemplazo.archivo)}
+        onCancelar={() => setReemplazo(null)}
+      >
+        {reemplazo && (
+          <p>
+            El pago de {formatearMonto(reemplazo.pago.monto)} ya tiene un comprobante. Se cambia por «{reemplazo.archivo.name}» y
+            el anterior se borra: no se puede deshacer.
+          </p>
+        )}
+      </Confirmar>
 
       <Confirmar
         abierto={motivo !== null}
