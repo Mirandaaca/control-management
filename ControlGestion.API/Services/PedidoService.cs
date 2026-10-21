@@ -23,6 +23,8 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         if (filtros.EstadoId.HasValue) consulta = consulta.Where(p => p.EstadoPedidoId == filtros.EstadoId);
         if (filtros.ZonaId.HasValue) consulta = consulta.Where(p => p.ZonaId == filtros.ZonaId);
         if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(p => p.PromotorId == filtros.PromotorId);
+        if (!string.IsNullOrEmpty(filtros.RepartidorId)) consulta = consulta.Where(p => p.RepartidorId == filtros.RepartidorId);
+        if (filtros.SinAsignar) consulta = consulta.Where(p => p.RepartidorId == null);
         if (filtros.Desde is { } desde)
         {
             var inicio = HoraBolivia.InicioDelDiaUtc(desde);
@@ -212,6 +214,55 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             $"Entrega reprogramada para el {EnBolivia(entrega)}. Motivo: {dto.Motivo.Trim()}"));
         await GuardarAsync("El pedido cambió mientras lo reprogramabas. Vuelve a intentarlo.");
         return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Distribución (1.3): asigna los pedidos a un promotor y a un día de reparto, sin cambiar su estado. Cada pedido
+    /// pasa a ese día con su misma hora. Es todo o nada: si uno no se puede asignar, no se asigna ninguno.
+    /// </summary>
+    public async Task<List<PedidoListaDTO>> AsignarAsync(AsignarPedidosDTO dto)
+    {
+        // Promotor es quien recorre rutas, como en /usuarios/promotores: así no depende del nombre del rol.
+        var promotor = await db.Users
+            .Where(u => u.Id == dto.PromotorId && u.Activo)
+            .ConPermiso(db, Permisos.Territorial.RecorrerRuta)
+            .Select(u => new { u.Id, u.NombreCompleto })
+            .FirstOrDefaultAsync()
+            ?? throw new ReglaDeNegocioException("promotor_no_valido", "El promotor elegido no existe, está inactivo o no es promotor.");
+
+        var ids = dto.PedidoIds.Distinct().ToList();
+        var pedidos = await Visibles.Where(p => ids.Contains(p.Id)).OrderBy(p => p.Id).ToListAsync();
+        if (pedidos.Count != ids.Count)
+            throw new NoEncontradoException("No se encontró uno de los pedidos.");
+
+        var dia = dto.Dia!.Value;
+        foreach (var pedido in pedidos)
+        {
+            if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
+                throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó: no se asigna.");
+            if (pedido.EstadoPedidoId == EstadosDePedido.Anulado)
+                throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} está anulado: no se asigna.");
+            if (pedido.FechaEntregaEstimada is not { } actual)
+                throw new ReglaDeNegocioException("pedido_sin_fecha",
+                    $"El pedido {pedido.Numero} no tiene fecha de entrega: reprográmalo primero.");
+
+            var hora = TimeOnly.FromDateTime(HoraBolivia.DesdeUtc(actual));
+            var entrega = HoraBolivia.AUtc(dia.ToDateTime(hora));
+            if (entrega <= Ahora)
+                throw new ReglaDeNegocioException("fecha_en_el_pasado",
+                    $"La entrega de {pedido.Numero} quedaría el {EnBolivia(entrega)}, que ya pasó: reprográmalo a otra hora.");
+
+            pedido.RepartidorId = promotor.Id;
+            pedido.FechaEntregaEstimada = entrega;
+            pedido.Historial.Add(Entrada(pedido.EstadoPedidoId,
+                $"Asignado a {promotor.NombreCompleto} para el {dia.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}."));
+        }
+
+        await GuardarAsync("Uno de los pedidos cambió mientras los asignabas. Vuelve a intentarlo.");
+        return await Visibles.Where(p => ids.Contains(p.Id))
+            .OrderBy(p => p.FechaEntregaEstimada).ThenBy(p => p.Id)
+            .Select(PedidoConsultas.ComoLista)
+            .ToListAsync();
     }
 
     /// <summary>Anular (1.1): el motivo queda en el historial. Un pedido entregado o ya anulado no se anula.</summary>

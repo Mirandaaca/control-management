@@ -62,6 +62,22 @@ public record ReprogramarPedidoDTO
     public string Motivo { get; init; } = string.Empty;
 }
 
+/// <summary>Distribución (1.3): uno o varios pedidos a un promotor y a un día de reparto.</summary>
+public record AsignarPedidosDTO
+{
+    [Required(ErrorMessage = "Elige al menos un pedido.")]
+    [MinLength(1, ErrorMessage = "Elige al menos un pedido.")]
+    [MaxLength(100, ErrorMessage = "Se asignan hasta 100 pedidos a la vez.")]
+    public List<int> PedidoIds { get; init; } = [];
+
+    [Required(ErrorMessage = "Elige el promotor.")]
+    public string PromotorId { get; init; } = string.Empty;
+
+    /// <summary>Día de Bolivia del reparto: cada pedido pasa a ese día con su misma hora.</summary>
+    [Required(ErrorMessage = "Elige el día de entrega.")]
+    public DateOnly? Dia { get; init; }
+}
+
 public record AnularPedidoDTO
 {
     [Required(ErrorMessage = "Escribe el motivo de la anulación.")]
@@ -91,6 +107,11 @@ public record FiltrosPedidoDTO : IValidatableObject
     public int? EstadoId { get; init; }
     public int? ZonaId { get; init; }
     public string? PromotorId { get; init; }
+
+    /// <summary>El promotor que tiene asignado el pedido para entregarlo.</summary>
+    public string? RepartidorId { get; init; }
+
+    public bool SinAsignar { get; init; }
     public DateOnly? Desde { get; init; }
     public DateOnly? Hasta { get; init; }
 
