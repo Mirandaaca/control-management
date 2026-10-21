@@ -15,10 +15,15 @@ public static class Ayudantes
 {
     public static string Unico(string prefijo) => $"{prefijo}-{Guid.NewGuid().ToString("N")[..8]}";
 
-    public static async Task<string> IniciarSesionAsync(this ApiDePrueba api, string correo, string contrasena)
+    /// <summary>El origen de la sesión, como lo manda el cliente al iniciarla: 0 es el panel y 1, la app.</summary>
+    public const int OrigenPanel = 0;
+    public const int OrigenApp = 1;
+
+    public static async Task<string> IniciarSesionAsync(this ApiDePrueba api, string correo, string contrasena,
+        int origen = OrigenPanel)
     {
         using var cliente = api.CreateClient();
-        var respuesta = await cliente.PostAsJsonAsync("/api/auth/login", new { email = correo, password = contrasena });
+        var respuesta = await cliente.PostAsJsonAsync("/api/auth/login", new { email = correo, password = contrasena, origen });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("token").GetString()!;
     }

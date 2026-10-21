@@ -86,7 +86,7 @@ public class PerfilTests(ApiDePrueba api)
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
         Assert.False(string.IsNullOrEmpty(await api.IniciarSesionAsync(promotor.Correo, nueva)));
         using var anonimo = api.CreateClient();
-        await (await anonimo.PostAsJsonAsync("/api/auth/login", new { email = promotor.Correo, password = promotor.Contrasena }))
+        await (await anonimo.PostAsJsonAsync("/api/auth/login", new { email = promotor.Correo, password = promotor.Contrasena, origen = Ayudantes.OrigenPanel }))
             .ProblemaAsync(401, "credenciales_incorrectas");
     }
 }

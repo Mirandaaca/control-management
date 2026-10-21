@@ -16,7 +16,7 @@ public class AutenticacionTests(ApiDePrueba api)
     {
         using var cliente = api.CreateClient();
         var respuesta = await cliente.PostAsJsonAsync("/api/auth/login",
-            new { email = ApiDePrueba.CorreoAdmin, password = api.ContrasenaAdmin });
+            new { email = ApiDePrueba.CorreoAdmin, password = api.ContrasenaAdmin, origen = Ayudantes.OrigenPanel });
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var cuerpo = await respuesta.LeerJsonAsync();
@@ -33,7 +33,7 @@ public class AutenticacionTests(ApiDePrueba api)
     {
         using var cliente = api.CreateClient();
         var respuesta = await cliente.PostAsJsonAsync("/api/auth/login",
-            new { email = ApiDePrueba.CorreoAdmin, password = "incorrecta1" });
+            new { email = ApiDePrueba.CorreoAdmin, password = "incorrecta1", origen = Ayudantes.OrigenPanel });
 
         var problema = await respuesta.ProblemaAsync(401, "credenciales_incorrectas");
         Assert.Equal("Credenciales incorrectas.", problema.GetProperty("detail").GetString());

@@ -45,6 +45,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 // JWT: la sección "Jwt" se valida con JwtOptionsValidator (clave presente y de al menos 32 bytes).
 builder.Services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection(JwtOptions.Seccion));
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
+builder.Services.AddOptions<SesionOptions>().Bind(builder.Configuration.GetSection(SesionOptions.Seccion));
+builder.Services.AddSingleton<IValidateOptions<SesionOptions>, SesionOptionsValidator>();
 
 // La carpeta de las fotos y los comprobantes. Una ruta relativa se resuelve contra la carpeta de la API, nunca contra el
 // directorio de trabajo (T7.03).
@@ -107,6 +109,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
+builder.Services.AddScoped<ControlGestion.API.Services.SesionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
@@ -132,6 +135,7 @@ var app = builder.Build();
 // Pedir las JwtOptions ejecuta JwtOptionsValidator. Se hace aquí, antes de migrar y sembrar,
 // para que una clave faltante o corta detenga la API sin tocar la base.
 _ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+_ = app.Services.GetRequiredService<IOptions<SesionOptions>>().Value;
 Directory.CreateDirectory(app.Services.GetRequiredService<IOptions<AlmacenamientoOptions>>().Value.Ruta);
 
 using (var scope = app.Services.CreateScope())

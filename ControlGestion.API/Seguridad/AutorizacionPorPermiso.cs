@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using ControlGestion.API.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,6 +11,9 @@ namespace ControlGestion.API.Seguridad;
 public static class ClaimsDeSeguridad
 {
     public const string Permiso = "permiso";
+
+    /// <summary>El id de la sesión, como se escribe en el JWT.</summary>
+    public const string SesionEnElToken = JwtRegisteredClaimNames.Sid;
 }
 
 public sealed class PermisoRequerido(IReadOnlyCollection<string> claves) : IAuthorizationRequirement
