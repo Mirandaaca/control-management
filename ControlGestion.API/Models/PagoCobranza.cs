@@ -2,7 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.Models;
 
-public enum MetodoPago { Efectivo = 0, Transferencia = 1, Cheque = 2, TarjetaDebito = 3, TarjetaCredito = 4 }
+/// <summary>Efectivo o QR (3.1). El QR lleva su número de referencia.</summary>
+public enum MetodoPago { Efectivo = 0, QR = 1 }
 
 public class PagoCobranza
 {

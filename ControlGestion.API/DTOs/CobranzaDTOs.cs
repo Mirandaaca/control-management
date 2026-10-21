@@ -3,14 +3,30 @@ using ControlGestion.API.Models;
 
 namespace ControlGestion.API.DTOs;
 
-public record RegistrarPagoDTO(
-    decimal Monto,
-    MetodoPago MetodoPago,
-    string? Referencia,
-    string? Observaciones,
+public record RegistrarPagoDTO : IValidatableObject
+{
+    [Range(0, 99_999_999, MinimumIsExclusive = true, ErrorMessage = "El monto debe ser mayor que cero.")]
+    public decimal Monto { get; init; }
+
+    [EnumDataType(typeof(MetodoPago), ErrorMessage = "El método de pago debe ser efectivo o QR.")]
+    public MetodoPago MetodoPago { get; init; }
+
+    [MaxLength(100, ErrorMessage = "La referencia no puede superar los 100 caracteres.")]
+    public string? Referencia { get; init; }
+
+    [MaxLength(500, ErrorMessage = "Las observaciones no pueden superar los 500 caracteres.")]
+    public string? Observaciones { get; init; }
+
     // Opcional por ahora, para no romper clientes que todavía no la envían.
-    Guid? ClaveIdempotencia = null
-);
+    public Guid? ClaveIdempotencia { get; init; }
+
+    // Con QR, la referencia es lo que permite encontrar el pago en el banco (3.1).
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (MetodoPago == MetodoPago.QR && string.IsNullOrWhiteSpace(Referencia))
+            yield return new ValidationResult("Escribe el número de referencia del pago con QR.", [nameof(Referencia)]);
+    }
+}
 
 public record PagoRegistradoDTO(int Id, EstadoCobranza Estado, decimal MontoPagado, decimal SaldoPendiente);
 

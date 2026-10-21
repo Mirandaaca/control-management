@@ -71,8 +71,8 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             Monto = dto.Monto,
             MetodoPago = dto.MetodoPago,
             FechaPago = ahora,
-            Referencia = dto.Referencia,
-            Observaciones = dto.Observaciones,
+            Referencia = string.IsNullOrWhiteSpace(dto.Referencia) ? null : dto.Referencia.Trim(),
+            Observaciones = string.IsNullOrWhiteSpace(dto.Observaciones) ? null : dto.Observaciones.Trim(),
             ClaveIdempotencia = dto.ClaveIdempotencia
         };
 

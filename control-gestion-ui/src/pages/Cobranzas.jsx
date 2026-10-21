@@ -8,7 +8,7 @@ import { formatearFecha, leerFechaUtc } from '../utils/formato';
 
 const ESTADO_COLOR = { 0: 'yellow', 1: 'blue', 2: 'green', 3: 'red', 4: 'gray' };
 const ESTADO_LABEL = { 0: 'Pendiente', 1: 'Parcial', 2: 'Pagada', 3: 'Vencida', 4: 'Incobrable' };
-const METODO_LABEL = { 0: 'Efectivo', 1: 'Transferencia', 2: 'Cheque', 3: 'Débito', 4: 'Crédito' };
+const METODO_LABEL = { 0: 'Efectivo', 1: 'QR' };
 
 export default function Cobranzas() {
   const [cobranzas, setCobranzas] = useState([]);
@@ -212,10 +212,7 @@ export default function Cobranzas() {
                 <select value={formPago.metodoPago} onChange={e => setFormPago({ ...formPago, metodoPago: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="0">Efectivo</option>
-                  <option value="1">Transferencia</option>
-                  <option value="2">Cheque</option>
-                  <option value="3">Tarjeta Débito</option>
-                  <option value="4">Tarjeta Crédito</option>
+                  <option value="1">QR</option>
                 </select>
               </div>
               <Input

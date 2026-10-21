@@ -92,6 +92,41 @@ public class CobranzasTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Un_pago_con_QR_pide_su_referencia()
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, zonaId, productoId) = escenario;
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
+
+        var sinReferencia = await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos",
+            new { monto = 4, metodoPago = 1, referencia = "  " })).ProblemaAsync(400, "validacion");
+        Assert.True(sinReferencia.GetProperty("errors").TryGetProperty("referencia", out _));
+
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos",
+            new { monto = 4, metodoPago = 1, referencia = "QR-778812" })).EnsureSuccessStatusCode();
+        var pago = (await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync()).GetProperty("pagos")[0];
+        Assert.Equal(1, pago.GetProperty("metodoPago").GetInt32());
+        Assert.Equal("QR-778812", pago.GetProperty("referencia").GetString());
+    }
+
+    [Theory]
+    [InlineData(5, 4)]
+    [InlineData(0, 0)]
+    public async Task Un_metodo_que_no_existe_o_un_monto_en_cero_responden_400(int metodoPago, int monto)
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, zonaId, productoId) = escenario;
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
+
+        var problema = await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto, metodoPago }))
+            .ProblemaAsync(400, "validacion");
+
+        Assert.True(problema.GetProperty("errors").TryGetProperty(metodoPago == 5 ? "metodoPago" : "monto", out _));
+        var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
+        Assert.Equal(0, cobranza.GetProperty("pagos").GetArrayLength());
+    }
+
+    [Fact]
     public async Task El_filtro_por_dia_usa_el_dia_de_Bolivia()
     {
         using var escenario = await PrepararAsync();
