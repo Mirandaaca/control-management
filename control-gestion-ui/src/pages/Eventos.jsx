@@ -1,234 +1,232 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Eye, Pencil, Plus, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
-import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import DetalleEvento from '../components/eventos/DetalleEvento';
+import EstadoEvento from '../components/eventos/EstadoEvento';
+import FormularioEvento from '../components/eventos/FormularioEvento';
+import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
+import {
+  Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
+} from '../components/ui';
+import { useAuth } from '../context/auth';
+import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
+import { useDemorado } from '../hooks/useDemorado';
 import { formatearFecha } from '../utils/formato';
 
-const ESTADO_COLOR = { 0: 'yellow', 1: 'blue' };
-const ESTADO_LABEL = { 0: 'Pendiente', 1: 'Resuelto' };
-const PRIORIDAD_COLOR = { 0: 'gray', 1: 'yellow', 2: 'red' };
-const PRIORIDAD_LABEL = { 0: 'Bajo', 1: 'Medio', 2: 'Alto' };
+const { eventos: permisos, seguridad } = PERMISOS;
+const TAMANO_PAGINA = 25;
+const SIN_FILTROS = { texto: '', tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
+/**
+ * Eventos e incidencias en campo (4.1 y 4.2): la lista, el detalle con las fotos, registrar, editar y resolver. El
+ * promotor ve los que registró, los de su cartera y los de sus pedidos asignados; la secretaria, todos.
+ */
 export default function Eventos() {
-  const [eventos, setEventos] = useState([]);
+  const { usuario: yo, tiene } = useAuth();
+  const puedeRegistrar = tiene(permisos.registrarEvento);
+  const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
+  const eligePromotor = tiene(...ELIGEN_PROMOTOR);
+  const puedeVerPedidos = tiene(...PANTALLAS.pedidos);
+  const acciones = (evento) => accionesDelEvento(evento, { tiene, permisos, veCarteraCompleta, yo });
+
+  const [pagina, setPagina] = useState(null);
+  const [numeroPagina, setNumeroPagina] = useState(1);
+  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const busqueda = useDemorado(filtros.texto.trim(), 300);
+  const [cargando, setCargando] = useState(true);
+  const [reintentando, setReintentando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState('');
+  const [aviso, setAviso] = useState('');
+  const [errorAccion, setErrorAccion] = useState('');
+
   const [tipos, setTipos] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [filtros, setFiltros] = useState({ tipoEventoId: '', estado: '', desde: '', hasta: '' });
-  const [showForm, setShowForm] = useState(false);
-  const [resolviendoId, setResolviendoId] = useState(null);
-  const [motivoResolucion, setMotivoResolucion] = useState('');
-  const [form, setForm] = useState({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [zonas, setZonas] = useState([]);
+  const [promotores, setPromotores] = useState([]);
+  const [detalle, setDetalle] = useState(null);
+  // null: cerrado. { evento: null }: nuevo. { evento }: editar ese evento.
+  const [formulario, setFormulario] = useState(null);
 
-  const fetchEventos = () => {
-    const params = {};
-    if (filtros.tipoEventoId) params.tipoEventoId = filtros.tipoEventoId;
-    if (filtros.estado !== '') params.estado = filtros.estado;
-    if (filtros.desde) params.desde = filtros.desde;
-    if (filtros.hasta) params.hasta = filtros.hasta;
-    return api.get('/eventos', { params }).then((r) => {
-      setEventos(r.data.items);
-      setLoading(false);
-    });
-  };
-
+  // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
   useEffect(() => {
     Promise.all([
-      api.get('/eventos/tipos').then(r => setTipos(r.data)),
-      api.get('/clientes/opciones').then(r => setClientes(r.data)),
-    ]);
-    fetchEventos();
-  }, []);
+      api.get('/eventos/tipos'),
+      api.get('/zonas'),
+      eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
+    ])
+      .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); })
+      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
+  }, [eligePromotor]);
 
-  const tipoSeleccionado = tipos.find(t => t.id === parseInt(form.tipoEventoId));
+  const cargar = useCallback(() => api.get('/eventos', {
+    params: {
+      pagina: numeroPagina,
+      tamano: TAMANO_PAGINA,
+      buscar: busqueda || undefined,
+      tipoEventoId: filtros.tipo || undefined,
+      estado: filtros.estado || undefined,
+      zonaId: filtros.zona || undefined,
+      promotorId: filtros.promotor || undefined,
+      desde: filtros.desde || undefined,
+      hasta: filtros.hasta || undefined,
+    },
+  })
+    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
+    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de eventos.')))
+    .finally(() => { setCargando(false); setReintentando(false); }),
+  [numeroPagina, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde, filtros.hasta]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true); setError('');
-    try {
-      await api.post('/eventos', {
-        tipoEventoId: parseInt(form.tipoEventoId),
-        clienteId: form.clienteId ? parseInt(form.clienteId) : null,
-        pedidoId: form.pedidoId ? parseInt(form.pedidoId) : null,
-        latitud: parseFloat(form.latitud) || 0,
-        longitud: parseFloat(form.longitud) || 0,
-        descripcion: form.descripcion,
-      });
+  useEffect(() => { cargar(); }, [cargar]);
 
-      setShowForm(false);
-      setForm({ tipoEventoId: '', clienteId: '', pedidoId: '', latitud: '', longitud: '', descripcion: '' });
-      fetchEventos();
-    } catch (err) { setError(mensajeDeError(err, 'Error al registrar el evento.')); }
-    finally { setSaving(false); }
+  const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
+
+  // El detalle trae la descripción, la ubicación y las fotos: la lista solo trae el resumen.
+  const abrirEvento = (id) => {
+    setErrorAccion('');
+    return api.get(`/eventos/${id}`)
+      .then(({ data }) => setDetalle(data))
+      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
-  const handleResolver = async () => {
-    if (!motivoResolucion.trim()) return;
-    await api.post(`/eventos/${resolviendoId}/resolver`, { solucion: motivoResolucion });
-    setResolviendoId(null);
-    setMotivoResolucion('');
-    fetchEventos();
+  const abrirFormulario = (evento = null) => {
+    setAviso('');
+    setDetalle(null);
+    setFormulario({ evento });
   };
 
-  const pendientes = eventos.filter(e => e.estado === 0).length;
+  const alGuardar = (evento, esNuevo) => {
+    setFormulario(null);
+    setAviso(esNuevo ? `Se registró ${evento.numero}: queda pendiente hasta que se resuelva.` : `${evento.numero} quedó modificado.`);
+    cargar();
+  };
+
+  const hayFiltros = Object.values(filtros).some((v) => v !== '');
+  const eventos = pagina?.items ?? [];
+
+  let estado = null;
+  if (cargando) estado = <Cargando texto="Cargando eventos…" />;
+  else if (errorCarga && !pagina) estado = (
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+  );
+  else if (pagina?.total === 0 && !hayFiltros) estado = (
+    <EstadoVacio titulo="Todavía no hay eventos" icono={TriangleAlert}
+      accion={puedeRegistrar && <Btn size="md" onClick={() => abrirFormulario()}><Plus size={16} aria-hidden="true" />Nuevo evento</Btn>}>
+      {veCarteraCompleta
+        ? 'Las incidencias que registren los promotores aparecen aquí.'
+        : 'Las incidencias de tu cartera y las que registres aparecen aquí.'}
+    </EstadoVacio>
+  );
+
+  const encabezados = ['Número', 'Fecha', 'Tipo', 'Cliente', ...(veCarteraCompleta ? ['Registró'] : []),
+    { texto: 'Fotos', derecha: true }, 'Estado', ''];
+  const delDetalle = acciones(detalle);
 
   return (
     <Layout>
       <PageHeader
-        title="Eventos y Evidencias"
-        subtitle="Registro de incidencias en campo"
-        action={
-          <Btn variant="primary" size="md" onClick={() => { setShowForm(true); setError(''); }}>
-            + Registrar evento
+        title="Eventos"
+        subtitle={veCarteraCompleta
+          ? 'Las incidencias en campo de todos los clientes, sus fotos y su solución.'
+          : 'Las incidencias de tu cartera, sus fotos y su solución.'}
+        action={puedeRegistrar && (
+          <Btn size="md" onClick={() => abrirFormulario()}>
+            <Plus size={16} aria-hidden="true" />
+            Nuevo evento
           </Btn>
-        }
+        )}
       />
 
-      {pendientes > 0 && (
-        <Alert type="warning" className="mb-5">
-          ⚠ {pendientes} evento{pendientes > 1 ? 's' : ''} pendiente{pendientes > 1 ? 's' : ''} de revisión.
-        </Alert>
-      )}
+      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
+      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
+      {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
-      {/* Filtros */}
-      <Card className="mb-5">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
-            <select value={filtros.tipoEventoId} onChange={e => setFiltros({ ...filtros, tipoEventoId: e.target.value })}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Todos</option>
-              {tipos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Estado</label>
-            <select value={filtros.estado} onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Todos</option>
-              <option value="0">Pendiente</option>
-              <option value="1">Resuelto</option>
-            </select>
-          </div>
-          <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
-          <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={() => { setLoading(true); fetchEventos(); }} variant="primary" size="md">Filtrar</Btn>
-        </div>
-      </Card>
-
-      {/* Formulario nuevo evento */}
-      {showForm && (
-        <Card className="mb-5 border-amber-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">Registrar Incidencia</h3>
-            <Btn variant="ghost" onClick={() => setShowForm(false)}>✕</Btn>
-          </div>
-          {error && <Alert type="error" className="mb-4">{error}</Alert>}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de evento *</label>
-                <select value={form.tipoEventoId} onChange={e => setForm({ ...form, tipoEventoId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                  <option value="">Seleccionar tipo...</option>
-                  {tipos.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.nombre} — {PRIORIDAD_LABEL[t.nivelPrioridad]}
-                    </option>
-                  ))}
-                </select>
-                {tipoSeleccionado && (
-                  <p className="text-xs mt-1 flex gap-2">
-                    <Badge color={PRIORIDAD_COLOR[tipoSeleccionado.nivelPrioridad]}>{PRIORIDAD_LABEL[tipoSeleccionado.nivelPrioridad]}</Badge>
-                    {tipoSeleccionado.requiereEvidencia && <Badge color="yellow">Requiere foto</Badge>}
-                  </p>
-                )}
+      <Table
+        headers={encabezados}
+        empty="Ningún evento coincide con los filtros."
+        estado={estado}
+        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+          <BarraDeFiltros
+            resultado={`${pagina.total} ${pagina.total === 1 ? 'evento' : 'eventos'}`}
+            hayFiltros={hayFiltros}
+            onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
+          >
+            <Buscador label="Buscar" placeholder="Número, cliente o descripción…" value={filtros.texto} onChange={(texto) => filtrar({ texto })} />
+            <div className="w-full sm:w-48">
+              <Selector label="Tipo" todos="Todos" value={filtros.tipo}
+                opciones={tipos.map((t) => ({ valor: String(t.id), texto: t.nombre }))}
+                onChange={(tipo) => filtrar({ tipo })} />
+            </div>
+            <div className="w-full sm:w-36">
+              <Selector label="Estado" todos="Todos" value={filtros.estado}
+                opciones={Object.entries(ESTADOS).map(([valor, texto]) => ({ valor, texto }))}
+                onChange={(valor) => filtrar({ estado: valor })} />
+            </div>
+            <div className="w-full sm:w-44">
+              <Selector label="Zona" todos="Todas" value={filtros.zona}
+                opciones={zonas.map((z) => ({ valor: String(z.id), texto: z.nombre }))}
+                onChange={(zona) => filtrar({ zona })} />
+            </div>
+            {veCarteraCompleta && eligePromotor && (
+              <div className="w-full sm:w-48">
+                <Selector label="Registró" todos="Todos" value={filtros.promotor}
+                  opciones={promotores.map((p) => ({ valor: p.id, texto: p.nombreCompleto }))}
+                  onChange={(promotor) => filtrar({ promotor })} />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Cliente</label>
-                <select value={form.clienteId} onChange={e => setForm({ ...form, clienteId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">Sin asociar</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nombreCompleto}</option>)}
-                </select>
+            )}
+            <div className="w-full sm:w-40">
+              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+            </div>
+            <div className="w-full sm:w-40">
+              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+            </div>
+          </BarraDeFiltros>
+        )}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+      >
+        {eventos.map((e) => (
+          <Tr key={e.id}>
+            <Td mono>{e.numero}</Td>
+            <Td className="whitespace-nowrap tabular-nums">{formatearFecha(e.fechaEvento, { hora: true })}</Td>
+            <Td>{e.tipo.nombre}</Td>
+            <Td>
+              <p className="font-medium">{e.cliente?.nombreCompleto ?? '—'}</p>
+              {e.pedido && <p className="text-xs text-slate-600 font-mono" translate="no">{e.pedido.numero}</p>}
+            </Td>
+            {veCarteraCompleta && <Td>{e.promotor.nombreCompleto}</Td>}
+            <Td className="text-right tabular-nums">{e.cantidadFotos || '—'}</Td>
+            <Td><EstadoEvento estado={e.estado} /></Td>
+            <Td>
+              <div className="flex items-center justify-end gap-1">
+                <Btn variant="ghost" onClick={() => abrirEvento(e.id)} aria-label={`Ver ${e.numero}`}>
+                  <Eye size={14} aria-hidden="true" />
+                  Ver
+                </Btn>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input label="Latitud" type="number" step="any" placeholder="-17.783" value={form.latitud} onChange={e => setForm({ ...form, latitud: e.target.value })} />
-              <Input label="Longitud" type="number" step="any" placeholder="-63.182" value={form.longitud} onChange={e => setForm({ ...form, longitud: e.target.value })} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Descripción *</label>
-              <textarea value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} rows={3} required
-                placeholder="Describe la incidencia con detalle..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-            </div>
-            <div className="flex gap-2 pt-2">
-              <Btn type="submit" variant="primary" size="md" disabled={saving}>
-                {saving ? 'Registrando...' : 'Registrar evento'}
-              </Btn>
-              <Btn variant="ghost" size="md" onClick={() => setShowForm(false)}>Cancelar</Btn>
-            </div>
-          </form>
-        </Card>
-      )}
+            </Td>
+          </Tr>
+        ))}
+      </Table>
 
-      {/* Modal resolución */}
-      {resolviendoId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Marcar como Resuelto</h3>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Observación de resolución *</label>
-              <textarea rows={3} value={motivoResolucion} onChange={e => setMotivoResolucion(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="¿Cómo se resolvió la incidencia?" />
-            </div>
-            <div className="flex gap-2 mt-3">
-              <Btn variant="primary" size="md" onClick={handleResolver}>Confirmar resolución</Btn>
-              <Btn variant="ghost" size="md" onClick={() => setResolviendoId(null)}>Cancelar</Btn>
-            </div>
-          </Card>
-        </div>
-      )}
+      <DetalleEvento
+        evento={detalle}
+        onCerrar={() => setDetalle(null)}
+        fotos={detalle && (
+          <p className="text-sm text-slate-600">
+            {detalle.fotos.length === 0 ? 'Sin fotos.' : `${detalle.fotos.length} ${detalle.fotos.length === 1 ? 'foto' : 'fotos'}.`}
+          </p>
+        )}
+        acciones={detalle && delDetalle.modificar && (
+          <Btn variant="outline" size="md" onClick={() => abrirFormulario(detalle)}>
+            <Pencil size={16} aria-hidden="true" />Editar
+          </Btn>
+        )}
+      />
 
-      {/* Tabla */}
-      {loading ? (
-        <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Cargando eventos...</div>
-      ) : (
-        <Table headers={['Número', 'Tipo', 'Prioridad', 'Cliente', 'Promotor', 'Estado', 'Evidencias', 'Fecha', 'Acciones']}
-          empty="Sin eventos registrados.">
-          {eventos.map(ev => (
-            <Tr key={ev.id}>
-              <Td mono>{ev.numero}</Td>
-              <Td><span className="font-medium text-slate-800">{ev.tipo.nombre}</span></Td>
-              <Td><Badge color={PRIORIDAD_COLOR[ev.tipo.nivelPrioridad]}>{PRIORIDAD_LABEL[ev.tipo.nivelPrioridad]}</Badge></Td>
-              <Td>{ev.cliente?.nombreCompleto ?? <span className="text-slate-400">—</span>}</Td>
-              <Td>{ev.promotor?.nombreCompleto}</Td>
-              <Td><Badge color={ESTADO_COLOR[ev.estado]}>{ESTADO_LABEL[ev.estado]}</Badge></Td>
-              <Td>
-                {ev.cantidadFotos > 0
-                  ? <Badge color="blue">{ev.cantidadFotos} archivo{ev.cantidadFotos > 1 ? 's' : ''}</Badge>
-                  : <span className="text-slate-400 text-xs">Sin archivos</span>
-                }
-              </Td>
-              <Td>{formatearFecha(ev.fechaEvento)}</Td>
-              <Td>
-                <div className="flex gap-1.5">
-                  {ev.estado === 0 && (
-                    <Btn onClick={() => { setResolviendoId(ev.id); setMotivoResolucion(''); }} variant="ghost">
-                      Resolver
-                    </Btn>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
-        </Table>
+      {formulario && (
+        <FormularioEvento evento={formulario.evento} puedeVerPedidos={puedeVerPedidos} onCerrar={() => setFormulario(null)}
+          onGuardado={alGuardar} />
       )}
     </Layout>
   );
