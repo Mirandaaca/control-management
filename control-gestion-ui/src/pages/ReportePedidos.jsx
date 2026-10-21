@@ -98,7 +98,7 @@ export default function ReportePedidos() {
       {errorCarga && reporte && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       {reporte && (
-        <section aria-label="Totales por estado" className="mb-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+        <section aria-label="Totales por estado" className="mb-5 grid gap-4 sm:grid-cols-3">
           <Indicador titulo="Total sin anulados" valor={formatearMonto(reporte.monto)}
             detalle={reporte.cantidad === 1 ? '1 pedido' : `${reporte.cantidad} pedidos`} />
           {reporte.porEstado.map((e) => (

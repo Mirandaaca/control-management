@@ -269,7 +269,7 @@ export default function Pedidos() {
                 </Btn>
                 {puedeAvanzarlo(p) && (
                   <Btn variant="ghost" onClick={() => abrirCambio('avanzar', p)}
-                    aria-label={`Pasar ${p.numero} a ${SIGUIENTE[p.estado.id].nombre}`}>
+                    aria-label={`Avanzar ${p.numero} a ${SIGUIENTE[p.estado.id].nombre}`}>
                     <ArrowRight size={14} aria-hidden="true" />
                     Avanzar
                   </Btn>
