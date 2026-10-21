@@ -168,4 +168,54 @@ public class PedidosDistribucionTests(ApiDePrueba api)
         await (await AsignarAsync(clientePromotor, promotor.Id, Hoy.AddDays(1), pedidoId)).ProblemaAsync(403, "sin_permiso");
         Assert.Equal(HttpStatusCode.OK, (await AsignarAsync(secretaria, promotor.Id, Hoy.AddDays(1), pedidoId)).StatusCode);
     }
+
+    private static async Task<List<int>> BandejaAsync(HttpClient cliente, string consulta = "") =>
+        (await (await cliente.GetAsync($"/api/pedidos/bandeja{consulta}")).LeerJsonAsync())
+            .EnumerateArray().Select(p => p.GetProperty("id").GetInt32()).ToList();
+
+    [Fact]
+    public async Task La_bandeja_trae_mis_pedidos_del_dia_por_hora_sin_los_entregados_ni_los_anulados()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var otroPromotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var dia = Hoy.AddDays(2);
+        var deLaTarde = await PedidoNuevoAsync(operador);
+        (await ReprogramarAsync(operador, deLaTarde, dia, 15)).EnsureSuccessStatusCode();
+        var deLaManana = await PedidoNuevoAsync(operador);
+        (await ReprogramarAsync(operador, deLaManana, dia, 9)).EnsureSuccessStatusCode();
+        var anulado = await PedidoNuevoAsync(operador);
+        var deOtroDia = await PedidoNuevoAsync(operador);
+        var deOtroPromotor = await PedidoNuevoAsync(operador);
+        (await AsignarAsync(operador, promotor.Id, dia, deLaTarde, deLaManana, anulado)).EnsureSuccessStatusCode();
+        (await AsignarAsync(operador, promotor.Id, dia.AddDays(1), deOtroDia)).EnsureSuccessStatusCode();
+        (await AsignarAsync(operador, otroPromotor.Id, dia, deOtroPromotor)).EnsureSuccessStatusCode();
+        (await operador.PostAsJsonAsync($"/api/pedidos/{anulado}/anular", new { motivo = "Prueba" })).EnsureSuccessStatusCode();
+        using var clientePromotor = api.ClienteCon(promotor.Token);
+
+        Assert.Equal([deLaManana, deLaTarde], await BandejaAsync(clientePromotor, $"?dia={dia:yyyy-MM-dd}"));
+    }
+
+    [Fact]
+    public async Task Sin_elegir_el_dia_la_bandeja_es_la_de_hoy_en_Bolivia()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var deHoy = await PedidoNuevoAsync(operador);
+        // A las 23:59 de Bolivia: sigue siendo hoy aunque en UTC ya sea mañana.
+        (await ReprogramarAsync(operador, deHoy, Hoy.AddDays(1), 23, 59)).EnsureSuccessStatusCode();
+        (await AsignarAsync(operador, promotor.Id, Hoy, deHoy)).EnsureSuccessStatusCode();
+        using var clientePromotor = api.ClienteCon(promotor.Token);
+
+        Assert.Equal([deHoy], await BandejaAsync(clientePromotor));
+        Assert.Empty(await BandejaAsync(clientePromotor, $"?dia={Hoy.AddDays(1):yyyy-MM-dd}"));
+    }
+
+    [Fact]
+    public async Task La_bandeja_es_del_promotor_y_la_secretaria_no_la_ve()
+    {
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+
+        await (await secretaria.GetAsync("/api/pedidos/bandeja")).ProblemaAsync(403, "sin_permiso");
+    }
 }

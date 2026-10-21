@@ -59,6 +59,24 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             .OrderBy(h => h.Id).Select(PedidoConsultas.HistorialComoDTO).ToListAsync();
     }
 
+    /// <summary>
+    /// La bandeja del día (1.3): los pedidos que tengo asignados con entrega ese día de Bolivia (hoy, si no se elige
+    /// otro), sin los entregados ni los anulados, por hora de entrega. No se pagina: son los de un promotor en un día.
+    /// </summary>
+    public Task<List<PedidoListaDTO>> BandejaAsync(DateOnly? dia)
+    {
+        var elDia = dia ?? HoraBolivia.Hoy(reloj);
+        var inicio = HoraBolivia.InicioDelDiaUtc(elDia);
+        var fin = HoraBolivia.FinDelDiaUtc(elDia);
+        var usuarioId = usuario.Id;
+        return Visibles
+            .Where(p => p.RepartidorId == usuarioId && p.FechaEntregaEstimada >= inicio && p.FechaEntregaEstimada < fin
+                && !EstadosDePedido.Finales.Contains(p.EstadoPedidoId))
+            .OrderBy(p => p.FechaEntregaEstimada).ThenBy(p => p.Id)
+            .Select(PedidoConsultas.ComoLista)
+            .ToListAsync();
+    }
+
     public Task<List<EstadoPedidoDTO>> EstadosAsync() =>
         db.EstadosPedido.OrderBy(e => e.Orden).Select(e => new EstadoPedidoDTO(e.Id, e.Nombre)).ToListAsync();
 

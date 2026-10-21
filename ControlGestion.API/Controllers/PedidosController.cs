@@ -34,6 +34,11 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
     public async Task<ActionResult<List<HistorialPedidoDTO>>> GetHistorial(int id) =>
         await pedidos.HistorialAsync(id);
 
+    [HttpGet("bandeja")]
+    [Permiso(Permisos.Pedidos.VerBandeja)]
+    public async Task<ActionResult<List<PedidoListaDTO>>> GetBandeja([FromQuery] DateOnly? dia) =>
+        await pedidos.BandejaAsync(dia);
+
     [HttpGet("estados")]
     public async Task<ActionResult<List<EstadoPedidoDTO>>> GetEstados() =>
         await pedidos.EstadosAsync();
