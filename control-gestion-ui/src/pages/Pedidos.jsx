@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, Package, Pencil, Plus } from 'lucide-react';
+import { ArrowRight, Ban, CalendarClock, Eye, Package, Pencil, Plus, UserCheck } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
+import AsignarPedidos from '../components/pedidos/AsignarPedidos';
+import CambioDeEstado from '../components/pedidos/CambioDeEstado';
 import DetallePedido from '../components/pedidos/DetallePedido';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
 import FormularioPedido from '../components/pedidos/FormularioPedido';
-import { esModificable } from '../components/pedidos/estados';
+import { esFinal, esModificable, SIGUIENTE } from '../components/pedidos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
@@ -26,6 +28,10 @@ export default function Pedidos() {
   const { tiene } = useAuth();
   const puedeRegistrar = tiene(permisos.registrarPedido);
   const puedeModificar = tiene(permisos.modificarPedido);
+  const puedeAvanzar = tiene(permisos.cambiarEstado);
+  const puedeReprogramar = tiene(permisos.reprogramarEntrega);
+  const puedeAnular = tiene(permisos.anularPedido);
+  const puedeAsignar = tiene(permisos.asignarPedidos);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
@@ -45,6 +51,11 @@ export default function Pedidos() {
   const [detalle, setDetalle] = useState(null);
   // null: cerrado. { pedido: null }: nuevo. { pedido }: editar ese pedido.
   const [formulario, setFormulario] = useState(null);
+  // { tipo: 'avanzar' | 'reprogramar' | 'anular', pedido }
+  const [cambio, setCambio] = useState(null);
+  // Los pedidos elegidos para asignar, por id: se conservan al cambiar de página.
+  const [elegidos, setElegidos] = useState({});
+  const [asignando, setAsignando] = useState(false);
 
   // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
   useEffect(() => {
@@ -102,7 +113,30 @@ export default function Pedidos() {
     cargar();
   };
 
+  const alCambiar = (mensaje) => {
+    setCambio(null);
+    setAsignando(false);
+    setDetalle(null);
+    setAviso(mensaje);
+    cargar();
+  };
+
+  const abrirCambio = (tipo, pedido) => {
+    setAviso('');
+    setDetalle(null);
+    setCambio({ tipo, pedido });
+  };
+
+  const elegir = (pedido, elegido) => setElegidos((e) => {
+    const nuevos = { ...e };
+    if (elegido) nuevos[pedido.id] = pedido;
+    else delete nuevos[pedido.id];
+    return nuevos;
+  });
+  const listaDeElegidos = Object.values(elegidos);
+
   const puedeEditarlo = (pedido) => puedeModificar && esModificable(pedido.estado.id);
+  const puedeAvanzarlo = (pedido) => puedeAvanzar && SIGUIENTE[pedido.estado.id] !== undefined;
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pedidos = pagina?.items ?? [];
@@ -121,6 +155,7 @@ export default function Pedidos() {
 
   const opcionesDePromotor = promotores.map((p) => ({ valor: p.id, texto: p.nombreCompleto }));
   const encabezados = [
+    ...(puedeAsignar ? [{ texto: 'Elegir para asignar', oculto: true }] : []),
     'Número', 'Cliente', ...(veCarteraCompleta ? ['Promotor'] : []), 'Entrega', 'Asignado a',
     { texto: 'Total', derecha: true }, 'Estado', '',
   ];
@@ -143,6 +178,20 @@ export default function Pedidos() {
       {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
+      {listaDeElegidos.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-marca-200 bg-marca-50 px-4 py-3">
+          <p className="text-sm font-medium text-marca-800" aria-live="polite">
+            {listaDeElegidos.length === 1 ? '1 pedido elegido' : `${listaDeElegidos.length} pedidos elegidos`}
+          </p>
+          <div className="flex gap-2">
+            <Btn variant="outline" onClick={() => setElegidos({})}>Quitar la selección</Btn>
+            <Btn onClick={() => { setAviso(''); setAsignando(true); }}>
+              <UserCheck size={14} aria-hidden="true" />
+              Asignar
+            </Btn>
+          </div>
+        </div>
+      )}
 
       <Table
         headers={encabezados}
@@ -190,6 +239,14 @@ export default function Pedidos() {
       >
         {pedidos.map((p) => (
           <Tr key={p.id}>
+            {puedeAsignar && (
+              <Td>
+                <Casilla checked={Boolean(elegidos[p.id])} disabled={esFinal(p.estado.id)}
+                  onCheckedChange={(valor) => elegir(p, valor === true)}>
+                  <span className="sr-only">Elegir {p.numero} para asignar</span>
+                </Casilla>
+              </Td>
+            )}
             <Td mono>{p.numero}</Td>
             <Td><span className="font-medium">{p.cliente.nombreCompleto}</span></Td>
             {veCarteraCompleta && <Td>{p.promotor?.nombreCompleto ?? '—'}</Td>}
@@ -203,10 +260,11 @@ export default function Pedidos() {
                   <Eye size={14} aria-hidden="true" />
                   Ver
                 </Btn>
-                {puedeEditarlo(p) && (
-                  <Btn variant="ghost" onClick={() => abrirPedido(p.id, abrirFormulario)} aria-label={`Editar ${p.numero}`}>
-                    <Pencil size={14} aria-hidden="true" />
-                    Editar
+                {puedeAvanzarlo(p) && (
+                  <Btn variant="ghost" onClick={() => abrirCambio('avanzar', p)}
+                    aria-label={`Pasar ${p.numero} a ${SIGUIENTE[p.estado.id].nombre}`}>
+                    <ArrowRight size={14} aria-hidden="true" />
+                    Avanzar
                   </Btn>
                 )}
               </div>
@@ -218,12 +276,42 @@ export default function Pedidos() {
       <DetallePedido
         pedido={detalle}
         onCerrar={() => setDetalle(null)}
-        acciones={detalle && puedeEditarlo(detalle) && (
-          <Btn variant="outline" size="md" onClick={() => abrirFormulario(detalle)}>
-            <Pencil size={16} aria-hidden="true" />Editar
-          </Btn>
+        acciones={detalle && (
+          <>
+            {puedeAnular && !esFinal(detalle.estado.id) && (
+              <Btn variant="danger" size="md" onClick={() => abrirCambio('anular', detalle)}>
+                <Ban size={16} aria-hidden="true" />Anular
+              </Btn>
+            )}
+            {puedeReprogramar && !esFinal(detalle.estado.id) && (
+              <Btn variant="outline" size="md" onClick={() => abrirCambio('reprogramar', detalle)}>
+                <CalendarClock size={16} aria-hidden="true" />Reprogramar
+              </Btn>
+            )}
+            {puedeEditarlo(detalle) && (
+              <Btn variant="outline" size="md" onClick={() => abrirFormulario(detalle)}>
+                <Pencil size={16} aria-hidden="true" />Editar
+              </Btn>
+            )}
+            {puedeAvanzarlo(detalle) && (
+              <Btn size="md" onClick={() => abrirCambio('avanzar', detalle)}>
+                <ArrowRight size={16} aria-hidden="true" />Pasar a {SIGUIENTE[detalle.estado.id].nombre}
+              </Btn>
+            )}
+          </>
         )}
       />
+
+      {cambio && <CambioDeEstado cambio={cambio} onCerrar={() => setCambio(null)} onHecho={alCambiar} />}
+
+      {asignando && (
+        <AsignarPedidos
+          pedidos={listaDeElegidos}
+          promotores={promotores}
+          onCerrar={() => setAsignando(false)}
+          onHecho={(mensaje) => { setElegidos({}); alCambiar(mensaje); }}
+        />
+      )}
 
       {formulario && (
         <FormularioPedido pedido={formulario.pedido} onCerrar={() => setFormulario(null)} onGuardado={alGuardar} />
