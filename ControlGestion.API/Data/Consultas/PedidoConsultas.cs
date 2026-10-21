@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
@@ -24,6 +25,29 @@ public static class PedidoConsultas
         if (string.IsNullOrWhiteSpace(texto)) return pedidos;
         var t = texto.Trim();
         return pedidos.Where(p => p.Numero.Contains(t) || p.Cliente!.NombreCompleto.Contains(t) || p.Cliente.Codigo.Contains(t));
+    }
+
+    /// <summary>Los filtros de la lista y del reporte. Desde y Hasta son días de Bolivia de la fecha de entrega.</summary>
+    public static IQueryable<Pedido> Filtrar(this IQueryable<Pedido> pedidos, FiltrosPedidoDTO filtros)
+    {
+        var consulta = pedidos.Buscar(filtros.Buscar);
+        if (filtros.ClienteId.HasValue) consulta = consulta.Where(p => p.ClienteId == filtros.ClienteId);
+        if (filtros.EstadoId.HasValue) consulta = consulta.Where(p => p.EstadoPedidoId == filtros.EstadoId);
+        if (filtros.ZonaId.HasValue) consulta = consulta.Where(p => p.ZonaId == filtros.ZonaId);
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(p => p.PromotorId == filtros.PromotorId);
+        if (!string.IsNullOrEmpty(filtros.RepartidorId)) consulta = consulta.Where(p => p.RepartidorId == filtros.RepartidorId);
+        if (filtros.SinAsignar) consulta = consulta.Where(p => p.RepartidorId == null);
+        if (filtros.Desde is { } desde)
+        {
+            var inicio = HoraBolivia.InicioDelDiaUtc(desde);
+            consulta = consulta.Where(p => p.FechaEntregaEstimada >= inicio);
+        }
+        if (filtros.Hasta is { } hasta)
+        {
+            var fin = HoraBolivia.FinDelDiaUtc(hasta);
+            consulta = consulta.Where(p => p.FechaEntregaEstimada < fin);
+        }
+        return consulta;
     }
 
     public static readonly Expression<Func<Pedido, PedidoListaDTO>> ComoLista = p => new PedidoListaDTO(

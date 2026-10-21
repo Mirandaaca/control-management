@@ -190,6 +190,14 @@ public record HistorialPedidoDTO(
     decimal? Latitud,
     decimal? Longitud);
 
+public record TotalPorEstadoDTO(int EstadoId, string Estado, int Cantidad, decimal Monto);
+
+/// <summary>
+/// El reporte de pedidos (1.4): los cinco estados con su cantidad y su monto, el total sin los anulados y los pedidos,
+/// paginados.
+/// </summary>
+public record ReportePedidosDTO(IReadOnlyList<TotalPorEstadoDTO> PorEstado, int Cantidad, decimal Monto, Pagina<PedidoListaDTO> Pedidos);
+
 /// <summary>La HP que nació de la entrega, con su estado: si la secretaria la anula, el pedido sigue entregado.</summary>
 public record HojaDeLaEntregaDTO(int Id, string Numero, EstadoHP EstadoHP, TipoVenta TipoVenta, CobranzaReferenciaDTO? Cobranza);
 

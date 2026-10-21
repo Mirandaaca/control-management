@@ -9,7 +9,7 @@ namespace ControlGestion.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PedidosController(PedidoService pedidos) : ControllerBase
+public class PedidosController(PedidoService pedidos, ReportePedidosService reporte) : ControllerBase
 {
     // Quien opera sobre un pedido también necesita verlo: la lista, el detalle y el historial se abren con cualquiera
     // de estos permisos, siempre filtrados por cartera.
@@ -38,6 +38,19 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
     [Permiso(Permisos.Pedidos.VerBandeja)]
     public async Task<ActionResult<List<PedidoListaDTO>>> GetBandeja([FromQuery] DateOnly? dia) =>
         await pedidos.BandejaAsync(dia);
+
+    [HttpGet("reporte")]
+    [Permiso(Permisos.Pedidos.GenerarReporte)]
+    public async Task<ActionResult<ReportePedidosDTO>> GetReporte([FromQuery] FiltrosPedidoDTO filtros) =>
+        await reporte.GenerarAsync(filtros);
+
+    [HttpGet("reporte/excel")]
+    [Permiso(Permisos.Pedidos.GenerarReporte)]
+    public async Task<IActionResult> GetReporteExcel([FromQuery] FiltrosPedidoDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.ExcelAsync(filtros);
+        return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
+    }
 
     [HttpGet("estados")]
     public async Task<ActionResult<List<EstadoPedidoDTO>>> GetEstados() =>

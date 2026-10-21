@@ -99,6 +99,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.HojaPedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PedidoService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReportePedidosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 

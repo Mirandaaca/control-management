@@ -18,24 +18,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
 
     public async Task<Pagina<PedidoListaDTO>> ListarAsync(FiltrosPedidoDTO filtros)
     {
-        var consulta = Visibles.Buscar(filtros.Buscar);
-        if (filtros.ClienteId.HasValue) consulta = consulta.Where(p => p.ClienteId == filtros.ClienteId);
-        if (filtros.EstadoId.HasValue) consulta = consulta.Where(p => p.EstadoPedidoId == filtros.EstadoId);
-        if (filtros.ZonaId.HasValue) consulta = consulta.Where(p => p.ZonaId == filtros.ZonaId);
-        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(p => p.PromotorId == filtros.PromotorId);
-        if (!string.IsNullOrEmpty(filtros.RepartidorId)) consulta = consulta.Where(p => p.RepartidorId == filtros.RepartidorId);
-        if (filtros.SinAsignar) consulta = consulta.Where(p => p.RepartidorId == null);
-        if (filtros.Desde is { } desde)
-        {
-            var inicio = HoraBolivia.InicioDelDiaUtc(desde);
-            consulta = consulta.Where(p => p.FechaEntregaEstimada >= inicio);
-        }
-        if (filtros.Hasta is { } hasta)
-        {
-            var fin = HoraBolivia.FinDelDiaUtc(hasta);
-            consulta = consulta.Where(p => p.FechaEntregaEstimada < fin);
-        }
-
+        var consulta = Visibles.Filtrar(filtros);
         var total = await consulta.CountAsync();
         var items = await consulta
             .OrderByDescending(p => p.FechaRegistro).ThenByDescending(p => p.Id)
