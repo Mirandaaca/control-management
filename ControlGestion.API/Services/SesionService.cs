@@ -62,6 +62,16 @@ public class SesionService(
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.CerradaEn, ahora));
     }
 
+    /// <summary>Cierra las demás sesiones abiertas del usuario, pero no la de este token: así lo pide cambiar la contraseña (8.1).</summary>
+    public Task CerrarLasDemasAsync()
+    {
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var (usuarioId, sesionId) = (actual.Id, actual.SesionId);
+        return db.Sesiones
+            .Where(s => s.UsuarioId == usuarioId && s.Id != sesionId && s.CerradaEn == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.CerradaEn, ahora));
+    }
+
     // El token no lleva el rol ni los permisos: se leen de la base en cada petición (SesionDesdeLaBase), junto con la sesión.
     private string GenerarToken(ApplicationUser usuario, Guid sesionId, DateTime ahora)
     {
