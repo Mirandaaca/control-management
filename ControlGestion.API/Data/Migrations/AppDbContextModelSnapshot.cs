@@ -363,6 +363,20 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Clave");
 
                     b.ToTable("ConfiguracionesGenerales");
+
+                    b.HasData(
+                        new
+                        {
+                            Clave = "DiasRevisita",
+                            Descripcion = "Días entre una visita al cliente y la siguiente (7.1).",
+                            Valor = "15"
+                        },
+                        new
+                        {
+                            Clave = "DiasVencimientoCredito",
+                            Descripcion = "Días de plazo de una venta a crédito.",
+                            Valor = "30"
+                        });
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.DetalleHP", b =>

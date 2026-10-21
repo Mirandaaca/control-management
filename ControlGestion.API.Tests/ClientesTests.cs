@@ -348,7 +348,8 @@ public class ClientesTests(ApiDePrueba api)
         }
         finally
         {
-            await operador.DeleteAsync("/api/configuraciones/DiasRevisita");
+            // Vuelve al valor sembrado: las demás pruebas cuentan con él.
+            await operador.PutAsJsonAsync("/api/configuraciones/DiasRevisita", new { clave = "DiasRevisita", valor = "15" });
         }
     }
 

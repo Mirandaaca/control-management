@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +62,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(rp => rp.Permiso).WithMany().HasForeignKey(rp => rp.PermisoId).OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<ConfiguracionGeneral>().HasKey(c => c.Clave);
+        // Solo se insertan al migrar: si después alguien cambia el valor, la siembra no lo pisa.
+        builder.Entity<ConfiguracionGeneral>().HasData(
+            new ConfiguracionGeneral
+            {
+                Clave = ClavesDeConfiguracion.DiasRevisita,
+                Valor = ClavesDeConfiguracion.DiasRevisitaPorDefecto.ToString(),
+                Descripcion = "Días entre una visita al cliente y la siguiente (7.1)."
+            },
+            new ConfiguracionGeneral
+            {
+                Clave = ClavesDeConfiguracion.DiasVencimientoCredito,
+                Valor = ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto.ToString(),
+                Descripcion = "Días de plazo de una venta a crédito."
+            });
 
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
