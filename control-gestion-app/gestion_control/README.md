@@ -9,8 +9,10 @@ La URL de la API se pasa al compilar, en `API_URL`: es la raíz, sin `/api`, y n
 **En el celular,** conectado por USB y en la misma red Wi-Fi que la PC:
 
 1. En `ControlGestion.API/`, levanta la API para toda la red: `dotnet run -- --urls http://0.0.0.0:5124`.
-2. Abre el puerto 5124 en el firewall de Windows (una sola vez, en una terminal de administrador):
-   `New-NetFirewallRule -DisplayName "API Control de Gestion" -Direction Inbound -Protocol TCP -LocalPort 5124 -Action Allow -Profile Private`.
+2. Abre el puerto 5124 en el firewall de Windows, solo para tu red local (una sola vez, en una terminal de administrador;
+   sirve aunque Windows marque la red como pública):
+   `New-NetFirewallRule -DisplayName "API Control de Gestion (5124)" -Direction Inbound -Protocol TCP -LocalPort 5124 -Action Allow -Profile Private,Public -RemoteAddress LocalSubnet`.
+   Para quitarla: `Remove-NetFirewallRule -DisplayName "API Control de Gestion (5124)"`.
 3. Corre la app con la IP de la PC: `flutter run --dart-define=API_URL=http://<IP de la PC>:5124`.
 
 **Como web,** en el puerto que la API permite en desarrollo:
