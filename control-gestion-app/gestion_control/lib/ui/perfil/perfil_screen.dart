@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/formato.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import 'perfil_view_model.dart';
@@ -58,33 +59,23 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
               const SizedBox(height: 16),
             ],
             if (estado.errorAlGuardar != null) ...[Aviso(estado.errorAlGuardar!), const SizedBox(height: 16)],
-            TextField(
+            CampoDeTexto(
               controller: _nombre,
+              etiqueta: 'Nombre completo',
               textCapitalization: TextCapitalization.words,
               autofillHints: const [AutofillHints.name],
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'Nombre completo',
-                errorText: estado.campos['nombreCompleto'],
-                errorMaxLines: 3,
-              ),
+              error: estado.campos['nombreCompleto'],
             ),
             const SizedBox(height: 12),
-            TextField(
+            CampoDeTexto(
               controller: _correo,
+              etiqueta: 'Correo',
+              ayuda: 'Es también tu usuario para iniciar sesión.',
               keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              enableSuggestions: false,
               autofillHints: const [AutofillHints.email],
+              error: estado.campos['email'],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _guardar(),
-              decoration: InputDecoration(
-                labelText: 'Correo',
-                helperText: 'Es también tu usuario para iniciar sesión.',
-                helperMaxLines: 3,
-                errorText: estado.campos['email'],
-                errorMaxLines: 3,
-              ),
             ),
             const SizedBox(height: 16),
             _Dato(titulo: 'Rol', valor: perfil.rol ?? 'Sin rol'),

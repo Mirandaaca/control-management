@@ -31,8 +31,8 @@ void main() {
     String correo = 'promotor@test.local',
     String contrasena = 'Clave2026',
   }) async {
-    await tester.enterText(find.widgetWithText(TextField, 'Correo electrónico'), correo);
-    await tester.enterText(find.widgetWithText(TextField, 'Contraseña'), contrasena);
+    await tester.enterText(campo('Correo electrónico'), correo);
+    await tester.enterText(campo('Contraseña'), contrasena);
   }
 
   Finder botonIngresar() => find.byType(FilledButton);
@@ -109,23 +109,34 @@ void main() {
     expect(find.text(avisoSesionTerminada), findsNothing);
   });
 
+  testWidgets('el título es un encabezado propio, y cada campo se lee con su etiqueta', (tester) async {
+    final semantica = tester.ensureSemantics();
+    await abrir(tester);
+
+    expect(tester.getSemantics(find.text('Inicia sesión')), matchesSemantics(label: 'Inicia sesión', isHeader: true));
+    final correo = tester.getSemantics(campo('Correo electrónico'));
+    expect(correo, isSemantics(isTextField: true));
+    // Después de la etiqueta, el lector lee el ejemplo (nombre@empresa.com).
+    expect(correo.label, startsWith('Correo electrónico'));
+    semantica.dispose();
+  });
+
   testWidgets('se puede mostrar la contraseña', (tester) async {
     await abrir(tester);
-    TextField campo() => tester.widget<TextField>(find.widgetWithText(TextField, 'Contraseña'));
-    expect(campo().obscureText, isTrue);
+    TextField contrasena() => tester.widget<TextField>(campo('Contraseña'));
+    expect(contrasena().obscureText, isTrue);
 
-    await tester.tap(find.byTooltip('Mostrar contraseña'));
+    await tester.tap(find.text('Mostrar contraseña'));
     await tester.pump();
 
-    expect(campo().obscureText, isFalse);
-    expect(find.byTooltip('Ocultar contraseña'), findsOneWidget);
+    expect(contrasena().obscureText, isFalse);
   });
 
   testWidgets('con la letra al 200 % nada se corta, y cumple las guías de accesibilidad', (tester) async {
     final semantica = tester.ensureSemantics();
     await abrir(tester, aviso: avisoSesionTerminada, letra: 2);
     // Con la letra grande el botón queda más abajo: se envía con la tecla "Listo" del teclado.
-    await tester.showKeyboard(find.widgetWithText(TextField, 'Contraseña'));
+    await tester.showKeyboard(campo('Contraseña'));
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 

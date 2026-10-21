@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../proveedores.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
-import '../core/widgets/campo_contrasena.dart';
+import '../core/widgets/campo_de_texto.dart';
 import 'franja_del_territorio.dart';
 import 'inicio_de_sesion_view_model.dart';
 import 'sesion_notifier.dart';
@@ -21,6 +21,7 @@ class InicioDeSesionScreen extends ConsumerStatefulWidget {
 class _InicioDeSesionScreenState extends ConsumerState<InicioDeSesionScreen> {
   final _correo = TextEditingController();
   final _contrasena = TextEditingController();
+  var _verContrasena = false;
 
   @override
   void dispose() {
@@ -60,7 +61,11 @@ class _InicioDeSesionScreenState extends ConsumerState<InicioDeSesionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Semantics(header: true, child: Text('Inicia sesión', style: textos.headlineSmall)),
+                        Semantics(
+                          header: true,
+                          container: true,
+                          child: Text('Inicia sesión', style: textos.headlineSmall),
+                        ),
                         const SizedBox(height: 4),
                         const Text(
                           'Con el correo y la contraseña que te dio el administrador.',
@@ -68,30 +73,30 @@ class _InicioDeSesionScreenState extends ConsumerState<InicioDeSesionScreen> {
                         ),
                         const SizedBox(height: 24),
                         if (aviso != null) ...[Aviso(aviso, tipo: TipoDeAviso.aviso), const SizedBox(height: 16)],
-                        TextField(
+                        CampoDeTexto(
                           controller: _correo,
+                          etiqueta: 'Correo electrónico',
+                          ejemplo: 'nombre@empresa.com',
                           keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          enableSuggestions: false,
                           autofillHints: const [AutofillHints.email, AutofillHints.username],
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: 'Correo electrónico',
-                            hintText: 'nombre@empresa.com',
-                            errorText: estado.campos['email'],
-                            errorMaxLines: 3,
-                          ),
+                          error: estado.campos['email'],
                         ),
                         const SizedBox(height: 12),
-                        CampoContrasena(
+                        CampoDeTexto(
                           controller: _contrasena,
                           etiqueta: 'Contraseña',
+                          oculto: !_verContrasena,
+                          autofillHints: const [AutofillHints.password],
                           error: estado.campos['password'],
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => _entrar(),
                         ),
+                        MostrarContrasena(
+                          visible: _verContrasena,
+                          alCambiar: (visible) => setState(() => _verContrasena = visible),
+                        ),
                         if (estado.error != null) ...[const SizedBox(height: 16), Aviso(estado.error!)],
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         FilledButton(
                           onPressed: estado.enviando ? null : _entrar,
                           child: Row(

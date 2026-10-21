@@ -156,6 +156,7 @@ class _Usuario extends StatelessWidget {
                 children: [
                   Semantics(
                     header: true,
+                    container: true,
                     child: Text(sesion.nombreCompleto, style: Theme.of(context).textTheme.titleMedium),
                   ),
                   Text(sesion.rol ?? 'Sin rol', style: const TextStyle(color: textoSecundario)),

@@ -39,8 +39,10 @@ class FranjaDelTerritorio extends StatelessWidget {
                         height: 40,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                        // Es un logotipo, como un ícono: no crece con la letra del sistema.
                         child: const Text(
                           'DC',
+                          textScaler: TextScaler.noScaling,
                           style: TextStyle(color: marca700, fontWeight: FontWeight.w600, fontSize: 14),
                         ),
                       ),
@@ -100,6 +102,8 @@ class _Territorio extends CustomPainter {
     final escala = size.width / 800 > size.height / 900 ? size.width / 800 : size.height / 900;
     canvas
       ..save()
+      // Escalado para cubrir, el dibujo es más alto que la franja: lo que sobra no debe tapar el formulario.
+      ..clipRect(Offset.zero & size)
       ..translate((size.width - 800 * escala) / 2, (size.height - 900 * escala) / 2)
       ..scale(escala);
 

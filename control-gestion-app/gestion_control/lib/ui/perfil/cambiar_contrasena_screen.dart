@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
-import '../core/widgets/campo_contrasena.dart';
+import '../core/widgets/campo_de_texto.dart';
 import 'cambiar_contrasena_view_model.dart';
 
 /// Cambiar la contraseña (8.1): pide la actual. Al cambiarla, la API cierra las demás sesiones; esta sigue abierta.
@@ -18,6 +18,7 @@ class _CambiarContrasenaScreenState extends ConsumerState<CambiarContrasenaScree
   final _actual = TextEditingController();
   final _nueva = TextEditingController();
   final _confirmar = TextEditingController();
+  var _verContrasenas = false;
 
   @override
   void dispose() {
@@ -43,7 +44,8 @@ class _CambiarContrasenaScreenState extends ConsumerState<CambiarContrasenaScree
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cambiar contraseña')),
+      // Corto, para que no se corte con la letra grande: la barra tiene una sola línea.
+      appBar: AppBar(title: const Text('Contraseña')),
       body: AutofillGroup(
         child: ListView(
           padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.paddingOf(context).bottom + 24),
@@ -55,25 +57,38 @@ class _CambiarContrasenaScreenState extends ConsumerState<CambiarContrasenaScree
               const SizedBox(height: 16),
             ],
             if (estado.error != null) ...[Aviso(estado.error!), const SizedBox(height: 16)],
-            CampoContrasena(controller: _actual, etiqueta: 'Contraseña actual', error: estado.campos['actual']),
+            CampoDeTexto(
+              controller: _actual,
+              etiqueta: 'Contraseña actual',
+              oculto: !_verContrasenas,
+              autofillHints: const [AutofillHints.password],
+              error: estado.campos['actual'],
+            ),
             const SizedBox(height: 12),
-            CampoContrasena(
+            CampoDeTexto(
               controller: _nueva,
               etiqueta: 'Contraseña nueva',
               ayuda: '8 caracteres o más, con al menos un número.',
-              error: estado.campos['nueva'],
+              oculto: !_verContrasenas,
               autofillHints: const [AutofillHints.newPassword],
+              error: estado.campos['nueva'],
             ),
             const SizedBox(height: 12),
-            CampoContrasena(
+            CampoDeTexto(
               controller: _confirmar,
               etiqueta: 'Repite la contraseña nueva',
-              error: estado.campos['confirmar'],
+              oculto: !_verContrasenas,
               autofillHints: const [AutofillHints.newPassword],
+              error: estado.campos['confirmar'],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _cambiar(),
             ),
-            const SizedBox(height: 24),
+            MostrarContrasena(
+              texto: 'Mostrar las contraseñas',
+              visible: _verContrasenas,
+              alCambiar: (visible) => setState(() => _verContrasenas = visible),
+            ),
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: estado.enviando ? null : _cambiar,
               child: Row(

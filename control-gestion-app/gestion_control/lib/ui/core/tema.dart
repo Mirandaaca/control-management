@@ -14,6 +14,9 @@ const error = Color(0xFFB91C1C);
 final tema = ThemeData(
   useMaterial3: true,
   fontFamily: 'Inter',
+  // La densidad del celular en cualquier plataforma: en la web (la verificación) Flutter usaría la compacta del
+  // escritorio, con botones 8 dp más chicos.
+  visualDensity: VisualDensity.standard,
   colorScheme: const ColorScheme.light(
     primary: marca600,
     onPrimary: Colors.white,
@@ -28,6 +31,9 @@ final tema = ThemeData(
     outlineVariant: Color(0xFFE2E8F0),
     error: error,
     onError: Colors.white,
+    // Los del mensaje de error. Sin ellos, la etiqueta de un campo con error y el mouse encima sale blanca (onError).
+    errorContainer: Color(0xFFFEF2F2),
+    onErrorContainer: error,
   ),
   scaffoldBackgroundColor: fondo,
   appBarTheme: const AppBarTheme(backgroundColor: marca900, foregroundColor: Colors.white),

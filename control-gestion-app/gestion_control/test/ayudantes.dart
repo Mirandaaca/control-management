@@ -9,6 +9,7 @@ import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/ui/core/tema.dart';
+import 'package:gestion_control/ui/core/widgets/campo_de_texto.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
 
 const sesionDePrueba = Sesion(
@@ -136,3 +137,7 @@ void tamanoDeCelular(WidgetTester tester, {double letra = 1, double alto = 800})
     tester.platformDispatcher.clearTextScaleFactorTestValue();
   });
 }
+
+/// El TextField de un campo, buscado por la etiqueta que va encima de él.
+Finder campo(String etiqueta) =>
+    find.descendant(of: find.widgetWithText(CampoDeTexto, etiqueta), matching: find.byType(TextField));

@@ -42,8 +42,6 @@ void main() {
     await expectLater(tester, meetsGuideline(textContrastGuideline));
   }
 
-  Finder campo(String etiqueta) => find.widgetWithText(TextField, etiqueta);
-
   group('menú', () {
     testWidgets('muestra quién entró y lo que ya funciona en la app', (tester) async {
       await abrir(tester, const MenuScreen());

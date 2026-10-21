@@ -19,6 +19,7 @@ class SinAccesoScreen extends StatelessWidget {
               const SizedBox(height: 12),
               Semantics(
                 header: true,
+                container: true,
                 child: Text(
                   'No tienes acceso a esta pantalla',
                   textAlign: TextAlign.center,
