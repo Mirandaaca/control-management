@@ -146,19 +146,30 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         return await ObtenerAsync(id);
     }
 
+    /// <summary>
+    /// Anular (2.1, H2). Una HP confirmada devuelve su stock y anula su deuda, salvo que la deuda ya tenga pagos. Un
+    /// borrador no movió nada y solo cambia de estado. La visita que se registró al confirmar se conserva.
+    /// </summary>
     public async Task<HojaPedidoDTO> AnularAsync(int id, string motivo)
     {
-        var hp = await Visibles.FirstOrDefaultAsync(h => h.Id == id)
+        var hp = await Visibles.Include(h => h.Detalles).FirstOrDefaultAsync(h => h.Id == id)
             ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
         if (hp.EstadoHP == EstadoHP.Anulada)
             throw new ReglaDeNegocioException("hp_ya_anulada", "La HP ya está anulada.");
+
+        if (hp.EstadoHP == EstadoHP.Confirmada)
+        {
+            await cobranzas.AnularPorHojaAsync(hp);
+            await inventario.DevolverPorAnulacionAsync(hp);
+        }
 
         hp.EstadoHP = EstadoHP.Anulada;
         hp.ObservacionesAnulacion = motivo.Trim();
         hp.FechaAnulacion = Ahora;
         hp.AnuladoPorId = usuario.Id;
 
-        await db.SaveChangesAsync();
+        // Un solo SaveChanges: la HP, el stock, el kardex, la cobranza y el saldo se guardan juntos o nada.
+        await GuardarAsync("La HP, el stock o su cobranza cambiaron mientras anulabas. Vuelve a intentarlo.");
         return await ObtenerAsync(id);
     }
 

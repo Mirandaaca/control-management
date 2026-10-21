@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using ControlGestion.API.Data;
+using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -225,6 +226,79 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         Assert.Single(respuestas, r => (int)r.StatusCode == 200);
         Assert.Single(respuestas, r => (int)r.StatusCode is 400 or 409);
         Assert.Equal(4m, await StockDe(operador, productoId));
+    }
+
+    /// <summary>Una venta a crédito de 4 unidades de 10 Bs, confirmada: devuelve la cobranza, la HP y el producto.</summary>
+    private async Task<(int CobranzaId, int HojaId, int ProductoId, int ClienteId)> VentaACreditoAsync(HttpClient operador)
+    {
+        var zonaId = await operador.CrearZonaAsync();
+        var productoId = await operador.CrearProductoAsync(10m, stockInicial: 10);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, productoId, 4);
+        var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
+        return (cobranzaId, cobranza.GetProperty("hojaPedido").GetProperty("id").GetInt32(), productoId, clienteId);
+    }
+
+    [Fact]
+    public async Task La_secretaria_anula_una_HP_confirmada_y_vuelven_el_stock_y_la_deuda()
+    {
+        using var operador = await api.OperadorAsync();
+        var (cobranzaId, hojaId, productoId, clienteId) = await VentaACreditoAsync(operador);
+        Assert.Equal(6m, await StockDe(operador, productoId));
+        var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
+        using var clienteSecretaria = api.ClienteCon(secretaria.Token);
+
+        var hoja = await (await AnularAsync(clienteSecretaria, hojaId)).LeerJsonAsync();
+
+        Assert.Equal(2, hoja.GetProperty("estadoHP").GetInt32());
+        Assert.Equal(secretaria.Id, hoja.GetProperty("anuladoPor").GetProperty("id").GetString());
+        Assert.Equal(5, hoja.GetProperty("cobranza").GetProperty("estado").GetInt32());
+        Assert.Equal(10m, await StockDe(operador, productoId));
+        var devolucion = (await KardexDe(operador, productoId))[0];
+        Assert.Equal(3, devolucion.GetProperty("tipoMovimiento").GetInt32());
+        Assert.Equal(4m, devolucion.GetProperty("variacion").GetDecimal());
+        Assert.Equal(hojaId, devolucion.GetProperty("hojaPedido").GetProperty("id").GetInt32());
+        Assert.Equal(0m, (await ClienteDe(operador, clienteId)).GetProperty("saldoPendiente").GetDecimal());
+        var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
+        Assert.Equal(5, cobranza.GetProperty("estado").GetInt32());
+    }
+
+    [Fact]
+    public async Task Una_HP_cuya_cobranza_tiene_pagos_no_se_anula()
+    {
+        using var operador = await api.OperadorAsync();
+        var (cobranzaId, hojaId, productoId, _) = await VentaACreditoAsync(operador);
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto = 5, metodoPago = 0 })).EnsureSuccessStatusCode();
+
+        await (await AnularAsync(operador, hojaId)).ProblemaAsync(400, "cobranza_con_pagos");
+
+        Assert.Equal(1, (await HojaDe(operador, hojaId)).GetProperty("estadoHP").GetInt32());
+        Assert.Equal(6m, await StockDe(operador, productoId));
+    }
+
+    [Fact]
+    public async Task El_promotor_no_anula_HP()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var zonaId = await operador.CrearZonaAsync(promotor.Id);
+        using var vendedor = api.ClienteCon(promotor.Token);
+        var hojaId = await vendedor.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), await operador.CrearProductoAsync(10m), 1);
+
+        await (await AnularAsync(vendedor, hojaId)).ProblemaAsync(403, "sin_permiso");
+    }
+
+    [Fact]
+    public async Task Una_cobranza_anulada_no_recibe_pagos_ni_se_marca_incobrable()
+    {
+        using var operador = await api.OperadorAsync();
+        var (cobranzaId, hojaId, _, _) = await VentaACreditoAsync(operador);
+        (await AnularAsync(operador, hojaId)).EnsureSuccessStatusCode();
+
+        await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto = 5, metodoPago = 0 }))
+            .ProblemaAsync(400, "cobranza_cerrada");
+        await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", new { observacion = "Prueba" }))
+            .ProblemaAsync(400, "cobranza_anulada");
     }
 
     [Fact]

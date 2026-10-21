@@ -84,6 +84,17 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
             Mover(producto.Inventario!, -pedidos[producto.Id], TipoMovimiento.Salida, MovimientoInventario.ReferenciaHojaPedido, hp.Id);
     }
 
+    /// <summary>Al anular una HP confirmada vuelve lo que salió, como devolución en el kardex (2.5). No guarda.</summary>
+    public async Task DevolverPorAnulacionAsync(HojaPedido hp)
+    {
+        var devueltos = hp.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+        var ids = devueltos.Keys.ToList();
+        var inventarios = await db.InventariosProducto.Where(i => ids.Contains(i.ProductoId)).ToListAsync();
+        foreach (var inventario in inventarios)
+            Mover(inventario, devueltos[inventario.ProductoId], TipoMovimiento.DevolucionVenta,
+                MovimientoInventario.ReferenciaHojaPedido, hp.Id);
+    }
+
     /// <summary>Ingreso de mercadería: suma al stock y queda en el kardex como entrada.</summary>
     public async Task<InventarioDTO> RegistrarIngresoAsync(int productoId, RegistrarIngresoDTO dto)
     {

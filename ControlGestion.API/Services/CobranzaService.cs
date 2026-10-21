@@ -54,7 +54,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             return repetido;
 
         var cobranza = await db.Cobranzas.Include(c => c.Cliente).FirstAsync(c => c.Id == id);
-        if (cobranza.Estado is EstadoCobranza.Pagada or EstadoCobranza.Incobrable)
+        if (cobranza.Estado is EstadoCobranza.Pagada or EstadoCobranza.Incobrable or EstadoCobranza.Anulada)
             throw new ReglaDeNegocioException("cobranza_cerrada", "La cobranza ya está cerrada.");
 
         var saldo = Math.Max(0, cobranza.MontoTotal - cobranza.MontoPagado);
@@ -119,6 +119,8 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             ?? throw new NoEncontradoException("No se encontró la cobranza.");
         if (cobranza.Estado == EstadoCobranza.Pagada)
             throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
+        if (cobranza.Estado == EstadoCobranza.Anulada)
+            throw new ReglaDeNegocioException("cobranza_anulada", "La cobranza está anulada: su venta se anuló.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
@@ -158,6 +160,23 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             Estado = EstadoCobranza.Pendiente
         };
         db.Cobranzas.Add(cobranza);
+        await RecalcularSaldoDelClienteAsync(cobranza);
+    }
+
+    /// <summary>
+    /// Al anular una HP confirmada, su deuda pasa a Anulada y deja de contar en el saldo (2.1). Si ya tiene pagos no se
+    /// anula: primero hay que anular esos pagos. Una venta al contado no tiene cobranza. No guarda.
+    /// </summary>
+    public async Task AnularPorHojaAsync(HojaPedido hp)
+    {
+        var cobranza = await db.Cobranzas.Include(c => c.Cliente).Include(c => c.Pagos)
+            .FirstOrDefaultAsync(c => c.HojaPedidoId == hp.Id);
+        if (cobranza == null) return;
+        if (cobranza.Pagos.Count > 0)
+            throw new ReglaDeNegocioException("cobranza_con_pagos",
+                $"No se puede anular: su cobranza {cobranza.Numero} ya tiene pagos. Primero hay que anular esos pagos.");
+
+        cobranza.Estado = EstadoCobranza.Anulada;
         await RecalcularSaldoDelClienteAsync(cobranza);
     }
 
