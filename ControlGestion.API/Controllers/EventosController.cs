@@ -55,6 +55,12 @@ public class EventosController(EventoService eventos) : ControllerBase
             dto.Latitud, dto.Longitud, dto.FechaCaptura);
     }
 
+    // Además del permiso, el promotor solo elimina fotos de los eventos que registró (lo revisa el servicio).
+    [HttpDelete("{id:int}/fotos/{fotoId:int}")]
+    [Permiso(Permisos.Eventos.EliminarFoto)]
+    public async Task<ActionResult<EventoDTO>> EliminarFoto(int id, int fotoId) =>
+        await eventos.EliminarFotoAsync(id, fotoId);
+
     [HttpPost("{id:int}/resolver")]
     [Permiso(Permisos.Eventos.ResolverEvento)]
     public async Task<ActionResult<EventoDTO>> Resolver(int id, [FromBody] ResolverEventoDTO dto) =>

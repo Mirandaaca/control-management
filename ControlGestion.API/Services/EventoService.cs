@@ -161,22 +161,54 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         return await ObtenerAsync(id);
     }
 
+    /// <summary>Eliminar una foto (4.2): solo mientras el evento está pendiente. El archivo se borra después de guardar.</summary>
+    public async Task<EventoDTO> EliminarFotoAsync(int id, int fotoId)
+    {
+        string ruta;
+        await using (var tx = await db.Database.BeginTransactionAsync())
+        {
+            await BloquearAsync(id);
+            var evento = await BuscarPendienteAsync(id, "ya está resuelto: sus fotos no se eliminan");
+            ExigirQueSeaSuyo(evento);
+            var foto = await db.Evidencias.FirstOrDefaultAsync(f => f.Id == fotoId && f.EventoId == id)
+                ?? throw new NoEncontradoException("No se encontró la foto.");
+
+            ruta = foto.RutaAlmacenamiento;
+            db.Evidencias.Remove(foto);
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        evidencias.BorrarArchivo(ruta);
+        return await ObtenerAsync(id);
+    }
+
     // Las fotos no cambian la fila del evento, así que su token de concurrencia no las ve. Agregar o quitar una foto y
     // resolver toman primero este bloqueo de la fila: así no se cruzan (por ejemplo, quitar la única foto mientras se
     // resuelve un evento que la exige). Hace falta una transacción abierta.
     private Task BloquearAsync(int id) =>
         db.Database.ExecuteSqlAsync($"SELECT Id FROM Eventos WHERE Id = {id} FOR UPDATE");
 
-    /// <summary>Resolver (4.1): guarda la solución, la fecha y quién lo resolvió. Un evento resuelto ya no cambia.</summary>
+    /// <summary>
+    /// Resolver (4.1): guarda la solución, la fecha y quién lo resolvió. Un evento resuelto ya no cambia. Si su tipo pide
+    /// evidencia, hace falta al menos una foto: así se puede registrar primero y subir la foto después.
+    /// </summary>
     public async Task<EventoDTO> ResolverAsync(int id, string solucion)
     {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        await BloquearAsync(id);
         var evento = await BuscarPendienteAsync(id, "ya está resuelto");
+        var tipo = await db.TiposEvento.Where(t => t.Id == evento.TipoEventoId)
+            .Select(t => new { t.Nombre, t.RequiereEvidencia }).FirstAsync();
+        if (tipo.RequiereEvidencia && !await db.Evidencias.AnyAsync(f => f.EventoId == id))
+            throw new ReglaDeNegocioException("evento_sin_evidencia",
+                $"Un evento de tipo «{tipo.Nombre}» se resuelve con al menos una foto: agrégala antes de resolverlo.");
 
         evento.EstadoEvento = EstadoEvento.Resuelto;
         evento.Solucion = solucion.Trim();
         evento.ResueltoPorId = usuario.Id;
         evento.FechaResolucion = Ahora;
         await GuardarAsync("El evento cambió mientras lo resolvías. Vuelve a intentarlo.");
+        await tx.CommitAsync();
         return await ObtenerAsync(id);
     }
 
