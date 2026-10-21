@@ -21,6 +21,7 @@ public class Pedido
     public int ZonaId { get; set; }
     public Zona? Zona { get; set; }
 
+    // La venta que nació de la entrega (1.2).
     public int? HojaPedidoId { get; set; }
     public HojaPedido? HojaPedido { get; set; }
 
@@ -28,6 +29,7 @@ public class Pedido
     public DateTime? FechaEntregaEstimada { get; set; }
     public DateTime? FechaEntregaReal { get; set; }
     public string DireccionEntrega { get; set; } = string.Empty;
+    public string? RecibidoPor { get; set; }
 
     public decimal? LatitudEntrega { get; set; }
     public decimal? LongitudEntrega { get; set; }

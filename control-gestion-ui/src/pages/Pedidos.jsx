@@ -73,12 +73,11 @@ export default function Pedidos() {
     if (!estadoForm.nuevoEstadoId) return;
     setErrorEstado('');
     try {
-      await api.post(`/pedidos/${cambioEstado.id}/estado`, {
-        nuevoEstadoId: parseInt(estadoForm.nuevoEstadoId),
-        observacion: estadoForm.observacion,
-        latitud: parseFloat(estadoForm.latitud) || null,
-        longitud: parseFloat(estadoForm.longitud) || null,
-      });
+      if (parseInt(estadoForm.nuevoEstadoId) === 5) {
+        await api.post(`/pedidos/${cambioEstado.id}/anular`, { motivo: estadoForm.observacion });
+      } else {
+        await api.post(`/pedidos/${cambioEstado.id}/avanzar`, { observacion: estadoForm.observacion });
+      }
       setCambioEstado(null);
       fetchPedidos();
     } catch (err) { setErrorEstado(mensajeDeError(err, 'Transición no permitida.')); }
@@ -91,7 +90,7 @@ export default function Pedidos() {
     setDetalle(r.data);
   };
 
-  const TRANSICIONES = { 1: [2, 5], 2: [3, 5], 3: [4, 5] };
+  const TRANSICIONES = { 1: [2, 5], 2: [3, 5], 3: [5] };
   const transicionesDisponibles = (pedido) => {
     const ids = TRANSICIONES[pedido?.estado?.id] ?? [];
     return estados.filter(e => ids.includes(e.id));
@@ -212,12 +211,6 @@ export default function Pedidos() {
                 </select>
               </div>
               <Input label="Observación" value={estadoForm.observacion} onChange={e => setEstadoForm({ ...estadoForm, observacion: e.target.value })} placeholder="Motivo del cambio..." />
-              {parseInt(estadoForm.nuevoEstadoId) === 4 && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input label="Latitud entrega" type="number" step="any" value={estadoForm.latitud} onChange={e => setEstadoForm({ ...estadoForm, latitud: e.target.value })} />
-                  <Input label="Longitud entrega" type="number" step="any" value={estadoForm.longitud} onChange={e => setEstadoForm({ ...estadoForm, longitud: e.target.value })} />
-                </div>
-              )}
             </div>
             {errorEstado && <Alert type="error" className="mt-4">{errorEstado}</Alert>}
             <div className="flex gap-2 mt-4">

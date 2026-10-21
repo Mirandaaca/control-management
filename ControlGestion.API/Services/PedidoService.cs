@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text.Json;
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
@@ -12,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ControlGestion.API.Services;
 
 /// <summary>Pedidos (1.1 a 1.4). Cada usuario ve los de su cartera y los que tiene asignados, salvo con cartera completa.</summary>
-public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
+public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, HojaPedidoService hojas,
+    TimeProvider reloj)
 {
     private IQueryable<Pedido> Visibles => db.Pedidos.VisiblesPara(usuario);
 
@@ -275,6 +275,57 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         return await ObtenerAsync(id);
     }
 
+    /// <summary>
+    /// Registrar la entrega (1.2): solo el promotor asignado, y solo desde En ruta. La entrega es la venta: crea y
+    /// confirma una HP con los productos del pedido (stock, kardex, visita y, si es a crédito, la deuda), todo en una
+    /// transacción. Se entrega el pedido completo: si falta stock de un producto, no se registra nada.
+    /// </summary>
+    public async Task<PedidoDTO> EntregarAsync(int id, EntregarPedidoDTO dto)
+    {
+        var pedido = await Visibles.Include(p => p.Detalles).Include(p => p.Cliente).FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el pedido.");
+        if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó.");
+        if (pedido.EstadoPedidoId == EstadosDePedido.Anulado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} está anulado: no se entrega.");
+        if (pedido.EstadoPedidoId != EstadosDePedido.EnRuta)
+            throw new ReglaDeNegocioException("pedido_no_esta_en_ruta",
+                $"El pedido {pedido.Numero} todavía no salió a entregarse: primero tiene que pasar a En ruta.");
+        if (pedido.RepartidorId == null)
+            throw new ReglaDeNegocioException("pedido_sin_asignar", $"El pedido {pedido.Numero} no tiene un promotor asignado para entregarlo.");
+        // La regla del dueño no es un permiso: ver el pedido (por la cartera) no alcanza para entregarlo.
+        if (pedido.RepartidorId != usuario.Id)
+            throw new ReglaDeNegocioException("pedido_de_otro_promotor", "Solo el promotor asignado registra la entrega.");
+        if (pedido.Cliente!.EstadoClienteId == EstadosDeCliente.Inactivo)
+            throw new ReglaDeNegocioException("cliente_inactivo",
+                "El cliente está inactivo: no recibe la venta. Anula el pedido o devuelve al cliente al ciclo de visitas.");
+
+        // La transacción incluye la HP y su número, la deuda y su número, el stock, el kardex, el cliente y el pedido.
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var hp = await hojas.RegistrarVentaDeEntregaAsync(pedido, dto.TipoVenta!.Value, dto.Latitud!.Value, dto.Longitud!.Value,
+            dto.PrecisionGPS);
+
+        var recibidoPor = dto.RecibidoPor.Trim();
+        pedido.EstadoPedidoId = EstadosDePedido.Entregado;
+        pedido.FechaEntregaReal = Ahora;
+        pedido.LatitudEntrega = dto.Latitud;
+        pedido.LongitudEntrega = dto.Longitud;
+        pedido.RecibidoPor = recibidoPor;
+        pedido.HojaPedidoId = hp.Id;
+        foreach (var linea in pedido.Detalles) linea.CantidadEntregada = linea.Cantidad;
+
+        var observacion = $"Recibió {recibidoPor}. Venta {hp.Numero}, {(hp.TipoVenta == TipoVenta.Credito ? "a crédito" : "al contado")}.";
+        if (!string.IsNullOrWhiteSpace(dto.Observacion)) observacion += $" {dto.Observacion.Trim()}";
+        var entrada = Entrada(EstadosDePedido.Entregado, observacion);
+        entrada.LatitudCambio = dto.Latitud;
+        entrada.LongitudCambio = dto.Longitud;
+        pedido.Historial.Add(entrada);
+
+        await GuardarAsync("El pedido, el stock o el cliente cambiaron mientras registrabas la entrega. Vuelve a intentarlo.");
+        await tx.CommitAsync();
+        return await ObtenerAsync(id);
+    }
+
     /// <summary>Un pedido visible que todavía puede cambiar: ni entregado ni anulado.</summary>
     private async Task<Pedido> BuscarAbiertoAsync(int id)
     {
@@ -298,46 +349,6 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         {
             throw new ConflictoException("conflicto_concurrencia", mensajeDeConflicto);
         }
-    }
-
-    // Hoy esta operación hace tres: avanzar, entregar y anular. Se separa en los pasos siguientes de la tarea 08.
-    public async Task<PedidoDTO> CambiarEstadoAsync(int id, CambiarEstadoDTO dto)
-    {
-        var pedido = await Visibles.Include(p => p.EstadoPedido).Include(p => p.Detalles).FirstOrDefaultAsync(p => p.Id == id)
-            ?? throw new NoEncontradoException("No se encontró el pedido.");
-        if (pedido.EstadoPedido!.EsEstadoFinal)
-            throw new ReglaDeNegocioException("pedido_en_estado_final", "El pedido está en un estado final y no puede cambiar.");
-
-        var transicionesPermitidas = JsonSerializer.Deserialize<List<int>>(pedido.EstadoPedido.PermiteTransicion) ?? [];
-        if (!transicionesPermitidas.Contains(dto.NuevoEstadoId))
-            throw new ReglaDeNegocioException("transicion_no_permitida", $"Transición no permitida desde '{pedido.EstadoPedido.Nombre}'.");
-
-        var ahora = Ahora;
-        pedido.EstadoPedidoId = dto.NuevoEstadoId;
-        if (dto.NuevoEstadoId == EstadosDePedido.Entregado)
-        {
-            pedido.FechaEntregaReal = ahora;
-            pedido.LatitudEntrega = dto.Latitud;
-            pedido.LongitudEntrega = dto.Longitud;
-            if (dto.CantidadEntregada.HasValue)
-                foreach (var d in pedido.Detalles) d.CantidadEntregada = dto.CantidadEntregada.Value;
-        }
-        if (dto.NuevoEstadoId == EstadosDePedido.EnProceso && !string.IsNullOrEmpty(dto.Observacion))
-            pedido.RepartidorId = usuario.Id;
-
-        db.HistorialEstadosPedido.Add(new HistorialEstadoPedido
-        {
-            PedidoId = id,
-            EstadoPedidoId = dto.NuevoEstadoId,
-            UsuarioId = usuario.Id,
-            FechaCambio = ahora,
-            Observacion = dto.Observacion,
-            LatitudCambio = dto.Latitud,
-            LongitudCambio = dto.Longitud
-        });
-
-        await db.SaveChangesAsync();
-        return await ObtenerAsync(id);
     }
 
     private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;

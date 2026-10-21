@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ControlGestion.API.Models;
 
 namespace ControlGestion.API.DTOs;
 
@@ -85,13 +86,39 @@ public record AnularPedidoDTO
     public string Motivo { get; init; } = string.Empty;
 }
 
-public class CambiarEstadoDTO
+/// <summary>La entrega (1.2): se entrega todo el pedido, y la venta se cierra en ese momento.</summary>
+public record EntregarPedidoDTO : IValidatableObject
 {
-    [Required] public int NuevoEstadoId { get; set; }
-    public string? Observacion { get; set; }
-    public decimal? Latitud { get; set; }
-    public decimal? Longitud { get; set; }
-    public decimal? CantidadEntregada { get; set; }
+    [Required(ErrorMessage = "Escribe quién recibió el pedido.")]
+    [MaxLength(150, ErrorMessage = "El nombre de quien recibió no puede superar los 150 caracteres.")]
+    public string RecibidoPor { get; init; } = string.Empty;
+
+    [Required(ErrorMessage = "Elige si la venta es al contado o a crédito.")]
+    [EnumDataType(typeof(TipoVenta), ErrorMessage = "El tipo de venta debe ser contado o crédito.")]
+    public TipoVenta? TipoVenta { get; init; }
+
+    // Sin ubicación no se registra la entrega: en la app la da el GPS sola, como en la HP.
+    [Required(ErrorMessage = "Falta la ubicación de la entrega.")]
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Required(ErrorMessage = "Falta la ubicación de la entrega.")]
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
+
+    /// <summary>Precisión del GPS en metros, si el dispositivo la da.</summary>
+    [Range(0, 100_000, ErrorMessage = "La precisión del GPS no puede ser negativa.")]
+    public float? PrecisionGPS { get; init; }
+
+    [MaxLength(500, ErrorMessage = "La observación no puede superar los 500 caracteres.")]
+    public string? Observacion { get; init; }
+
+    // 0,0 es lo que llega cuando nadie tomó la ubicación: un punto en el océano, no una entrega real.
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (Latitud == 0 && Longitud == 0)
+            yield return new ValidationResult("Falta la ubicación de la entrega.", [nameof(Latitud)]);
+    }
 }
 
 /// <summary>
@@ -163,6 +190,9 @@ public record HistorialPedidoDTO(
     decimal? Latitud,
     decimal? Longitud);
 
+/// <summary>La HP que nació de la entrega, con su estado: si la secretaria la anula, el pedido sigue entregado.</summary>
+public record HojaDeLaEntregaDTO(int Id, string Numero, EstadoHP EstadoHP, TipoVenta TipoVenta, CobranzaReferenciaDTO? Cobranza);
+
 public record PedidoDTO(
     int Id,
     string Numero,
@@ -175,6 +205,7 @@ public record PedidoDTO(
     DateTime? FechaEntregaEstimada,
     DateTime? FechaEntregaReal,
     string DireccionEntrega,
+    string? RecibidoPor,
     decimal? LatitudEntrega,
     decimal? LongitudEntrega,
     ClienteResumenDTO Cliente,
@@ -182,6 +213,6 @@ public record PedidoDTO(
     UsuarioResumenDTO RegistradoPor,
     UsuarioResumenDTO? Repartidor,
     ZonaResumenDTO Zona,
-    HojaPedidoResumenDTO? HojaPedido,
+    HojaDeLaEntregaDTO? HojaPedido,
     IReadOnlyList<DetallePedidoDTO> Detalles,
     IReadOnlyList<HistorialPedidoDTO> Historial);

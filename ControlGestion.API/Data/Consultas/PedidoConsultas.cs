@@ -60,6 +60,7 @@ public static class PedidoConsultas
         p.FechaEntregaEstimada,
         p.FechaEntregaReal,
         p.DireccionEntrega,
+        p.RecibidoPor,
         p.LatitudEntrega,
         p.LongitudEntrega,
         new ClienteResumenDTO(p.Cliente!.Id, p.Cliente.NombreCompleto),
@@ -67,7 +68,9 @@ public static class PedidoConsultas
         new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto),
         p.Repartidor == null ? null : new UsuarioResumenDTO(p.Repartidor.Id, p.Repartidor.NombreCompleto),
         new ZonaResumenDTO(p.Zona!.Id, p.Zona.Nombre),
-        p.HojaPedido == null ? null : new HojaPedidoResumenDTO(p.HojaPedido.Id, p.HojaPedido.Numero),
+        p.HojaPedido == null ? null : new HojaDeLaEntregaDTO(p.HojaPedido.Id, p.HojaPedido.Numero, p.HojaPedido.EstadoHP,
+            p.HojaPedido.TipoVenta,
+            p.HojaPedido.Cobranzas.Select(c => new CobranzaReferenciaDTO(c.Id, c.Numero, c.Estado)).FirstOrDefault()),
         p.Detalles
             .OrderBy(d => d.Id)
             .Select(d => new DetallePedidoDTO(d.Id, d.ProductoId, d.Producto!.SKU, d.Producto.Descripcion,

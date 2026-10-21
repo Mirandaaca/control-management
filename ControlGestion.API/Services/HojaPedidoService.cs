@@ -132,6 +132,51 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
     }
 
     /// <summary>
+    /// La venta de la entrega de un pedido (1.2): una HP con el cliente, los productos, los precios y el descuento del
+    /// pedido, a nombre de quien entrega, que la confirma en el acto. El pedido tiene que traer sus líneas y su cliente.
+    /// Corre dentro de la transacción de la entrega: guarda la HP para tener su id, y si después algo falla (el stock,
+    /// un conflicto) no queda nada, ni siquiera su número.
+    /// </summary>
+    public async Task<HojaPedido> RegistrarVentaDeEntregaAsync(Pedido pedido, TipoVenta tipoVenta, decimal latitud,
+        decimal longitud, float? precisionGPS)
+    {
+        if (db.Database.CurrentTransaction == null)
+            throw new InvalidOperationException("La venta de una entrega tiene que correr dentro de la transacción de la entrega.");
+
+        var hp = new HojaPedido
+        {
+            Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.HojaPedido),
+            ClienteId = pedido.ClienteId,
+            Cliente = pedido.Cliente,
+            // Quien entrega es quien vende y confirma (decisión de la tarea 08): así se cumple la regla del dueño.
+            PromotorId = usuario.Id,
+            ZonaId = pedido.Cliente!.ZonaId,
+            FechaRegistro = Ahora,
+            Latitud = latitud,
+            Longitud = longitud,
+            PrecisionGPS = precisionGPS,
+            TipoVenta = tipoVenta,
+            SubTotal = pedido.SubTotal,
+            Descuento = pedido.Descuento,
+            Total = pedido.Total,
+            EstadoHP = EstadoHP.Borrador,
+            Detalles = pedido.Detalles.Select(d => new DetalleHP
+            {
+                ProductoId = d.ProductoId,
+                Cantidad = d.Cantidad,
+                PrecioUnitario = d.PrecioUnitario,
+                Descuento = d.Descuento,
+                Subtotal = d.Subtotal
+            }).ToList()
+        };
+        db.HojasPedido.Add(hp);
+        await db.SaveChangesAsync();
+
+        await CerrarVentaAsync(hp);
+        return hp;
+    }
+
+    /// <summary>
     /// Cierra la venta: la HP queda confirmada, se descuenta el stock con su salida en el kardex, se registra la visita
     /// y, si es a crédito, nace la deuda. La HP ya tiene que estar guardada (el kardex y la deuda usan su id) y traer
     /// sus líneas y su cliente. No guarda: lo hace quien llama, dentro de su transacción.

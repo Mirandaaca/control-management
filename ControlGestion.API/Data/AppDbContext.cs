@@ -204,6 +204,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(p => p.EstadoPedido).WithMany().HasForeignKey(p => p.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
             .HasIndex(p => p.Numero).IsUnique();
+        // Una HP es la venta de un solo pedido. MySQL admite varios NULL en un índice único: los pedidos sin entregar.
+        builder.Entity<Pedido>()
+            .HasIndex(p => p.HojaPedidoId).IsUnique();
+        builder.Entity<Pedido>().Property(p => p.RecibidoPor).HasMaxLength(150);
         builder.Entity<Pedido>().Property(p => p.DireccionEntrega).HasMaxLength(300);
         builder.Entity<Pedido>().Property(p => p.SubTotal).HasPrecision(18, 2);
         builder.Entity<Pedido>().Property(p => p.Descuento).HasPrecision(18, 2);

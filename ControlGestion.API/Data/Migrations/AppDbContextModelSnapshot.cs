@@ -999,6 +999,10 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("PromotorId")
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("RecibidoPor")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
                     b.Property<string>("RegistradoPorId")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
@@ -1029,7 +1033,8 @@ namespace ControlGestion.API.Data.Migrations
 
                     b.HasIndex("EstadoPedidoId");
 
-                    b.HasIndex("HojaPedidoId");
+                    b.HasIndex("HojaPedidoId")
+                        .IsUnique();
 
                     b.HasIndex("Numero")
                         .IsUnique();

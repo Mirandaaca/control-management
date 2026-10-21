@@ -71,9 +71,9 @@ public class PedidosController(PedidoService pedidos) : ControllerBase
     public async Task<ActionResult<PedidoDTO>> Anular(int id, [FromBody] AnularPedidoDTO dto) =>
         await pedidos.AnularAsync(id, dto.Motivo);
 
-    // Hoy este endpoint hace las tres operaciones; se separa en los pasos siguientes de la tarea 08.
-    [HttpPost("{id:int}/estado")]
-    [Permiso(Permisos.Pedidos.CambiarEstado, Permisos.Pedidos.RegistrarEntrega, Permisos.Pedidos.AnularPedido)]
-    public async Task<ActionResult<PedidoDTO>> CambiarEstado(int id, [FromBody] CambiarEstadoDTO dto) =>
-        await pedidos.CambiarEstadoAsync(id, dto);
+    // Además del permiso, solo entrega el promotor asignado (lo revisa el servicio).
+    [HttpPost("{id:int}/entregar")]
+    [Permiso(Permisos.Pedidos.RegistrarEntrega)]
+    public async Task<ActionResult<PedidoDTO>> Entregar(int id, [FromBody] EntregarPedidoDTO dto) =>
+        await pedidos.EntregarAsync(id, dto);
 }
