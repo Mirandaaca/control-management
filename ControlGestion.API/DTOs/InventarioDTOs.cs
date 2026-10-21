@@ -3,7 +3,16 @@ using ControlGestion.API.Models;
 
 namespace ControlGestion.API.DTOs;
 
-public record AjusteStockDTO(decimal Cantidad, string Observacion);
+/// <summary>Un ingreso de mercadería: solo suma al stock (2.5). No hay ajustes con signo.</summary>
+public record RegistrarIngresoDTO
+{
+    [Range(0, 9_999_999, MinimumIsExclusive = true, ErrorMessage = "La cantidad debe ser mayor que cero.")]
+    public decimal Cantidad { get; init; }
+
+    [Required(ErrorMessage = "Escribe de dónde viene la mercadería, por ejemplo el proveedor o la factura.")]
+    [MaxLength(300, ErrorMessage = "La observación no puede superar los 300 caracteres.")]
+    public string Observacion { get; init; } = string.Empty;
+}
 
 /// <summary>Filtros de la lista de inventario. Buscar compara con el código, la descripción y la categoría.</summary>
 public record FiltrosInventarioDTO

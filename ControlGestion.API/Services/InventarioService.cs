@@ -97,10 +97,13 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
         }
     }
 
-    public async Task<InventarioDTO> AjustarStockAsync(int productoId, AjusteStockDTO dto)
+    /// <summary>Ingreso de mercadería: suma al stock y queda en el kardex como entrada.</summary>
+    public async Task<InventarioDTO> RegistrarIngresoAsync(int productoId, RegistrarIngresoDTO dto)
     {
-        if (!await db.Productos.AnyAsync(p => p.Id == productoId))
-            throw new NoEncontradoException("No se encontró el producto.");
+        var activo = await db.Productos.Where(p => p.Id == productoId).Select(p => (bool?)p.Activo).FirstOrDefaultAsync()
+            ?? throw new NoEncontradoException("No se encontró el producto.");
+        if (!activo)
+            throw new ReglaDeNegocioException("producto_inactivo", "El producto está inactivo: no recibe mercadería.");
 
         var inventario = await db.InventariosProducto.FirstOrDefaultAsync(i => i.ProductoId == productoId);
         if (inventario == null)
@@ -117,18 +120,26 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
         db.MovimientosInventario.Add(new MovimientoInventario
         {
             ProductoId = productoId,
-            TipoMovimiento = TipoMovimiento.Ajuste,
-            Cantidad = Math.Abs(dto.Cantidad),
+            TipoMovimiento = TipoMovimiento.Entrada,
+            Cantidad = dto.Cantidad,
             StockAnterior = stockAnterior,
             StockResultante = inventario.StockActual,
-            ReferenciaTabla = "Ajuste",
+            ReferenciaTabla = MovimientoInventario.ReferenciaIngreso,
             ReferenciaId = 0,
             UsuarioId = usuario.Id,
             Fecha = Ahora,
-            Observacion = dto.Observacion
+            Observacion = dto.Observacion.Trim()
         });
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia",
+                "El stock de este producto cambió mientras registrabas el ingreso. Vuelve a intentarlo.");
+        }
         return await ObtenerAsync(productoId);
     }
 

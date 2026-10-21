@@ -44,7 +44,7 @@ export default function Inventario() {
     setSaving(true);
     setError('');
     try {
-      await api.post(`/inventario/${selectedProducto.productoId}/ajuste`, {
+      await api.post(`/inventario/${selectedProducto.productoId}/ingresos`, {
         cantidad: parseFloat(ajuste.cantidad),
         observacion: ajuste.observacion,
       });

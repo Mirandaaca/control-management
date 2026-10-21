@@ -21,8 +21,8 @@ public class InventarioController(InventarioService inventario) : ControllerBase
     public async Task<ActionResult<Pagina<MovimientoDTO>>> GetMovimientos(int productoId, [FromQuery] FiltrosKardexDTO filtros) =>
         await inventario.KardexAsync(productoId, filtros);
 
-    [HttpPost("{productoId:int}/ajuste")]
+    [HttpPost("{productoId:int}/ingresos")]
     [Permiso(Permisos.Ventas.RegistrarIngreso)]
-    public async Task<ActionResult<InventarioDTO>> Ajustar(int productoId, [FromBody] AjusteStockDTO dto) =>
-        await inventario.AjustarStockAsync(productoId, dto);
+    public async Task<ActionResult<InventarioDTO>> RegistrarIngreso(int productoId, [FromBody] RegistrarIngresoDTO dto) =>
+        await inventario.RegistrarIngresoAsync(productoId, dto);
 }

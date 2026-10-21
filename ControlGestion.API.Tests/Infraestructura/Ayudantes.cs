@@ -95,7 +95,7 @@ public static class Ayudantes
     }
 
     public static Task<HttpResponseMessage> RegistrarIngresoAsync(this HttpClient cliente, int productoId, decimal cantidad) =>
-        cliente.PostAsJsonAsync($"/api/inventario/{productoId}/ajuste",
+        cliente.PostAsJsonAsync($"/api/inventario/{productoId}/ingresos",
             new { cantidad, observacion = "Ingreso de la prueba" });
 
     /// <summary>Crea un cliente en la zona. Su promotor es el de la zona: para el cliente de un promotor, usa una zona suya.</summary>

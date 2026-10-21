@@ -69,6 +69,60 @@ public class InventarioTests(ApiDePrueba api)
         Assert.Equal("Operador de pruebas", masReciente.GetProperty("usuario").GetProperty("nombreCompleto").GetString());
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task Un_ingreso_sin_cantidad_positiva_responde_400(decimal cantidad)
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await CrearProductoAsync(operador, Ayudantes.Unico("INV"));
+
+        var problema = await (await operador.RegistrarIngresoAsync(productoId, cantidad)).ProblemaAsync(400, "validacion");
+
+        Assert.True(problema.GetProperty("errors").TryGetProperty("cantidad", out _));
+    }
+
+    [Fact]
+    public async Task Un_ingreso_queda_en_el_kardex_como_entrada()
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await CrearProductoAsync(operador, Ayudantes.Unico("INV"));
+
+        var inventario = await (await operador.RegistrarIngresoAsync(productoId, 12)).LeerJsonAsync();
+
+        Assert.Equal(12m, inventario.GetProperty("stockActual").GetDecimal());
+        var movimiento = (await PaginaAsync(operador, $"/api/inventario/{productoId}/movimientos")).GetProperty("items")[0];
+        Assert.Equal(0, movimiento.GetProperty("tipoMovimiento").GetInt32());
+        Assert.Equal(12m, movimiento.GetProperty("variacion").GetDecimal());
+        Assert.Equal("Ingreso de la prueba", movimiento.GetProperty("observacion").GetString());
+    }
+
+    [Fact]
+    public async Task Diez_ingresos_a_la_vez_nunca_responden_500_ni_pierden_unidades()
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await CrearProductoAsync(operador, Ayudantes.Unico("INV"));
+
+        var respuestas = await Ayudantes.EnviarALaVezAsync(10, _ => operador.RegistrarIngresoAsync(productoId, 1));
+
+        // Los que chocan con otro ingreso responden 409 y no suman: el stock es exactamente la cantidad de 200.
+        Assert.All(respuestas, r => Assert.Contains((int)r.StatusCode, new[] { 200, 409 }));
+        var aceptados = respuestas.Count(r => (int)r.StatusCode == 200);
+        var producto = await (await operador.GetAsync($"/api/productos/{productoId}")).LeerJsonAsync();
+        Assert.Equal(aceptados, producto.GetProperty("stockActual").GetDecimal());
+    }
+
+    [Fact]
+    public async Task El_promotor_no_registra_ingresos()
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await CrearProductoAsync(operador, Ayudantes.Unico("INV"));
+        var promotor = await api.CrearUsuarioAsync(ControlGestion.API.Seguridad.Roles.Promotor);
+        using var cliente = api.ClienteCon(promotor.Token);
+
+        await (await cliente.RegistrarIngresoAsync(productoId, 5)).ProblemaAsync(403, "sin_permiso");
+    }
+
     [Fact]
     public async Task El_kardex_de_un_producto_que_no_existe_responde_404()
     {
