@@ -1254,6 +1254,35 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("Secuencias");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Sesion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CerradaEn")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("Creada")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Origen")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UltimaActividad")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UsuarioId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("Sesiones");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.TipoEvento", b =>
                 {
                     b.Property<int>("Id")
@@ -1871,6 +1900,17 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("Cliente");
 
                     b.Navigation("Ruta");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.Sesion", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Zona", b =>

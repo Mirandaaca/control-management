@@ -5,6 +5,7 @@ namespace ControlGestion.API.Services;
 /// <summary>
 /// Corre el proceso de mora al arrancar la API y después cada día a las 00:05 de Bolivia, cuando ya terminó el día de
 /// vencimiento de ayer. Al arrancar, porque si la API estuvo apagada a esa hora, las moras de ese día quedarían sin marcar.
+/// En la misma corrida borra las sesiones que terminaron hace más de 30 días.
 /// </summary>
 public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<MoraDetectionService> logger)
     : BackgroundService
@@ -14,6 +15,7 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
         while (!stoppingToken.IsCancellationRequested)
         {
             await DetectarMorasAsync();
+            await BorrarSesionesTerminadasAsync();
             try
             {
                 await Task.Delay(HastaLaProximaCorrida(), reloj, stoppingToken);
@@ -45,6 +47,20 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
         catch (Exception ex)
         {
             logger.LogError(ex, "Error en la detección automática de moras.");
+        }
+    }
+
+    private async Task BorrarSesionesTerminadasAsync()
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var borradas = await scope.ServiceProvider.GetRequiredService<SesionService>().BorrarTerminadasAsync();
+            logger.LogInformation("Limpieza de sesiones: {Cantidad} sesiones terminadas hace más de 30 días borradas.", borradas);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error al borrar las sesiones terminadas.");
         }
     }
 }

@@ -45,6 +45,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 // JWT: la sección "Jwt" se valida con JwtOptionsValidator (clave presente y de al menos 32 bytes).
 builder.Services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection(JwtOptions.Seccion));
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
+builder.Services.AddOptions<SesionOptions>().Bind(builder.Configuration.GetSection(SesionOptions.Seccion));
+builder.Services.AddSingleton<IValidateOptions<SesionOptions>, SesionOptionsValidator>();
 
 // La carpeta de las fotos y los comprobantes. Una ruta relativa se resuelve contra la carpeta de la API, nunca contra el
 // directorio de trabajo (T7.03).
@@ -60,7 +62,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer();
 
-// El JWT Bearer valida los tokens con las mismas JwtOptions que AuthController usa para firmarlos.
+// El JWT Bearer valida los tokens con las mismas JwtOptions que SesionService usa para firmarlos.
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
     {
@@ -75,7 +77,11 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
         };
-        options.Events = new JwtBearerEvents { OnTokenValidated = SesionDesdeLaBase.CargarAsync };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = SesionDesdeLaBase.CargarAsync,
+            OnChallenge = SesionDesdeLaBase.ResponderSesionTerminadaAsync
+        };
     });
 
 // Política de respaldo: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige sesión.
@@ -107,6 +113,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
+builder.Services.AddScoped<ControlGestion.API.Services.SesionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
@@ -119,10 +126,13 @@ builder.Services.AddScoped<ControlGestion.API.Services.ReporteEventosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
+// Los orígenes que pueden llamar a la API desde un navegador: el panel y, en desarrollo, la app como web. appsettings.json
+// no los lleva, porque .NET combina las listas posición por posición: una lista allá y otra en Development se mezclarían.
+var origenesPermitidos = builder.Configuration.GetSection("Cors:Origenes").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.WithOrigins(origenesPermitidos)
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
@@ -132,6 +142,10 @@ var app = builder.Build();
 // Pedir las JwtOptions ejecuta JwtOptionsValidator. Se hace aquí, antes de migrar y sembrar,
 // para que una clave faltante o corta detenga la API sin tocar la base.
 _ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+_ = app.Services.GetRequiredService<IOptions<SesionOptions>>().Value;
+if (origenesPermitidos.Length == 0)
+    app.Logger.LogWarning("Falta 'Cors:Origenes': ningún navegador podrá llamar a la API. En producción va en las variables " +
+        "de entorno Cors__Origenes__0, Cors__Origenes__1…");
 Directory.CreateDirectory(app.Services.GetRequiredService<IOptions<AlmacenamientoOptions>>().Value.Ruta);
 
 using (var scope = app.Services.CreateScope())

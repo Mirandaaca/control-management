@@ -10,6 +10,9 @@ public interface IUsuarioActual
 {
     string Id { get; }
 
+    /// <summary>La sesión del token (tabla Sesiones).</summary>
+    Guid SesionId { get; }
+
     /// <summary>Si el rol del usuario tiene el permiso. Los permisos se cargan de la base en cada petición.</summary>
     bool Tiene(string permiso);
 
@@ -24,6 +27,9 @@ public class UsuarioActual(IHttpContextAccessor http) : IUsuarioActual
 
     public string Id => Usuario.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("El token no trae el id del usuario.");
+
+    public Guid SesionId => Guid.Parse(Usuario.FindFirstValue(ClaimsDeSeguridad.Sesion)
+        ?? throw new InvalidOperationException("El token no trae su sesión."));
 
     public bool Tiene(string permiso) => Usuario.HasClaim(ClaimsDeSeguridad.Permiso, permiso);
 }

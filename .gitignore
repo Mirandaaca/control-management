@@ -5,8 +5,8 @@ ControlGestion.API/.vs/
 ControlGestion.API.Tests/bin/
 ControlGestion.API.Tests/obj/
 
-# Configuraciones con credenciales — NUNCA subir
-ControlGestion.API/appsettings.Development.json
+# Configuraciones con credenciales — NUNCA subir. appsettings.Development.json sí se versiona: no lleva secretos
+# (están en user-secrets), solo configuración de desarrollo como los orígenes de CORS.
 ControlGestion.API/appsettings.Production.json
 ControlGestion.API/**/*.user
 ControlGestion.API/**/*.suo
