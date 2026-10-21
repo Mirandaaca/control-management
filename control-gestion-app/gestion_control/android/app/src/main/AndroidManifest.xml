@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sin este permiso, la versión de lanzamiento no puede hablar con la API: solo lo traían debug y profile. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="gestion_control"
+        android:label="Control de Gestión"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

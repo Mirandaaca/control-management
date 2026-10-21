@@ -86,7 +86,35 @@ public class PerfilTests(ApiDePrueba api)
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
         Assert.False(string.IsNullOrEmpty(await api.IniciarSesionAsync(promotor.Correo, nueva)));
         using var anonimo = api.CreateClient();
-        await (await anonimo.PostAsJsonAsync("/api/auth/login", new { email = promotor.Correo, password = promotor.Contrasena }))
+        await (await anonimo.PostAsJsonAsync("/api/auth/login", new { email = promotor.Correo, password = promotor.Contrasena, origen = Ayudantes.OrigenPanel }))
             .ProblemaAsync(401, "credenciales_incorrectas");
+    }
+
+    [Fact]
+    public async Task Cambiar_la_contrasena_cierra_las_otras_sesiones_y_no_la_actual()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var actual = api.ClienteCon(promotor.Token);
+        using var enLaApp = api.ClienteCon(
+            await api.IniciarSesionAsync(promotor.Correo, promotor.Contrasena, Ayudantes.OrigenApp));
+
+        (await actual.PutAsJsonAsync("/api/perfil/contrasena", new { actual = promotor.Contrasena, nueva = "ClaveNueva2026" }))
+            .EnsureSuccessStatusCode();
+
+        Assert.Equal(HttpStatusCode.OK, (await actual.GetAsync("/api/auth/yo")).StatusCode);
+        await (await enLaApp.GetAsync("/api/auth/yo")).ProblemaAsync(401, "sesion_terminada");
+    }
+
+    [Fact]
+    public async Task Con_la_contrasena_actual_incorrecta_no_se_cierra_ninguna_sesion()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var enLaApp = api.ClienteCon(
+            await api.IniciarSesionAsync(promotor.Correo, promotor.Contrasena, Ayudantes.OrigenApp));
+
+        await (await api.ClienteCon(promotor.Token).PutAsJsonAsync("/api/perfil/contrasena",
+            new { actual = "NoEsLaMia1", nueva = "ClaveNueva2026" })).ProblemaAsync(400, "contrasena_actual_incorrecta");
+
+        Assert.Equal(HttpStatusCode.OK, (await enLaApp.GetAsync("/api/auth/yo")).StatusCode);
     }
 }

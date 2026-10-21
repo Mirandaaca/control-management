@@ -44,11 +44,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Permiso> Permisos { get; set; }
     public DbSet<RolPermiso> RolesPermisos { get; set; }
 
+    public DbSet<Sesion> Sesiones { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         builder.Entity<Secuencia>().HasKey(s => s.Clave);
+
+        // Sesiones (8.1). Cascade: si alguien borra un usuario directo en la base, sus sesiones no deben impedirlo.
+        builder.Entity<Sesion>()
+            .HasOne(s => s.Usuario).WithMany().HasForeignKey(s => s.UsuarioId).OnDelete(DeleteBehavior.Cascade);
 
         // Permisos (8.4)
         builder.Entity<Permiso>().HasIndex(p => p.Clave).IsUnique();

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ControlGestion.API.Services;
 
 /// <summary>Lo que cada usuario hace sobre sí mismo, sea cual sea su rol: su sesión, su perfil (8.3) y su contraseña (8.1).</summary>
-public class PerfilService(AppDbContext db, UserManager<ApplicationUser> usuarios, IUsuarioActual actual)
+public class PerfilService(AppDbContext db, UserManager<ApplicationUser> usuarios, IUsuarioActual actual, SesionService sesiones)
 {
     public async Task<SesionDTO> ObtenerSesionAsync(string usuarioId) =>
         await db.Users.Where(u => u.Id == usuarioId).ComoSesion(db).FirstOrDefaultAsync()
@@ -43,8 +43,15 @@ public class PerfilService(AppDbContext db, UserManager<ApplicationUser> usuario
     public async Task CambiarContrasenaAsync(CambiarContrasenaDTO dto)
     {
         var usuario = await MiUsuarioAsync();
+        // La contraseña nueva y el cierre de las demás sesiones van juntos: si falla uno, no queda hecho el otro.
+        await using var tx = await db.Database.BeginTransactionAsync();
         var resultado = await usuarios.ChangePasswordAsync(usuario, dto.Actual, dto.Nueva);
-        if (resultado.Succeeded) return;
+        if (resultado.Succeeded)
+        {
+            await sesiones.CerrarLasDemasAsync();
+            await tx.CommitAsync();
+            return;
+        }
 
         // Identity marca con este código que la contraseña actual no coincide; el resto son reglas de la nueva.
         if (resultado.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.PasswordMismatch)))

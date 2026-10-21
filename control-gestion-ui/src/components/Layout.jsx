@@ -217,8 +217,13 @@ export default function Layout({ children }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [replegado, setReplegado] = useState(leerReplegado);
   const [etiqueta, setEtiqueta] = useState(null);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = async () => {
+    setCerrandoSesion(true);
+    await logout();
+    navigate('/login');
+  };
   const cerrarMenu = () => setMenuAbierto(false);
   const alternarReplegado = () => {
     setEtiqueta(null);
@@ -261,7 +266,8 @@ export default function Layout({ children }) {
       </Link>
       <button
         onClick={handleLogout}
-        className={`flex items-center gap-3 w-full h-10 px-3 rounded-lg text-sm text-marca-200 hover:bg-marca-800 hover:text-white transition-colors cursor-pointer ${foco}`}
+        disabled={cerrandoSesion}
+        className={`flex items-center gap-3 w-full h-10 px-3 rounded-lg text-sm text-marca-200 hover:bg-marca-800 hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${foco}`}
       >
         <LogOut size={18} aria-hidden="true" />
         Cerrar sesión
@@ -312,12 +318,13 @@ export default function Layout({ children }) {
             </Link>
             <button
               onClick={handleLogout}
+              disabled={cerrandoSesion}
               aria-label="Cerrar sesión"
               onMouseEnter={(e) => mostrarEtiqueta(e, 'Cerrar sesión')}
               onFocus={(e) => mostrarEtiqueta(e, 'Cerrar sesión')}
               onMouseLeave={ocultarEtiqueta}
               onBlur={ocultarEtiqueta}
-              className={`grid place-items-center w-12 h-10 rounded-lg text-marca-200 hover:bg-marca-800 hover:text-white cursor-pointer ${foco}`}
+              className={`grid place-items-center w-12 h-10 rounded-lg text-marca-200 hover:bg-marca-800 hover:text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${foco}`}
             >
               <LogOut size={18} aria-hidden="true" />
             </button>

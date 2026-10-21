@@ -21,6 +21,8 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     public const string CorreoAdmin = "admin@control.com";
     public const string CorreoOperador = "operador@test.local";
     public const string RolOperador = "Pruebas: todos los permisos";
+    /// <summary>El único origen que CORS permite en las pruebas (Cors:Origenes).</summary>
+    public const string OrigenDePrueba = "http://origen-de-prueba.local";
     private const string PrefijoDeBase = "control_test_";
     private const int PuertoDeDesarrollo = 9093;
 
@@ -29,6 +31,10 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
 
     public string ContrasenaAdmin { get; } = Aleatorio(24) + "9";
     public string ContrasenaOperador { get; } = Aleatorio(24) + "9";
+
+    // Una sola clave por corrida: una fábrica derivada (WithWebHostBuilder) vuelve a llamar a ConfigureWebHost y debe
+    // firmar los tokens con la misma.
+    private readonly string _claveJwt = Aleatorio(64);
 
     /// <summary>La carpeta de las fotos de esta corrida: una temporal, que se borra al terminar.</summary>
     public string CarpetaDeArchivos { get; } = Path.Combine(Path.GetTempPath(), $"control_test_archivos_{Guid.NewGuid():N}");
@@ -65,9 +71,10 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         // UseSetting le llega a Program.cs como argumento de línea de comandos: ya existe cuando Program lee
         // la configuración, antes de builder.Build().
         builder.UseSetting("ConnectionStrings:DefaultConnection", CadenaConLaBase);
-        builder.UseSetting("Jwt:Key", Aleatorio(64));
+        builder.UseSetting("Jwt:Key", _claveJwt);
         builder.UseSetting("Seed:AdminPassword", ContrasenaAdmin);
         builder.UseSetting("Almacenamiento:Ruta", CarpetaDeArchivos);
+        builder.UseSetting("Cors:Origenes:0", OrigenDePrueba);
 
         builder.ConfigureServices(servicios =>
             servicios.Remove(servicios.Single(d => d.ImplementationType == typeof(MoraDetectionService))));

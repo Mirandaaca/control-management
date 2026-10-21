@@ -106,7 +106,7 @@ export default function Perfil() {
     try {
       await api.put('/perfil/contrasena', { actual: contrasenas.actual, nueva: contrasenas.nueva });
       setContrasenas(SIN_CONTRASENAS);
-      setAvisoContrasena('Tu contraseña cambió. Úsala la próxima vez que inicies sesión.');
+      setAvisoContrasena('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.');
     } catch (err) {
       const campos = camposDelError(err);
       setErroresContrasena(campos);

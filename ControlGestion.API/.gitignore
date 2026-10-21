@@ -17,8 +17,8 @@ publish/
 *.pubxml
 *.pubxml.user
 
-# Configuración local (contiene contraseñas y JWT keys — NUNCA subir)
-appsettings.Development.json
+# Configuración de producción (NUNCA subir). appsettings.Development.json sí se versiona: no lleva secretos, que están
+# en user-secrets.
 appsettings.Production.json
 
 # Secretos de desarrollo
