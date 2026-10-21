@@ -56,6 +56,7 @@ public static class CobranzaConsultas
         c.Pagos
             .OrderBy(p => p.FechaPago)
             .Select(p => new PagoDTO(p.Id, p.Monto, p.MetodoPago, p.FechaPago, p.Referencia, p.Observaciones,
-                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto), p.Anulado, p.MotivoAnulacion))
+                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto), p.Anulado, p.MotivoAnulacion,
+                p.EvidenciaId))
             .ToList());
 }

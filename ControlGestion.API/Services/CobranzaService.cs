@@ -9,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
-public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
+public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, EvidenciaService evidencias,
+    TimeProvider reloj)
 {
     public async Task<Pagina<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
     {
@@ -193,6 +194,41 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             throw new ConflictoException("conflicto_concurrencia",
                 "La cobranza o el saldo del cliente cambió mientras anulabas el pago. Vuelve a intentarlo.");
         }
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// El comprobante de un pago (3.1): una foto opcional, que se sube aparte del pago para no tocar su idempotencia. Uno
+    /// nuevo reemplaza al anterior, cuyo archivo se borra después de guardar. Un pago anulado no recibe comprobante.
+    /// </summary>
+    public async Task<CobranzaDetalleDTO> AdjuntarComprobanteAsync(int id, int pagoId, ArchivoRecibido archivo)
+    {
+        if (!await db.Cobranzas.VisiblesPara(usuario).AnyAsync(c => c.Id == id))
+            throw new NoEncontradoException("No se encontró la cobranza.");
+        var pago = await db.PagosCobranza.Include(p => p.Comprobante).FirstOrDefaultAsync(p => p.Id == pagoId && p.CobranzaId == id)
+            ?? throw new NoEncontradoException("No se encontró el pago.");
+        if (pago.Anulado)
+            throw new ReglaDeNegocioException("pago_anulado", "El pago está anulado: no recibe comprobante.");
+
+        var nuevo = await evidencias.GuardarFotoAsync(archivo);
+        var anterior = pago.Comprobante;
+        try
+        {
+            pago.Comprobante = nuevo;
+            if (anterior != null) db.Evidencias.Remove(anterior);
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            evidencias.BorrarArchivo(nuevo.RutaAlmacenamiento);
+            // Dos comprobantes a la vez para el mismo pago: el segundo ya no encuentra el anterior que quería reemplazar.
+            if (ex is DbUpdateConcurrencyException)
+                throw new ConflictoException("conflicto_concurrencia",
+                    "El comprobante cambió mientras subías el nuevo. Vuelve a intentarlo.");
+            throw;
+        }
+
+        if (anterior != null) evidencias.BorrarArchivo(anterior.RutaAlmacenamiento);
         return await ObtenerAsync(id);
     }
 

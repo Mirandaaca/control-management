@@ -1,159 +1,86 @@
-using ControlGestion.API.Data;
 using ControlGestion.API.DTOs;
-using ControlGestion.API.Excepciones;
-using ControlGestion.API.Models;
-using ControlGestion.API.Services;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace ControlGestion.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class EventosController : ControllerBase
+public class EventosController(EventoService eventos, ReporteEventosService reporte) : ControllerBase
 {
-    private readonly AppDbContext _db;
-    private readonly IWebHostEnvironment _env;
-    private readonly NumeradorService _numerador;
-
-    public EventosController(AppDbContext db, IWebHostEnvironment env, NumeradorService numerador)
-    {
-        _db = db;
-        _env = env;
-        _numerador = numerador;
-    }
-
+    // Quien opera sobre un evento también necesita verlo: la lista y el detalle se abren con cualquiera de estos
+    // permisos, siempre filtrados por cartera.
     [HttpGet]
-    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.VerMapa)]
-    public async Task<IActionResult> GetAll(
-        [FromQuery] int? tipoEventoId,
-        [FromQuery] EstadoEvento? estado,
-        [FromQuery] int? clienteId,
-        [FromQuery] DateTime? desde,
-        [FromQuery] DateTime? hasta)
+    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.RegistrarEvento, Permisos.Eventos.ModificarEvento,
+        Permisos.Eventos.ResolverEvento, Permisos.Eventos.AgregarFoto, Permisos.Eventos.EliminarFoto)]
+    public async Task<ActionResult<Pagina<EventoListaDTO>>> GetAll([FromQuery] FiltrosEventoDTO filtros) =>
+        await eventos.ListarAsync(filtros);
+
+    // El detalle también se abre desde un punto del mapa.
+    [HttpGet("{id:int}")]
+    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.RegistrarEvento, Permisos.Eventos.ModificarEvento,
+        Permisos.Eventos.ResolverEvento, Permisos.Eventos.AgregarFoto, Permisos.Eventos.EliminarFoto, Permisos.Eventos.VerMapa)]
+    public async Task<ActionResult<EventoDTO>> GetById(int id) =>
+        await eventos.ObtenerAsync(id);
+
+    [HttpGet("mapa")]
+    [Permiso(Permisos.Eventos.VerMapa)]
+    public async Task<ActionResult<MapaEventosDTO>> GetMapa([FromQuery] FiltrosEventoDTO filtros) =>
+        await eventos.MapaAsync(filtros);
+
+    [HttpGet("reporte")]
+    [Permiso(Permisos.Eventos.GenerarReporte)]
+    public async Task<ActionResult<ReporteEventosDTO>> GetReporte([FromQuery] FiltrosEventoDTO filtros) =>
+        await reporte.GenerarAsync(filtros);
+
+    [HttpGet("reporte/excel")]
+    [Permiso(Permisos.Eventos.GenerarReporte)]
+    public async Task<IActionResult> GetReporteExcel([FromQuery] FiltrosEventoDTO filtros)
     {
-        var query = _db.Eventos
-            .Include(e => e.TipoEvento)
-            .Include(e => e.Cliente)
-            .Include(e => e.Pedido)
-            .Include(e => e.Promotor)
-            .Include(e => e.Anexos)
-            .AsQueryable();
-
-        if (tipoEventoId.HasValue) query = query.Where(e => e.TipoEventoId == tipoEventoId);
-        if (estado.HasValue) query = query.Where(e => e.EstadoEvento == estado);
-        if (clienteId.HasValue) query = query.Where(e => e.ClienteId == clienteId);
-        if (desde.HasValue) query = query.Where(e => e.FechaEvento >= desde);
-        if (hasta.HasValue) query = query.Where(e => e.FechaEvento <= hasta);
-
-        return Ok(await query.OrderByDescending(e => e.FechaEvento).ToListAsync());
-    }
-
-    [HttpGet("{id}")]
-    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.VerMapa)]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var evento = await _db.Eventos
-            .Include(e => e.TipoEvento)
-            .Include(e => e.Cliente)
-            .Include(e => e.Pedido)
-            .Include(e => e.Promotor)
-            .Include(e => e.Anexos)
-            .FirstOrDefaultAsync(e => e.Id == id);
-
-        return Ok(evento ?? throw new NoEncontradoException("No se encontró el evento."));
+        var (contenido, nombre) = await reporte.ExcelAsync(filtros);
+        return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
 
     [HttpGet("tipos")]
-    public async Task<IActionResult> GetTipos() =>
-        Ok(await _db.TiposEvento.Where(t => t.Activo).ToListAsync());
+    public async Task<ActionResult<List<TipoEventoDTO>>> GetTipos() =>
+        await eventos.TiposAsync();
 
     [HttpPost]
     [Permiso(Permisos.Eventos.RegistrarEvento)]
-    public async Task<IActionResult> Create([FromBody] EventoCreateDTO dto)
+    public async Task<ActionResult<EventoDTO>> Registrar([FromBody] RegistrarEventoDTO dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-
-        var evento = new Evento
-        {
-            Numero = await _numerador.SiguienteDelAnioAsync(NumeradorService.Evento),
-            TipoEventoId = dto.TipoEventoId,
-            ClienteId = dto.ClienteId,
-            PedidoId = dto.PedidoId,
-            PromotorId = userId,
-            FechaEvento = DateTime.UtcNow,
-            Latitud = dto.Latitud,
-            Longitud = dto.Longitud,
-            Descripcion = dto.Descripcion,
-            EstadoEvento = EstadoEvento.Registrado
-        };
-
-        _db.Eventos.Add(evento);
-        await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = evento.Id }, evento);
+        var registrado = await eventos.RegistrarAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = registrado.Id }, registrado);
     }
 
-    [HttpPost("{id}/resolver")]
-    [Permiso(Permisos.Eventos.ResolverEvento)]
-    public async Task<IActionResult> Resolver(int id, [FromBody] ResolverEventoDTO dto)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var evento = await _db.Eventos.FindAsync(id);
-        if (evento == null) throw new NoEncontradoException("No se encontró el evento.");
+    // Además del permiso, el promotor solo modifica los eventos que registró (lo revisa el servicio).
+    [HttpPut("{id:int}")]
+    [Permiso(Permisos.Eventos.ModificarEvento)]
+    public async Task<ActionResult<EventoDTO>> Modificar(int id, [FromBody] ModificarEventoDTO dto) =>
+        await eventos.ModificarAsync(id, dto);
 
-        evento.EstadoEvento = EstadoEvento.Resuelto;
-        evento.ResueltoPorId = userId;
-        evento.FechaResolucion = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-        return Ok(new { evento.Id, evento.EstadoEvento });
-    }
-
-    [HttpPost("{id}/anexos")]
+    // Además del permiso, el promotor solo agrega fotos a los eventos que registró (lo revisa el servicio).
+    [HttpPost("{id:int}/fotos")]
     [Permiso(Permisos.Eventos.AgregarFoto)]
-    public async Task<IActionResult> SubirAnexo(int id, IFormFile archivo, [FromForm] string? descripcion)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<EventoDTO>> AgregarFoto(int id, [FromForm] AgregarFotoDTO dto)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var evento = await _db.Eventos.FindAsync(id);
-        if (evento == null) throw new NoEncontradoException("No se encontró el evento.");
-
-        if (archivo == null || archivo.Length == 0)
-            throw new ReglaDeNegocioException("archivo_requerido", "Archivo requerido.");
-
-        var tiposPermitidos = new[] { "image/jpeg", "image/png", "image/webp", "application/pdf" };
-        if (!tiposPermitidos.Contains(archivo.ContentType))
-            throw new ReglaDeNegocioException("tipo_archivo_no_permitido", "Tipo de archivo no permitido.");
-
-        var carpeta = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads",
-            DateTime.UtcNow.Year.ToString(), DateTime.UtcNow.Month.ToString("D2"), "eventos");
-        Directory.CreateDirectory(carpeta);
-
-        var nombreArchivo = $"{Guid.NewGuid()}{Path.GetExtension(archivo.FileName)}";
-        var rutaFisica = Path.Combine(carpeta, nombreArchivo);
-
-        using (var stream = new FileStream(rutaFisica, FileMode.Create))
-            await archivo.CopyToAsync(stream);
-
-        var anexo = new Anexo
-        {
-            TablaOrigen = "Evento",
-            RegistroOrigenId = id,
-            EventoId = id,
-            NombreArchivo = archivo.FileName,
-            RutaAlmacenamiento = $"/uploads/{DateTime.UtcNow.Year}/{DateTime.UtcNow.Month:D2}/eventos/{nombreArchivo}",
-            TipoMIME = archivo.ContentType,
-            TamanoBytes = archivo.Length,
-            SubidoPorId = userId,
-            EsImagen = archivo.ContentType.StartsWith("image/"),
-            Descripcion = descripcion
-        };
-
-        _db.Anexos.Add(anexo);
-        await _db.SaveChangesAsync();
-        return Ok(anexo);
+        await using var contenido = dto.Archivo!.OpenReadStream();
+        return await eventos.AgregarFotoAsync(id, new ArchivoRecibido(dto.Archivo.FileName, dto.Archivo.Length, contenido),
+            dto.Latitud, dto.Longitud, dto.FechaCaptura);
     }
+
+    // Además del permiso, el promotor solo elimina fotos de los eventos que registró (lo revisa el servicio).
+    [HttpDelete("{id:int}/fotos/{fotoId:int}")]
+    [Permiso(Permisos.Eventos.EliminarFoto)]
+    public async Task<ActionResult<EventoDTO>> EliminarFoto(int id, int fotoId) =>
+        await eventos.EliminarFotoAsync(id, fotoId);
+
+    [HttpPost("{id:int}/resolver")]
+    [Permiso(Permisos.Eventos.ResolverEvento)]
+    public async Task<ActionResult<EventoDTO>> Resolver(int id, [FromBody] ResolverEventoDTO dto) =>
+        await eventos.ResolverAsync(id, dto.Solucion);
 }

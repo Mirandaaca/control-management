@@ -36,8 +36,7 @@ public class ReportesController : ControllerBase
         var cobranzasPendientes = await _db.Cobranzas
             .Where(c => c.Estado == EstadoCobranza.Pendiente || c.Estado == EstadoCobranza.Parcial || c.Estado == EstadoCobranza.Vencida)
             .SumAsync(c => (decimal?)(c.MontoTotal - c.MontoPagado)) ?? 0;
-        var eventosAbiertos = await _db.Eventos
-            .CountAsync(e => e.EstadoEvento == EstadoEvento.Registrado || e.EstadoEvento == EstadoEvento.Escalado);
+        var eventosAbiertos = await _db.Eventos.CountAsync(e => e.EstadoEvento == EstadoEvento.Pendiente);
         var stockBajo = await _db.InventariosProducto
             .CountAsync(i => i.StockActual <= i.StockMinimo);
 

@@ -15,7 +15,9 @@ import Inventario from './pages/Inventario';
 import Pedidos from './pages/Pedidos';
 import BandejaPedidos from './pages/BandejaPedidos';
 import ReportePedidos from './pages/ReportePedidos';
+import ReporteEventos from './pages/ReporteEventos';
 import Eventos from './pages/Eventos';
+import MapaEventos from './pages/MapaEventos';
 import Cobranzas from './pages/Cobranzas';
 import Rutas from './pages/Rutas';
 import Roles from './pages/Roles';
@@ -34,6 +36,7 @@ export default function App() {
           <Route path="/pedidos" element={<PrivateRoute permisos={PANTALLAS.pedidos}><Pedidos /></PrivateRoute>} />
           <Route path="/pedidos/bandeja" element={<PrivateRoute permisos={PANTALLAS.bandeja}><BandejaPedidos /></PrivateRoute>} />
           <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
+          <Route path="/eventos/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaEventos}><MapaEventos /></PrivateRoute>} />
           <Route path="/cobranzas" element={<PrivateRoute permisos={PANTALLAS.cobranzas}><Cobranzas /></PrivateRoute>} />
           <Route path="/rutas" element={<PrivateRoute permisos={PANTALLAS.rutas}><Rutas /></PrivateRoute>} />
           <Route path="/usuarios" element={<PrivateRoute permisos={PANTALLAS.usuarios}><Usuarios /></PrivateRoute>} />
@@ -43,6 +46,7 @@ export default function App() {
           <Route path="/productos" element={<PrivateRoute permisos={PANTALLAS.productos}><Productos /></PrivateRoute>} />
           <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />
           <Route path="/reportes/pedidos" element={<PrivateRoute permisos={PANTALLAS.reportePedidos}><ReportePedidos /></PrivateRoute>} />
+          <Route path="/reportes/eventos" element={<PrivateRoute permisos={PANTALLAS.reporteEventos}><ReporteEventos /></PrivateRoute>} />
           <Route path="/configuraciones" element={<PrivateRoute permisos={PANTALLAS.configuraciones}><Configuraciones /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
