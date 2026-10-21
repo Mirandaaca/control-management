@@ -139,6 +139,48 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
     }
 
     /// <summary>
+    /// Anular un pago (3.1): queda marcado con su motivo y deja de contar. La cobranza vuelve a calcular lo pagado y
+    /// su estado, y el cliente su saldo, todo en un solo guardado.
+    /// </summary>
+    public async Task<CobranzaDetalleDTO> AnularPagoAsync(int id, int pagoId, string motivo)
+    {
+        var cobranza = await db.Cobranzas.VisiblesPara(usuario).Include(c => c.Cliente).Include(c => c.Pagos)
+            .FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NoEncontradoException("No se encontró la cobranza.");
+        var pago = cobranza.Pagos.FirstOrDefault(p => p.Id == pagoId)
+            ?? throw new NoEncontradoException("No se encontró el pago.");
+        if (pago.Anulado)
+            throw new ReglaDeNegocioException("pago_ya_anulado", "El pago ya está anulado.");
+
+        pago.Anulado = true;
+        pago.MotivoAnulacion = motivo.Trim();
+        cobranza.MontoPagado = cobranza.Pagos.Where(p => !p.Anulado).Sum(p => p.Monto);
+        // Incobrable y Anulada son decisiones tomadas a mano: anular un pago no las cambia.
+        if (cobranza.Estado is not (EstadoCobranza.Incobrable or EstadoCobranza.Anulada))
+        {
+            cobranza.FechaPagoCompleto = null;
+            cobranza.Estado = cobranza.FechaVencimiento < InicioDeHoyUtc ? EstadoCobranza.Vencida
+                : cobranza.MontoPagado > 0 ? EstadoCobranza.Parcial
+                : EstadoCobranza.Pendiente;
+        }
+        await RecalcularSaldoDelClienteAsync(cobranza);
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia",
+                "La cobranza o el saldo del cliente cambió mientras anulabas el pago. Vuelve a intentarlo.");
+        }
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Una cobranza vence cuando termina el día de su vencimiento en Bolivia, igual que en el proceso de mora.</summary>
+    private DateTime InicioDeHoyUtc => HoraBolivia.InicioDelDiaUtc(HoraBolivia.Hoy(reloj));
+
+    /// <summary>
     /// La deuda de una venta a crédito (2.1): vence a los días de DiasVencimientoCredito y queda a nombre del promotor
     /// que vendió, aunque otro la cobre. La HP tiene que traer a su cliente. No guarda: lo hace quien confirma la HP.
     /// </summary>
@@ -172,7 +214,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
         var cobranza = await db.Cobranzas.Include(c => c.Cliente).Include(c => c.Pagos)
             .FirstOrDefaultAsync(c => c.HojaPedidoId == hp.Id);
         if (cobranza == null) return;
-        if (cobranza.Pagos.Count > 0)
+        if (cobranza.Pagos.Any(p => !p.Anulado))
             throw new ReglaDeNegocioException("cobranza_con_pagos",
                 $"No se puede anular: su cobranza {cobranza.Numero} ya tiene pagos. Primero hay que anular esos pagos.");
 

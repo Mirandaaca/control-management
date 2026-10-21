@@ -26,6 +26,11 @@ public class CobranzasController(CobranzaService cobranzas) : ControllerBase
     public async Task<ActionResult<PagoRegistradoDTO>> RegistrarPago(int id, [FromBody] RegistrarPagoDTO dto) =>
         await cobranzas.RegistrarPagoAsync(id, dto);
 
+    [HttpPost("{id}/pagos/{pagoId}/anular")]
+    [Permiso(Permisos.Cobranzas.AnularPago)]
+    public async Task<ActionResult<CobranzaDetalleDTO>> AnularPago(int id, int pagoId, [FromBody] AnularPagoDTO dto) =>
+        await cobranzas.AnularPagoAsync(id, pagoId, dto.Motivo);
+
     [HttpPost("{id}/incobrable")]
     [Permiso(Permisos.Cobranzas.MarcarIncobrable)]
     public async Task<ActionResult<CobranzaDetalleDTO>> MarcarIncobrable(int id, [FromBody] MarcarIncobrableDTO dto) =>

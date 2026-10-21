@@ -33,6 +33,13 @@ public record PagoRegistradoDTO(int Id, EstadoCobranza Estado, decimal MontoPaga
 /// <summary>Filtros de la lista. Desde y Hasta son días de Bolivia, ambos incluidos.</summary>
 public record FiltrosCobranzaDTO(int? ClienteId, EstadoCobranza? Estado, string? PromotorId, DateOnly? Desde, DateOnly? Hasta);
 
+public record AnularPagoDTO
+{
+    [Required(ErrorMessage = "Escribe el motivo de la anulación.")]
+    [MaxLength(500, ErrorMessage = "El motivo no puede superar los 500 caracteres.")]
+    public string Motivo { get; init; } = string.Empty;
+}
+
 public record MarcarIncobrableDTO
 {
     [Required(ErrorMessage = "La observación es obligatoria.")]
@@ -53,6 +60,7 @@ public record CobranzaResumenDTO(
     ClienteResumenDTO Cliente,
     UsuarioResumenDTO Promotor,
     HojaPedidoResumenDTO? HojaPedido,
+    /// <summary>Los pagos válidos: sin contar los anulados.</summary>
     int CantidadPagos);
 
 public record PagoDTO(
@@ -62,7 +70,9 @@ public record PagoDTO(
     DateTime FechaPago,
     string? Referencia,
     string? Observaciones,
-    UsuarioResumenDTO RegistradoPor);
+    UsuarioResumenDTO RegistradoPor,
+    bool Anulado,
+    string? MotivoAnulacion);
 
 public record CobranzaDetalleDTO(
     int Id,

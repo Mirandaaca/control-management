@@ -29,7 +29,7 @@ public static class CobranzaConsultas
         new ClienteResumenDTO(c.Cliente!.Id, c.Cliente.NombreCompleto),
         new UsuarioResumenDTO(c.Promotor!.Id, c.Promotor.NombreCompleto),
         c.HojaPedido == null ? null : new HojaPedidoResumenDTO(c.HojaPedido.Id, c.HojaPedido.Numero),
-        c.Pagos.Count);
+        c.Pagos.Count(p => !p.Anulado));
 
     public static readonly Expression<Func<Cobranza, CobranzaDetalleDTO>> ComoDetalle = c => new CobranzaDetalleDTO(
         c.Id,
@@ -48,6 +48,6 @@ public static class CobranzaConsultas
         c.Pagos
             .OrderBy(p => p.FechaPago)
             .Select(p => new PagoDTO(p.Id, p.Monto, p.MetodoPago, p.FechaPago, p.Referencia, p.Observaciones,
-                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto)))
+                new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto), p.Anulado, p.MotivoAnulacion))
             .ToList());
 }

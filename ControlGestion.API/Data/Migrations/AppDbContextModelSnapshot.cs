@@ -897,6 +897,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<int?>("AnexoId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("Anulado")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<Guid?>("ClaveIdempotencia")
                         .HasColumnType("char(36)");
 
@@ -912,6 +915,10 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<decimal>("Monto")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("MotivoAnulacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<string>("Observaciones")
                         .HasMaxLength(500)

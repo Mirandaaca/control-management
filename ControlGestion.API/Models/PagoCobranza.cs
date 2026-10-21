@@ -31,4 +31,10 @@ public class PagoCobranza
 
     // La genera quien envía el pago. Si el mismo pago llega dos veces, la clave repetida evita duplicarlo.
     public Guid? ClaveIdempotencia { get; set; }
+
+    // Un pago anulado no se borra: queda en el historial con su motivo y deja de contar (3.1, 7.5).
+    public bool Anulado { get; set; }
+
+    [MaxLength(500)]
+    public string? MotivoAnulacion { get; set; }
 }
