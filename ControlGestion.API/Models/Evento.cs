@@ -37,5 +37,5 @@ public class Evento
     // un evento resuelto con datos cambiados después.
     public DateTime VersionConcurrencia { get; set; }
 
-    public ICollection<Anexo> Anexos { get; set; } = new List<Anexo>();
+    public ICollection<Evidencia> Evidencias { get; set; } = new List<Evidencia>();
 }

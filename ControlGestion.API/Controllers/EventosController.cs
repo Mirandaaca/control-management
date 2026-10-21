@@ -44,6 +44,17 @@ public class EventosController(EventoService eventos) : ControllerBase
     public async Task<ActionResult<EventoDTO>> Modificar(int id, [FromBody] ModificarEventoDTO dto) =>
         await eventos.ModificarAsync(id, dto);
 
+    // Además del permiso, el promotor solo agrega fotos a los eventos que registró (lo revisa el servicio).
+    [HttpPost("{id:int}/fotos")]
+    [Permiso(Permisos.Eventos.AgregarFoto)]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<EventoDTO>> AgregarFoto(int id, [FromForm] AgregarFotoDTO dto)
+    {
+        await using var contenido = dto.Archivo!.OpenReadStream();
+        return await eventos.AgregarFotoAsync(id, new ArchivoRecibido(dto.Archivo.FileName, dto.Archivo.Length, contenido),
+            dto.Latitud, dto.Longitud, dto.FechaCaptura);
+    }
+
     [HttpPost("{id:int}/resolver")]
     [Permiso(Permisos.Eventos.ResolverEvento)]
     public async Task<ActionResult<EventoDTO>> Resolver(int id, [FromBody] ResolverEventoDTO dto) =>

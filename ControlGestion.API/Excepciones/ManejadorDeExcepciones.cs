@@ -50,6 +50,9 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
             // Un error pasajero de MySQL, como un deadlock, llega envuelto: EF sugiere reintentar con EnableRetryOnFailure.
             InvalidOperationException { InnerException: DbUpdateException { InnerException: MySqlException mysql } } =>
                 TraducirMySql(mysql.Number, traceId),
+            // Kestrel corta un cuerpo de más de 30 MB antes de que llegue al servicio, que avisa desde los 10 MB.
+            BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge } => (413, "archivo_muy_grande",
+                "Datos inválidos", "El archivo es demasiado grande: el máximo es 10 MB."),
             BadHttpRequestException e => (e.StatusCode, "solicitud_invalida", "Datos inválidos", "La solicitud no es válida."),
             _ => Interno(traceId)
         };

@@ -33,5 +33,5 @@ desktop.ini
 *.log
 logs/
 
-# Fotos y comprobantes que suben los usuarios (también los de las pruebas)
-ControlGestion.API/wwwroot/uploads/
+# Fotos y comprobantes que suben los usuarios (Almacenamiento:Ruta)
+ControlGestion.API/archivos/

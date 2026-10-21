@@ -22,72 +22,6 @@ namespace ControlGestion.API.Data.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("ControlGestion.API.Models.Anexo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Descripcion")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("EsImagen")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("EventoId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("FechaCaptura")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("FechaSubida")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<decimal?>("Latitud")
-                        .HasPrecision(10, 8)
-                        .HasColumnType("decimal(10,8)");
-
-                    b.Property<decimal?>("Longitud")
-                        .HasPrecision(11, 8)
-                        .HasColumnType("decimal(11,8)");
-
-                    b.Property<string>("NombreArchivo")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("RegistroOrigenId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RutaAlmacenamiento")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SubidoPorId")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("TablaOrigen")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<long>("TamanoBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("TipoMIME")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventoId");
-
-                    b.HasIndex("SubidoPorId");
-
-                    b.ToTable("Anexos");
-                });
-
             modelBuilder.Entity("ControlGestion.API.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -678,6 +612,66 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("Eventos");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Evidencia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int?>("EventoId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FechaCaptura")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("FechaSubida")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("Latitud")
+                        .HasPrecision(10, 8)
+                        .HasColumnType("decimal(10,8)");
+
+                    b.Property<decimal?>("Longitud")
+                        .HasPrecision(11, 8)
+                        .HasColumnType("decimal(11,8)");
+
+                    b.Property<string>("NombreArchivo")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("RutaAlmacenamiento")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("SubidoPorId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<long>("TamanoBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("TipoMIME")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventoId");
+
+                    b.HasIndex("SubidoPorId");
+
+                    b.ToTable("Evidencias");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.HistorialEstadoPedido", b =>
                 {
                     b.Property<int>("Id")
@@ -905,9 +899,6 @@ namespace ControlGestion.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("AnexoId")
-                        .HasColumnType("int");
-
                     b.Property<bool>("Anulado")
                         .HasColumnType("tinyint(1)");
 
@@ -915,6 +906,9 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<int>("CobranzaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EvidenciaId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("FechaPago")
@@ -945,12 +939,13 @@ namespace ControlGestion.API.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AnexoId");
-
                     b.HasIndex("ClaveIdempotencia")
                         .IsUnique();
 
                     b.HasIndex("CobranzaId");
+
+                    b.HasIndex("EvidenciaId")
+                        .IsUnique();
 
                     b.HasIndex("RegistradoPorId");
 
@@ -1493,24 +1488,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("ControlGestion.API.Models.Anexo", b =>
-                {
-                    b.HasOne("ControlGestion.API.Models.Evento", "Evento")
-                        .WithMany("Anexos")
-                        .HasForeignKey("EventoId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "SubidoPor")
-                        .WithMany()
-                        .HasForeignKey("SubidoPorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Evento");
-
-                    b.Navigation("SubidoPor");
-                });
-
             modelBuilder.Entity("ControlGestion.API.Models.Cliente", b =>
                 {
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "CreadoPor")
@@ -1648,6 +1625,24 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("TipoEvento");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Evidencia", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.Evento", "Evento")
+                        .WithMany("Evidencias")
+                        .HasForeignKey("EventoId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "SubidoPor")
+                        .WithMany()
+                        .HasForeignKey("SubidoPorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Evento");
+
+                    b.Navigation("SubidoPor");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.HistorialEstadoPedido", b =>
                 {
                     b.HasOne("ControlGestion.API.Models.EstadoPedido", "EstadoPedido")
@@ -1741,16 +1736,16 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.PagoCobranza", b =>
                 {
-                    b.HasOne("ControlGestion.API.Models.Anexo", "Comprobante")
-                        .WithMany()
-                        .HasForeignKey("AnexoId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ControlGestion.API.Models.Cobranza", "Cobranza")
                         .WithMany("Pagos")
                         .HasForeignKey("CobranzaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("ControlGestion.API.Models.Evidencia", "Comprobante")
+                        .WithOne("Pago")
+                        .HasForeignKey("ControlGestion.API.Models.PagoCobranza", "EvidenciaId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "RegistradoPor")
                         .WithMany()
@@ -1946,7 +1941,12 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.Evento", b =>
                 {
-                    b.Navigation("Anexos");
+                    b.Navigation("Evidencias");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.Evidencia", b =>
+                {
+                    b.Navigation("Pago");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.HojaPedido", b =>

@@ -47,6 +47,30 @@ public record RegistrarEventoDTO : ModificarEventoDTO
     }
 }
 
+/// <summary>Una foto del evento (multipart). La ubicación y la hora de la toma las manda la app; el panel no.</summary>
+public record AgregarFotoDTO : IValidatableObject
+{
+    [Required(ErrorMessage = "Elige la foto.")]
+    public IFormFile? Archivo { get; init; }
+
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
+
+    /// <summary>Sin zona se entiende como hora de Bolivia; con zona ("Z" o un desfase), se respeta.</summary>
+    public DateTime? FechaCaptura { get; init; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (Latitud.HasValue != Longitud.HasValue)
+            yield return new ValidationResult("Manda la latitud y la longitud de la toma, o ninguna.", [nameof(Latitud)]);
+        else if (Latitud == 0 && Longitud == 0)
+            yield return new ValidationResult("La ubicación de la toma no es válida.", [nameof(Latitud)]);
+    }
+}
+
 public record ResolverEventoDTO
 {
     [Required(ErrorMessage = "Escribe la solución.")]

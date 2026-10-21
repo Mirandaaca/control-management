@@ -29,7 +29,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<HistorialEstadoPedido> HistorialEstadosPedido { get; set; }
     public DbSet<TipoEvento> TiposEvento { get; set; }
     public DbSet<Evento> Eventos { get; set; }
-    public DbSet<Anexo> Anexos { get; set; }
+    public DbSet<Evidencia> Evidencias { get; set; }
 
     // Fase 4
     public DbSet<Cobranza> Cobranzas { get; set; }
@@ -266,13 +266,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
 
-        // Anexo
-        builder.Entity<Anexo>()
-            .HasOne(a => a.SubidoPor).WithMany().HasForeignKey(a => a.SubidoPorId).OnDelete(DeleteBehavior.Restrict);
-        builder.Entity<Anexo>()
-            .HasOne(a => a.Evento).WithMany(e => e.Anexos).HasForeignKey(a => a.EventoId).OnDelete(DeleteBehavior.SetNull);
-        builder.Entity<Anexo>().Property(a => a.Latitud).HasPrecision(10, 8);
-        builder.Entity<Anexo>().Property(a => a.Longitud).HasPrecision(11, 8);
+        // Evidencia
+        builder.Entity<Evidencia>()
+            .HasOne(e => e.SubidoPor).WithMany().HasForeignKey(e => e.SubidoPorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Evidencia>()
+            .HasOne(e => e.Evento).WithMany(e => e.Evidencias).HasForeignKey(e => e.EventoId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Evidencia>().Property(e => e.NombreArchivo).HasMaxLength(255);
+        builder.Entity<Evidencia>().Property(e => e.RutaAlmacenamiento).HasMaxLength(300);
+        builder.Entity<Evidencia>().Property(e => e.TipoMIME).HasMaxLength(50);
+        builder.Entity<Evidencia>().Property(e => e.Descripcion).HasMaxLength(500);
+        builder.Entity<Evidencia>().Property(e => e.Latitud).HasPrecision(10, 8);
+        builder.Entity<Evidencia>().Property(e => e.Longitud).HasPrecision(11, 8);
 
         // Cobranza
         builder.Entity<Cobranza>()
@@ -300,8 +304,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(p => p.Cobranza).WithMany(c => c.Pagos).HasForeignKey(p => p.CobranzaId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<PagoCobranza>()
             .HasOne(p => p.RegistradoPor).WithMany().HasForeignKey(p => p.RegistradoPorId).OnDelete(DeleteBehavior.Restrict);
+        // Un pago tiene un solo comprobante, y una evidencia es el comprobante de un solo pago: el índice es único.
         builder.Entity<PagoCobranza>()
-            .HasOne(p => p.Comprobante).WithMany().HasForeignKey(p => p.AnexoId).OnDelete(DeleteBehavior.SetNull);
+            .HasOne(p => p.Comprobante).WithOne(e => e.Pago).HasForeignKey<PagoCobranza>(p => p.EvidenciaId)
+            .OnDelete(DeleteBehavior.SetNull);
         builder.Entity<PagoCobranza>().Property(p => p.Monto).HasPrecision(18, 2);
         builder.Entity<PagoCobranza>()
             .HasIndex(p => p.ClaveIdempotencia).IsUnique();

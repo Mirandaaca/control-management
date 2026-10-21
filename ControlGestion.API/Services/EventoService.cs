@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
@@ -12,8 +13,11 @@ namespace ControlGestion.API.Services;
 /// Eventos e incidencias (4.1 a 4.4). Cada usuario ve los que registró, los de su cartera y los de los pedidos que tiene
 /// asignados, salvo con cartera completa.
 /// </summary>
-public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
+public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, EvidenciaService evidencias,
+    TimeProvider reloj)
 {
+    public const int MaximoDeFotos = 5;
+
     private IQueryable<Evento> Visibles => db.Eventos.VisiblesPara(usuario);
 
     public async Task<Pagina<EventoListaDTO>> ListarAsync(FiltrosEventoDTO filtros)
@@ -124,6 +128,44 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             throw new ReglaDeNegocioException("evento_de_otro_promotor",
                 $"El evento {evento.Numero} lo registró otro promotor: solo quien lo registró lo cambia.");
     }
+
+    /// <summary>
+    /// Agregar una foto (4.2): solo mientras el evento está pendiente, y hasta 5 por evento. La ubicación y la hora de la
+    /// toma las manda la app; el panel no.
+    /// </summary>
+    public async Task<EventoDTO> AgregarFotoAsync(int id, ArchivoRecibido archivo, decimal? latitud, decimal? longitud,
+        DateTime? fechaCaptura)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        await BloquearAsync(id);
+        var evento = await BuscarPendienteAsync(id, "ya está resuelto: no recibe más fotos");
+        ExigirQueSeaSuyo(evento);
+        if (await db.Evidencias.CountAsync(f => f.EventoId == id) >= MaximoDeFotos)
+            throw new ReglaDeNegocioException("limite_de_fotos",
+                $"El evento ya tiene {MaximoDeFotos} fotos: elimina una para agregar otra.");
+
+        var foto = await evidencias.GuardarFotoAsync(archivo, latitud, longitud,
+            fechaCaptura is { } fecha ? HoraBolivia.AUtc(fecha) : null);
+        try
+        {
+            foto.EventoId = id;
+            db.Evidencias.Add(foto);
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            evidencias.BorrarArchivo(foto.RutaAlmacenamiento);
+            throw;
+        }
+        return await ObtenerAsync(id);
+    }
+
+    // Las fotos no cambian la fila del evento, así que su token de concurrencia no las ve. Agregar o quitar una foto y
+    // resolver toman primero este bloqueo de la fila: así no se cruzan (por ejemplo, quitar la única foto mientras se
+    // resuelve un evento que la exige). Hace falta una transacción abierta.
+    private Task BloquearAsync(int id) =>
+        db.Database.ExecuteSqlAsync($"SELECT Id FROM Eventos WHERE Id = {id} FOR UPDATE");
 
     /// <summary>Resolver (4.1): guarda la solución, la fecha y quién lo resolvió. Un evento resuelto ya no cambia.</summary>
     public async Task<EventoDTO> ResolverAsync(int id, string solucion)

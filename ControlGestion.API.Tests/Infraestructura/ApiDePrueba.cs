@@ -30,6 +30,9 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     public string ContrasenaAdmin { get; } = Aleatorio(24) + "9";
     public string ContrasenaOperador { get; } = Aleatorio(24) + "9";
 
+    /// <summary>La carpeta de las fotos de esta corrida: una temporal, que se borra al terminar.</summary>
+    public string CarpetaDeArchivos { get; } = Path.Combine(Path.GetTempPath(), $"control_test_archivos_{Guid.NewGuid():N}");
+
     public ApiDePrueba()
     {
         var cadena = new ConfigurationBuilder()
@@ -64,6 +67,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("ConnectionStrings:DefaultConnection", CadenaConLaBase);
         builder.UseSetting("Jwt:Key", Aleatorio(64));
         builder.UseSetting("Seed:AdminPassword", ContrasenaAdmin);
+        builder.UseSetting("Almacenamiento:Ruta", CarpetaDeArchivos);
 
         builder.ConfigureServices(servicios =>
             servicios.Remove(servicios.Single(d => d.ImplementationType == typeof(MoraDetectionService))));
@@ -108,6 +112,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     {
         await base.DisposeAsync();
         await EjecutarAsync($"DROP DATABASE IF EXISTS `{_baseDeDatos}`");
+        if (Directory.Exists(CarpetaDeArchivos)) Directory.Delete(CarpetaDeArchivos, recursive: true);
     }
 
     private async Task EjecutarAsync(string sql)

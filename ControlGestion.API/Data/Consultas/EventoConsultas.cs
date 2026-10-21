@@ -70,7 +70,7 @@ public static class EventoConsultas
         e.Pedido == null ? null : new PedidoResumenDTO(e.Pedido.Id, e.Pedido.Numero),
         new UsuarioResumenDTO(e.Promotor!.Id, e.Promotor.NombreCompleto),
         e.Cliente == null ? null : new ZonaResumenDTO(e.Cliente.Zona!.Id, e.Cliente.Zona.Nombre),
-        e.Anexos.Count);
+        e.Evidencias.Count);
 
     public static readonly Expression<Func<Evento, EventoDTO>> ComoDetalle = e => new EventoDTO(
         e.Id,
@@ -88,9 +88,9 @@ public static class EventoConsultas
         e.Solucion,
         e.FechaResolucion,
         e.ResueltoPor == null ? null : new UsuarioResumenDTO(e.ResueltoPor.Id, e.ResueltoPor.NombreCompleto),
-        e.Anexos
-            .OrderBy(a => a.Id)
-            .Select(a => new FotoDTO(a.Id, a.NombreArchivo, a.FechaSubida,
-                new UsuarioResumenDTO(a.SubidoPor!.Id, a.SubidoPor.NombreCompleto), a.Latitud, a.Longitud, a.FechaCaptura))
+        e.Evidencias
+            .OrderBy(f => f.Id)
+            .Select(f => new FotoDTO(f.Id, f.NombreArchivo, f.FechaSubida,
+                new UsuarioResumenDTO(f.SubidoPor!.Id, f.SubidoPor.NombreCompleto), f.Latitud, f.Longitud, f.FechaCaptura))
             .ToList());
 }

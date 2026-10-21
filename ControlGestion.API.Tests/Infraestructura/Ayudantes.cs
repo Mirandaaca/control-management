@@ -176,6 +176,34 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
+    /// <summary>Unos bytes que empiezan con la firma de PNG: para la API, que valida por la firma, es una foto PNG.</summary>
+    public static byte[] Png(int tamano = 64) => ConFirma([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], tamano);
+
+    public static byte[] Jpeg(int tamano = 64) => ConFirma([0xFF, 0xD8, 0xFF, 0xE0], tamano);
+
+    public static byte[] Webp(int tamano = 64) => ConFirma("RIFF\0\0\0\0WEBP"u8.ToArray(), tamano);
+
+    private static byte[] ConFirma(byte[] firma, int tamano)
+    {
+        var bytes = new byte[Math.Max(tamano, firma.Length)];
+        Random.Shared.NextBytes(bytes);
+        firma.CopyTo(bytes, 0);
+        return bytes;
+    }
+
+    /// <summary>Sube un archivo como foto del evento, con el nombre y el tipo que declara quien lo sube.</summary>
+    public static Task<HttpResponseMessage> SubirFotoAsync(this HttpClient cliente, int eventoId, byte[]? contenido = null,
+        string nombre = "foto.png", string tipo = "image/png", IDictionary<string, string>? campos = null)
+    {
+        var formulario = new MultipartFormDataContent();
+        var archivo = new ByteArrayContent(contenido ?? Png());
+        archivo.Headers.ContentType = new MediaTypeHeaderValue(tipo);
+        formulario.Add(archivo, "archivo", nombre);
+        foreach (var (clave, valor) in campos ?? new Dictionary<string, string>())
+            formulario.Add(new StringContent(valor), clave);
+        return cliente.PostAsync($"/api/eventos/{eventoId}/fotos", formulario);
+    }
+
     /// <summary>Lanza todas las peticiones a la vez: ninguna sale hasta que todas están listas.</summary>
     public static async Task<HttpResponseMessage[]> EnviarALaVezAsync(int cantidad, Func<int, Task<HttpResponseMessage>> peticion)
     {

@@ -8,6 +8,7 @@ using ControlGestion.API.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -45,6 +46,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 builder.Services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection(JwtOptions.Seccion));
 builder.Services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 
+// La carpeta de las fotos y los comprobantes. Una ruta relativa se resuelve contra la carpeta de la API, nunca contra el
+// directorio de trabajo (T7.03).
+builder.Services.AddOptions<AlmacenamientoOptions>()
+    .Bind(builder.Configuration.GetSection(AlmacenamientoOptions.Seccion))
+    .PostConfigure<IHostEnvironment>((opciones, entorno) =>
+        opciones.Ruta = Path.GetFullPath(Path.Combine(entorno.ContentRootPath, opciones.Ruta)));
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -77,7 +85,12 @@ builder.Services.AddSingleton<IAuthorizationPolicyProvider, ProveedorDePoliticas
 builder.Services.AddSingleton<IAuthorizationHandler, PermisoRequeridoHandler>();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = RespuestasDeError.Personalizar);
 builder.Services.AddExceptionHandler<ManejadorDeExcepciones>();
-builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeEnlace(options.ModelBindingMessageProvider))
+builder.Services.AddControllers(options =>
+    {
+        RespuestasDeError.TraducirMensajesDeEnlace(options.ModelBindingMessageProvider);
+        var formulario = options.ValueProviderFactories.OfType<FormValueProviderFactory>().Single();
+        options.ValueProviderFactories[options.ValueProviderFactories.IndexOf(formulario)] = new FormularioConCulturaInvariante();
+    })
     .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = RespuestasDeError.Validacion)
     .AddJsonOptions(options =>
     {
@@ -100,6 +113,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.HojaPedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ReportePedidosService>();
+builder.Services.AddScoped<ControlGestion.API.Services.EvidenciaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EventoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
@@ -117,6 +131,7 @@ var app = builder.Build();
 // Pedir las JwtOptions ejecuta JwtOptionsValidator. Se hace aquí, antes de migrar y sembrar,
 // para que una clave faltante o corta detenga la API sin tocar la base.
 _ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
+Directory.CreateDirectory(app.Services.GetRequiredService<IOptions<AlmacenamientoOptions>>().Value.Ruta);
 
 using (var scope = app.Services.CreateScope())
 {
@@ -149,7 +164,6 @@ app.UseMiddleware<AuditoriaMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors("FrontendPolicy");
-app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
