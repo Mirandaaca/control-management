@@ -60,41 +60,28 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
         return new Pagina<MovimientoDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
-    public async Task DescontarStockPorHP(HojaPedido hp, string usuarioId)
+    /// <summary>
+    /// Salida por una venta confirmada (2.5). Revisa el stock de todos los productos antes de tocar alguno: si uno no
+    /// alcanza, no se descuenta nada. No guarda: lo hace quien confirma, en su transacción.
+    /// </summary>
+    public async Task DescontarPorVentaAsync(HojaPedido hp)
     {
-        foreach (var detalle in hp.Detalles)
+        // Una HP puede traer el mismo producto en dos líneas: el stock se compara con la suma.
+        var pedidos = hp.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+        var ids = pedidos.Keys.ToList();
+        var productos = await db.Productos.Include(p => p.Inventario).Where(p => ids.Contains(p.Id)).ToListAsync();
+
+        foreach (var producto in productos)
         {
-            var inventario = await db.InventariosProducto
-                .FirstOrDefaultAsync(i => i.ProductoId == detalle.ProductoId);
-
-            if (inventario == null)
-            {
-                inventario = new InventarioProducto
-                {
-                    ProductoId = detalle.ProductoId,
-                    StockActual = 0
-                };
-                db.InventariosProducto.Add(inventario);
-                await db.SaveChangesAsync();
-            }
-
-            var stockAnterior = inventario.StockActual;
-            inventario.StockActual -= detalle.Cantidad;
-            inventario.UltimaActualizacion = Ahora;
-
-            db.MovimientosInventario.Add(new MovimientoInventario
-            {
-                ProductoId = detalle.ProductoId,
-                TipoMovimiento = TipoMovimiento.Salida,
-                Cantidad = detalle.Cantidad,
-                StockAnterior = stockAnterior,
-                StockResultante = inventario.StockActual,
-                ReferenciaTabla = MovimientoInventario.ReferenciaHojaPedido,
-                ReferenciaId = hp.Id,
-                UsuarioId = usuarioId,
-                Fecha = Ahora
-            });
+            // Sin fila de inventario, el producto nunca recibió mercadería: su stock es 0.
+            var stock = producto.Inventario?.StockActual ?? 0m;
+            if (stock < pedidos[producto.Id])
+                throw new ReglaDeNegocioException("stock_insuficiente",
+                    $"No hay stock suficiente de {producto.Descripcion}: hay {stock:0.###} y la HP pide {pedidos[producto.Id]:0.###}.");
         }
+
+        foreach (var producto in productos)
+            Mover(producto.Inventario!, -pedidos[producto.Id], TipoMovimiento.Salida, MovimientoInventario.ReferenciaHojaPedido, hp.Id);
     }
 
     /// <summary>Ingreso de mercadería: suma al stock y queda en el kardex como entrada.</summary>
@@ -112,24 +99,7 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
             inventario = new InventarioProducto { ProductoId = productoId };
             db.InventariosProducto.Add(inventario);
         }
-
-        var stockAnterior = inventario.StockActual;
-        inventario.StockActual += dto.Cantidad;
-        inventario.UltimaActualizacion = Ahora;
-
-        db.MovimientosInventario.Add(new MovimientoInventario
-        {
-            ProductoId = productoId,
-            TipoMovimiento = TipoMovimiento.Entrada,
-            Cantidad = dto.Cantidad,
-            StockAnterior = stockAnterior,
-            StockResultante = inventario.StockActual,
-            ReferenciaTabla = MovimientoInventario.ReferenciaIngreso,
-            ReferenciaId = 0,
-            UsuarioId = usuario.Id,
-            Fecha = Ahora,
-            Observacion = dto.Observacion.Trim()
-        });
+        Mover(inventario, dto.Cantidad, TipoMovimiento.Entrada, MovimientoInventario.ReferenciaIngreso, 0, dto.Observacion.Trim());
 
         try
         {
@@ -141,6 +111,29 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
                 "El stock de este producto cambió mientras registrabas el ingreso. Vuelve a intentarlo.");
         }
         return await ObtenerAsync(productoId);
+    }
+
+    /// <summary>Cambia el stock y deja el movimiento en el kardex: la cantidad va sin signo y el tipo dice si sumó o restó.</summary>
+    private void Mover(InventarioProducto inventario, decimal variacion, TipoMovimiento tipo, string referenciaTabla,
+        int referenciaId, string? observacion = null)
+    {
+        var stockAnterior = inventario.StockActual;
+        inventario.StockActual += variacion;
+        inventario.UltimaActualizacion = Ahora;
+
+        db.MovimientosInventario.Add(new MovimientoInventario
+        {
+            ProductoId = inventario.ProductoId,
+            TipoMovimiento = tipo,
+            Cantidad = Math.Abs(variacion),
+            StockAnterior = stockAnterior,
+            StockResultante = inventario.StockActual,
+            ReferenciaTabla = referenciaTabla,
+            ReferenciaId = referenciaId,
+            UsuarioId = usuario.Id,
+            Fecha = Ahora,
+            Observacion = observacion
+        });
     }
 
     private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;

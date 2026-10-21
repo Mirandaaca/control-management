@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore;
 namespace ControlGestion.API.Services;
 
 /// <summary>Hojas de pedido (2.1): la venta en campo. Cada usuario ve solo las de su cartera, salvo con cartera completa.</summary>
-public class HojaPedidoService(
-    AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, InventarioService inventario, TimeProvider reloj)
+public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador,
+    InventarioService inventario, CobranzaService cobranzas, TimeProvider reloj)
 {
     private IQueryable<HojaPedido> Visibles => db.HojasPedido.VisiblesPara(usuario);
 
@@ -106,6 +106,10 @@ public class HojaPedidoService(
         return await ObtenerAsync(hp.Id);
     }
 
+    /// <summary>
+    /// Cerrar la venta (2.1): descuenta el stock, registra la visita y, si es a crédito, crea la deuda. Todo o nada, en
+    /// una transacción. Solo la confirma quien la registró.
+    /// </summary>
     public async Task<HojaPedidoDTO> ConfirmarAsync(int id)
     {
         var hp = await Visibles
@@ -113,43 +117,31 @@ public class HojaPedidoService(
             .Include(h => h.Cliente)
             .FirstOrDefaultAsync(h => h.Id == id)
             ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
+        // La regla del dueño no es un permiso: ver la HP (cartera completa) no alcanza para confirmarla.
+        if (hp.PromotorId != usuario.Id)
+            throw new ReglaDeNegocioException("hp_de_otro_promotor", "Solo el promotor que registró la HP puede confirmarla.");
         if (hp.EstadoHP != EstadoHP.Borrador)
             throw new ReglaDeNegocioException("hp_no_es_borrador", "Solo se pueden confirmar HPs en estado Borrador.");
 
+        // La transacción incluye el número de la cobranza, que el numerador pide con su propia sentencia.
         await using var tx = await db.Database.BeginTransactionAsync();
         var ahora = Ahora;
         hp.EstadoHP = EstadoHP.Confirmada;
-        await inventario.DescontarStockPorHP(hp, usuario.Id);
+        await inventario.DescontarPorVentaAsync(hp);
 
         // La venta es una visita (5.2): la próxima se calcula con el parámetro general de días de re-visita (7.1).
         var cliente = hp.Cliente!;
         cliente.UltimaVisita = ahora;
-        cliente.ProximaVisita = ahora.AddDays(await LeerDiasAsync(ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto));
+        cliente.ProximaVisita = ahora.AddDays(await db.ConfiguracionesGenerales.DiasAsync(
+            ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto));
         // Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo: la venta no lo cambia.
         if (EstadosDeCliente.DelSistema.Contains(cliente.EstadoClienteId))
             cliente.EstadoClienteId = EstadosDeCliente.Activo;
 
         if (hp.TipoVenta == TipoVenta.Credito)
-        {
-            cliente.SaldoPendiente += hp.Total;
-            var diasVencimiento = await LeerDiasAsync(ClavesDeConfiguracion.DiasVencimientoCredito,
-                ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto);
-            db.Cobranzas.Add(new Cobranza
-            {
-                Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Cobranza),
-                ClienteId = hp.ClienteId,
-                HojaPedidoId = hp.Id,
-                // El responsable es quien vendió; los reportes se agrupan por él.
-                PromotorId = hp.PromotorId,
-                MontoTotal = hp.Total,
-                MontoPagado = 0,
-                FechaEmision = ahora,
-                FechaVencimiento = ahora.AddDays(diasVencimiento),
-                Estado = EstadoCobranza.Pendiente
-            });
-        }
+            await cobranzas.CrearPorVentaAsync(hp);
 
-        await db.SaveChangesAsync();
+        await GuardarAsync("La HP, el stock o el cliente cambiaron mientras confirmabas. Vuelve a intentarlo.");
         await tx.CommitAsync();
         return await ObtenerAsync(id);
     }
@@ -172,9 +164,16 @@ public class HojaPedidoService(
 
     private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;
 
-    private async Task<int> LeerDiasAsync(string clave, int porDefecto)
+    // Otra petición cambió la HP, el inventario, el cliente o la cobranza entre que se leyeron y se guardaron.
+    private async Task GuardarAsync(string mensajeDeConflicto)
     {
-        var config = await db.ConfiguracionesGenerales.FindAsync(clave);
-        return int.TryParse(config?.Valor, out var dias) && dias > 0 ? dias : porDefecto;
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia", mensajeDeConflicto);
+        }
     }
 }

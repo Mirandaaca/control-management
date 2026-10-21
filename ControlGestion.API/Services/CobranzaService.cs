@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
-public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
 {
     public async Task<List<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
     {
@@ -134,6 +134,31 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
         }
 
         return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// La deuda de una venta a crédito (2.1): vence a los días de DiasVencimientoCredito y queda a nombre del promotor
+    /// que vendió, aunque otro la cobre. La HP tiene que traer a su cliente. No guarda: lo hace quien confirma la HP.
+    /// </summary>
+    public async Task CrearPorVentaAsync(HojaPedido hp)
+    {
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var dias = await db.ConfiguracionesGenerales.DiasAsync(ClavesDeConfiguracion.DiasVencimientoCredito,
+            ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto);
+        var cobranza = new Cobranza
+        {
+            Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Cobranza),
+            ClienteId = hp.ClienteId,
+            Cliente = hp.Cliente,
+            HojaPedidoId = hp.Id,
+            PromotorId = hp.PromotorId,
+            MontoTotal = hp.Total,
+            FechaEmision = ahora,
+            FechaVencimiento = ahora.AddDays(dias),
+            Estado = EstadoCobranza.Pendiente
+        };
+        db.Cobranzas.Add(cobranza);
+        await RecalcularSaldoDelClienteAsync(cobranza);
     }
 
     /// <summary>

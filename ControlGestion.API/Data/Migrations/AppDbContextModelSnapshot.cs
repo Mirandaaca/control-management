@@ -770,6 +770,12 @@ namespace ControlGestion.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime>("VersionConcurrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
                     b.Property<int>("ZonaId")
                         .HasColumnType("int");
 
@@ -1508,7 +1514,7 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired();
 
                     b.HasOne("ControlGestion.API.Models.HojaPedido", "HojaPedido")
-                        .WithMany()
+                        .WithMany("Cobranzas")
                         .HasForeignKey("HojaPedidoId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -1899,6 +1905,8 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.HojaPedido", b =>
                 {
+                    b.Navigation("Cobranzas");
+
                     b.Navigation("Detalles");
                 });
 

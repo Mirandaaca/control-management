@@ -153,6 +153,21 @@ public class HojasPedidoTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Solo_quien_registro_la_HP_la_confirma_aunque_otro_la_vea()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var hojaId = await operador.CrearHojaPedidoAsync(await operador.CrearClienteAsync(zonaId), await operador.CrearProductoAsync(10m), 1);
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Ventas.ConfirmarHp, Permisos.Seguridad.VerCarteraCompleta);
+        var otro = await api.CrearUsuarioAsync(rol);
+        using var clienteOtro = api.ClienteCon(otro.Token);
+
+        await (await clienteOtro.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).ProblemaAsync(400, "hp_de_otro_promotor");
+        Assert.Equal(0, (await HojaDe(operador, hojaId)).GetProperty("estadoHP").GetInt32());
+    }
+
+    [Fact]
     public async Task La_busqueda_encuentra_la_HP_por_su_numero()
     {
         using var operador = await api.OperadorAsync();

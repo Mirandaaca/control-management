@@ -76,16 +76,15 @@ public class CobranzasTests(ApiDePrueba api)
     }
 
     [Fact]
-    public async Task El_responsable_de_la_cobranza_es_quien_vendio_aunque_la_confirme_otro()
+    public async Task La_cobranza_queda_a_nombre_del_promotor_que_vendio()
     {
         using var escenario = await PrepararAsync();
-        var (operador, zonaId, productoId) = escenario;
+        var (operador, _, productoId) = escenario;
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
-        var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, productoId, 1);
 
-        (await operador.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
+        await vendedor.CrearCobranzaAsync(clienteId, productoId, 1);
 
         var cobranza = (await (await operador.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync())
             .EnumerateArray().Single();

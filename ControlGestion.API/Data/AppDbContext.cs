@@ -166,6 +166,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .Property(h => h.Descuento).HasPrecision(18, 2);
         builder.Entity<HojaPedido>()
             .Property(h => h.Total).HasPrecision(18, 2);
+        builder.Entity<HojaPedido>()
+            .Property(h => h.VersionConcurrencia)
+            .HasColumnType("timestamp(6)")
+            .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
 
         // DetalleHP
         builder.Entity<DetalleHP>()
