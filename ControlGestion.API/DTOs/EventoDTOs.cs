@@ -142,6 +142,19 @@ public record EventoPuntoDTO(
 /// <summary>Los puntos del mapa, los más recientes primero, y cuántos eventos cumplen los filtros.</summary>
 public record MapaEventosDTO(IReadOnlyList<EventoPuntoDTO> Puntos, int Total);
 
+public record TotalPorTipoDTO(int TipoEventoId, string Tipo, int Cantidad);
+
+public record TotalPorEstadoEventoDTO(EstadoEvento Estado, string Nombre, int Cantidad);
+
+/// <summary>
+/// El reporte de incidencias (4.4): cuántos eventos hay de cada tipo y en cada estado, el total y los eventos, paginados.
+/// </summary>
+public record ReporteEventosDTO(
+    IReadOnlyList<TotalPorTipoDTO> PorTipo,
+    IReadOnlyList<TotalPorEstadoEventoDTO> PorEstado,
+    int Cantidad,
+    Pagina<EventoListaDTO> Eventos);
+
 public record FotoDTO(
     int Id,
     string NombreArchivo,

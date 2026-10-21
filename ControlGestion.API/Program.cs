@@ -115,6 +115,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.PedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ReportePedidosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EvidenciaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EventoService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteEventosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 

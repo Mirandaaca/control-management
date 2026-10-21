@@ -9,7 +9,7 @@ namespace ControlGestion.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class EventosController(EventoService eventos) : ControllerBase
+public class EventosController(EventoService eventos, ReporteEventosService reporte) : ControllerBase
 {
     // Quien opera sobre un evento también necesita verlo: la lista y el detalle se abren con cualquiera de estos
     // permisos, siempre filtrados por cartera.
@@ -30,6 +30,19 @@ public class EventosController(EventoService eventos) : ControllerBase
     [Permiso(Permisos.Eventos.VerMapa)]
     public async Task<ActionResult<MapaEventosDTO>> GetMapa([FromQuery] FiltrosEventoDTO filtros) =>
         await eventos.MapaAsync(filtros);
+
+    [HttpGet("reporte")]
+    [Permiso(Permisos.Eventos.GenerarReporte)]
+    public async Task<ActionResult<ReporteEventosDTO>> GetReporte([FromQuery] FiltrosEventoDTO filtros) =>
+        await reporte.GenerarAsync(filtros);
+
+    [HttpGet("reporte/excel")]
+    [Permiso(Permisos.Eventos.GenerarReporte)]
+    public async Task<IActionResult> GetReporteExcel([FromQuery] FiltrosEventoDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.ExcelAsync(filtros);
+        return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
+    }
 
     [HttpGet("tipos")]
     public async Task<ActionResult<List<TipoEventoDTO>>> GetTipos() =>
