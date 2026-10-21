@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, Ban, CalendarClock, Eye, Package, Pencil, Plus, UserCheck } from 'lucide-react';
+import { ArrowRight, Ban, CalendarClock, Eye, Package, Pencil, Plus, Truck, UserCheck } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
@@ -7,9 +7,10 @@ import { Table, Td, Tr } from '../components/Table';
 import AsignarPedidos from '../components/pedidos/AsignarPedidos';
 import CambioDeEstado from '../components/pedidos/CambioDeEstado';
 import DetallePedido from '../components/pedidos/DetallePedido';
+import EntregarPedido from '../components/pedidos/EntregarPedido';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
 import FormularioPedido from '../components/pedidos/FormularioPedido';
-import { esFinal, esModificable, SIGUIENTE } from '../components/pedidos/estados';
+import { EN_RUTA, esFinal, esModificable, SIGUIENTE } from '../components/pedidos/estados';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
 } from '../components/ui';
@@ -25,13 +26,14 @@ const SIN_FILTROS = { texto: '', estado: '', zona: '', promotor: '', asignado: '
 const SIN_ASIGNAR = 'sin-asignar';
 
 export default function Pedidos() {
-  const { tiene } = useAuth();
+  const { usuario: yo, tiene } = useAuth();
   const puedeRegistrar = tiene(permisos.registrarPedido);
   const puedeModificar = tiene(permisos.modificarPedido);
   const puedeAvanzar = tiene(permisos.cambiarEstado);
   const puedeReprogramar = tiene(permisos.reprogramarEntrega);
   const puedeAnular = tiene(permisos.anularPedido);
   const puedeAsignar = tiene(permisos.asignarPedidos);
+  const puedeEntregar = tiene(permisos.registrarEntrega);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
@@ -56,6 +58,7 @@ export default function Pedidos() {
   // Los pedidos elegidos para asignar, por id: se conservan al cambiar de página.
   const [elegidos, setElegidos] = useState({});
   const [asignando, setAsignando] = useState(false);
+  const [entregando, setEntregando] = useState(null);
 
   // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
   useEffect(() => {
@@ -116,6 +119,7 @@ export default function Pedidos() {
   const alCambiar = (mensaje) => {
     setCambio(null);
     setAsignando(false);
+    setEntregando(null);
     setDetalle(null);
     setAviso(mensaje);
     cargar();
@@ -137,6 +141,9 @@ export default function Pedidos() {
 
   const puedeEditarlo = (pedido) => puedeModificar && esModificable(pedido.estado.id);
   const puedeAvanzarlo = (pedido) => puedeAvanzar && SIGUIENTE[pedido.estado.id] !== undefined;
+  // Entrega solo el promotor asignado, y solo cuando el pedido salió a entregarse (la API lo exige igual).
+  const puedeEntregarlo = (pedido) => puedeEntregar && pedido.estado.id === EN_RUTA && pedido.repartidor?.id === yo?.id;
+  const abrirEntrega = (pedido) => { setAviso(''); setDetalle(null); setEntregando(pedido); };
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pedidos = pagina?.items ?? [];
@@ -267,6 +274,12 @@ export default function Pedidos() {
                     Avanzar
                   </Btn>
                 )}
+                {puedeEntregarlo(p) && (
+                  <Btn variant="ghost" onClick={() => abrirEntrega(p)} aria-label={`Entregar ${p.numero}`}>
+                    <Truck size={14} aria-hidden="true" />
+                    Entregar
+                  </Btn>
+                )}
               </div>
             </Td>
           </Tr>
@@ -298,9 +311,16 @@ export default function Pedidos() {
                 <ArrowRight size={16} aria-hidden="true" />Pasar a {SIGUIENTE[detalle.estado.id].nombre}
               </Btn>
             )}
+            {puedeEntregarlo(detalle) && (
+              <Btn size="md" onClick={() => abrirEntrega(detalle)}>
+                <Truck size={16} aria-hidden="true" />Registrar entrega
+              </Btn>
+            )}
           </>
         )}
       />
+
+      {entregando && <EntregarPedido pedido={entregando} onCerrar={() => setEntregando(null)} onHecho={alCambiar} />}
 
       {cambio && <CambioDeEstado cambio={cambio} onCerrar={() => setCambio(null)} onHecho={alCambiar} />}
 

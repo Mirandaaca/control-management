@@ -213,14 +213,17 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
 
 /**
  * Pide confirmación antes de desactivar, anular o eliminar (docs/diseno.md, Mensajes). Con variante="primary" sirve
- * para una acción que no destruye pero tampoco se deshace, como confirmar una venta.
+ * para una acción que no destruye pero tampoco se deshace, como confirmar una venta. Con ancho="lg" entra un mapa.
  */
-export function Confirmar({ abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger' }) {
+export function Confirmar({
+  abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger', ancho = 'md',
+}) {
   return (
     <Modal
       abierto={abierto}
       onCerrar={onCancelar}
       titulo={titulo}
+      ancho={ancho}
       pie={(
         <>
           <Btn variant="outline" size="md" onClick={onCancelar} disabled={enviando}>Cancelar</Btn>
