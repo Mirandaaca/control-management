@@ -13,8 +13,13 @@ public class CobranzasController(CobranzaService cobranzas) : ControllerBase
 {
     [HttpGet]
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
-    public async Task<ActionResult<List<CobranzaResumenDTO>>> GetAll([FromQuery] FiltrosCobranzaDTO filtros) =>
+    public async Task<ActionResult<Pagina<CobranzaResumenDTO>>> GetAll([FromQuery] FiltrosCobranzaDTO filtros) =>
         await cobranzas.ListarAsync(filtros);
+
+    [HttpGet("resumen")]
+    [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
+    public async Task<ActionResult<ResumenCobranzasDTO>> GetResumen([FromQuery] FiltrosCobranzaDTO filtros) =>
+        await cobranzas.ResumenAsync(filtros);
 
     [HttpGet("{id}")]
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]

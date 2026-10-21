@@ -23,7 +23,7 @@ public class CobranzasTests(ApiDePrueba api)
 
     private static async Task<List<int>> IdsDeCobranzasAsync(HttpClient cliente, string consulta = "") =>
         (await (await cliente.GetAsync($"/api/cobranzas{consulta}")).LeerJsonAsync())
-            .EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
+            .GetProperty("items").EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
 
     [Fact]
     public async Task Un_promotor_solo_ve_las_cobranzas_de_sus_clientes()
@@ -87,7 +87,7 @@ public class CobranzasTests(ApiDePrueba api)
         await vendedor.CrearCobranzaAsync(clienteId, productoId, 1);
 
         var cobranza = (await (await operador.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync())
-            .EnumerateArray().Single();
+            .GetProperty("items").EnumerateArray().Single();
         Assert.Equal(promotor.Id, cobranza.GetProperty("promotor").GetProperty("id").GetString());
     }
 
@@ -124,6 +124,58 @@ public class CobranzasTests(ApiDePrueba api)
         Assert.True(problema.GetProperty("errors").TryGetProperty(metodoPago == 5 ? "metodoPago" : "monto", out _));
         var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
         Assert.Equal(0, cobranza.GetProperty("pagos").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task El_gerente_general_marca_una_deuda_como_incobrable()
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, zonaId, productoId) = escenario;
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
+        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
+        using var cliente = api.ClienteCon(gerente.Token);
+
+        var marcada = await (await cliente.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable",
+            new { observacion = "El negocio cerró" })).LeerJsonAsync();
+
+        Assert.Equal(4, marcada.GetProperty("estado").GetInt32());
+    }
+
+    [Fact]
+    public async Task El_resumen_suma_solo_lo_que_se_debe_en_las_cobranzas_abiertas()
+    {
+        using var escenario = await PrepararAsync(precio: 10m);
+        var (operador, zonaId, productoId) = escenario;
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        var parcial = await operador.CrearCobranzaAsync(clienteId, productoId, 3);
+        await operador.CrearCobranzaAsync(clienteId, productoId, 2);
+        var incobrable = await operador.CrearCobranzaAsync(clienteId, productoId, 5);
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{parcial}/pagos", new { monto = 12, metodoPago = 0 })).EnsureSuccessStatusCode();
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{incobrable}/incobrable", new { observacion = "Prueba" })).EnsureSuccessStatusCode();
+
+        var resumen = await (await operador.GetAsync($"/api/cobranzas/resumen?clienteId={clienteId}")).LeerJsonAsync();
+
+        // 30 − 12 de la parcial y 20 de la pendiente; la incobrable ya no cuenta.
+        Assert.Equal(38m, resumen.GetProperty("porCobrar").GetDecimal());
+        Assert.Equal(2, resumen.GetProperty("pendientes").GetInt32());
+        Assert.Equal(0, resumen.GetProperty("vencidas").GetInt32());
+    }
+
+    [Fact]
+    public async Task La_lista_viene_paginada_y_se_busca_por_numero()
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, zonaId, productoId) = escenario;
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        var primera = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        var numero = (await (await operador.GetAsync($"/api/cobranzas/{primera}")).LeerJsonAsync()).GetProperty("numero").GetString();
+
+        var pagina = await (await operador.GetAsync($"/api/cobranzas?clienteId={clienteId}&tamano=1")).LeerJsonAsync();
+
+        Assert.Equal(2, pagina.GetProperty("total").GetInt32());
+        Assert.Equal(1, pagina.GetProperty("items").GetArrayLength());
+        Assert.Equal([primera], await IdsDeCobranzasAsync(operador, $"?buscar={numero}"));
     }
 
     [Fact]

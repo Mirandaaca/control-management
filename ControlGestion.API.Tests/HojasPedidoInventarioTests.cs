@@ -21,7 +21,7 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         await (await cliente.GetAsync($"/api/hojas-pedido/{hojaId}")).LeerJsonAsync();
 
     private static async Task<List<JsonElement>> CobranzasDe(HttpClient cliente, int clienteId) =>
-        (await (await cliente.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync()).EnumerateArray().ToList();
+        (await (await cliente.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync()).GetProperty("items").EnumerateArray().ToList();
 
     private static async Task<JsonElement> ClienteDe(HttpClient cliente, int clienteId) =>
         await (await cliente.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync();

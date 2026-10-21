@@ -30,8 +30,39 @@ public record RegistrarPagoDTO : IValidatableObject
 
 public record PagoRegistradoDTO(int Id, EstadoCobranza Estado, decimal MontoPagado, decimal SaldoPendiente);
 
-/// <summary>Filtros de la lista. Desde y Hasta son días de Bolivia, ambos incluidos.</summary>
-public record FiltrosCobranzaDTO(int? ClienteId, EstadoCobranza? Estado, string? PromotorId, DateOnly? Desde, DateOnly? Hasta);
+/// <summary>
+/// Filtros de la lista (query string). Buscar compara con el número de la cobranza y con el nombre y el código del
+/// cliente. Desde y Hasta son días de Bolivia, ambos incluidos, sobre la fecha de emisión.
+/// </summary>
+public record FiltrosCobranzaDTO : IValidatableObject
+{
+    [MaxLength(100, ErrorMessage = "La búsqueda no puede superar los 100 caracteres.")]
+    public string? Buscar { get; init; }
+
+    public int? ClienteId { get; init; }
+    public EstadoCobranza? Estado { get; init; }
+    public string? PromotorId { get; init; }
+    public DateOnly? Desde { get; init; }
+    public DateOnly? Hasta { get; init; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "La página empieza en 1.")]
+    public int Pagina { get; init; } = 1;
+
+    [Range(1, 100, ErrorMessage = "El tamaño de la página va de 1 a 100.")]
+    public int Tamano { get; init; } = 25;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
+    {
+        if (Desde > Hasta)
+            yield return new ValidationResult("La fecha \"desde\" no puede ser posterior a \"hasta\".", [nameof(Desde)]);
+    }
+}
+
+/// <summary>
+/// Lo que se debe en las cobranzas abiertas que cumplen los filtros: cuánto hay por cobrar, cuántas están al día
+/// (pendientes o parciales) y cuántas vencidas.
+/// </summary>
+public record ResumenCobranzasDTO(decimal PorCobrar, int Pendientes, int Vencidas);
 
 public record AnularPagoDTO
 {

@@ -137,7 +137,7 @@ public static class Ayudantes
         (await vendedor.PostAsync($"/api/hojas-pedido/{hojaId}/confirmar", null)).EnsureSuccessStatusCode();
 
         var cobranzas = await (await vendedor.GetAsync($"/api/cobranzas?clienteId={clienteId}")).LeerJsonAsync();
-        return cobranzas.EnumerateArray()
+        return cobranzas.GetProperty("items").EnumerateArray()
             .Single(c => c.GetProperty("hojaPedido").GetProperty("id").GetInt32() == hojaId)
             .GetProperty("id").GetInt32();
     }

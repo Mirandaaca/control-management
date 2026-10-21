@@ -15,6 +15,14 @@ public static class CobranzaConsultas
         return cobranzas.Where(c => c.Cliente!.PromotorId == usuarioId);
     }
 
+    /// <summary>Busca en el número de la cobranza y en el nombre y el código del cliente.</summary>
+    public static IQueryable<Cobranza> Buscar(this IQueryable<Cobranza> cobranzas, string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return cobranzas;
+        var t = texto.Trim();
+        return cobranzas.Where(c => c.Numero.Contains(t) || c.Cliente!.NombreCompleto.Contains(t) || c.Cliente.Codigo.Contains(t));
+    }
+
     // Las proyecciones se traducen a SQL: la base devuelve solo estas columnas, no la entidad completa.
     public static readonly Expression<Func<Cobranza, CobranzaResumenDTO>> ComoResumen = c => new CobranzaResumenDTO(
         c.Id,

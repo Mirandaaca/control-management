@@ -11,9 +11,32 @@ namespace ControlGestion.API.Services;
 
 public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
 {
-    public async Task<List<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
+    public async Task<Pagina<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
     {
-        var consulta = db.Cobranzas.VisiblesPara(usuario);
+        var consulta = Filtrar(filtros);
+        var total = await consulta.CountAsync();
+        var items = await consulta
+            .OrderByDescending(c => c.FechaEmision).ThenByDescending(c => c.Id)
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(CobranzaConsultas.ComoResumen)
+            .ToListAsync();
+        return new Pagina<CobranzaResumenDTO>(items, total, filtros.Pagina, filtros.Tamano);
+    }
+
+    /// <summary>Los indicadores de la pantalla (3.2), con los mismos filtros que la lista.</summary>
+    public async Task<ResumenCobranzasDTO> ResumenAsync(FiltrosCobranzaDTO filtros)
+    {
+        var abiertas = Filtrar(filtros).Where(c => EstadosAbiertos.Contains(c.Estado));
+        return new ResumenCobranzasDTO(
+            await abiertas.SumAsync(c => c.MontoTotal - c.MontoPagado),
+            await abiertas.CountAsync(c => c.Estado != EstadoCobranza.Vencida),
+            await abiertas.CountAsync(c => c.Estado == EstadoCobranza.Vencida));
+    }
+
+    private IQueryable<Cobranza> Filtrar(FiltrosCobranzaDTO filtros)
+    {
+        var consulta = db.Cobranzas.VisiblesPara(usuario).Buscar(filtros.Buscar);
 
         if (filtros.ClienteId.HasValue) consulta = consulta.Where(c => c.ClienteId == filtros.ClienteId);
         if (filtros.Estado.HasValue) consulta = consulta.Where(c => c.Estado == filtros.Estado);
@@ -28,11 +51,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             var fin = HoraBolivia.FinDelDiaUtc(hasta);
             consulta = consulta.Where(c => c.FechaEmision < fin);
         }
-
-        return await consulta
-            .OrderByDescending(c => c.FechaEmision)
-            .Select(CobranzaConsultas.ComoResumen)
-            .ToListAsync();
+        return consulta;
     }
 
     public async Task<CobranzaDetalleDTO> ObtenerAsync(int id) =>

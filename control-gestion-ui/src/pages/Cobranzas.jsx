@@ -26,8 +26,8 @@ export default function Cobranzas() {
     if (filtros.estado !== '') params.estado = filtros.estado;
     if (filtros.desde) params.desde = filtros.desde;
     if (filtros.hasta) params.hasta = filtros.hasta;
-    return api.get('/cobranzas', { params }).then((r) => {
-      setCobranzas(r.data);
+    return api.get('/cobranzas', { params: { ...params, tamano: 100 } }).then((r) => {
+      setCobranzas(r.data.items);
       setLoading(false);
     });
   };
