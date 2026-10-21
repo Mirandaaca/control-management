@@ -1,336 +1,590 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, LocateFixed, Plus, Trash2 } from 'lucide-react';
 import api from '../api/axios';
-import { mensajeDeError } from '../api/errores';
+import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
+import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
-import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
-import { formatearFecha } from '../utils/formato';
+import {
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  PageHeader, Paginacion, Selector,
+} from '../components/ui';
+import { useAuth } from '../context/auth';
+import { PERMISOS } from '../context/permisos';
+import { useDemorado } from '../hooks/useDemorado';
+import { mostrarPrimerProblema } from '../utils/foco';
+import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 
-const ESTADO_COLOR = { 0: 'gray', 1: 'green', 2: 'red' };
-const ESTADO_LABEL = { 0: 'Borrador', 1: 'Confirmada', 2: 'Anulada' };
-const TIPO_COLOR = { 0: 'blue', 1: 'yellow' };
-const TIPO_LABEL = { 0: 'Contado', 1: 'Crédito' };
+const { ventas, seguridad } = PERMISOS;
+const TAMANO_PAGINA = 25;
+const SIN_FILTROS = { texto: '', estado: '', tipo: '', desde: '', hasta: '' };
 
-const EMPTY_FORM = { clienteId: '', zonaId: '', latitud: '', longitud: '', tipoVenta: 0, descuento: 0 };
+// EstadoHP y TipoVenta de la API.
+const BORRADOR = 0;
+const CONFIRMADA = 1;
+const ANULADA = 2;
+const ESTADOS = {
+  [BORRADOR]: { texto: 'Borrador', color: 'gray' },
+  [CONFIRMADA]: { texto: 'Confirmada', color: 'green' },
+  [ANULADA]: { texto: 'Anulada', color: 'red' },
+};
+const CREDITO = 1;
+const TIPOS = { 0: 'Contado', [CREDITO]: 'Crédito' };
+const ESTADOS_DE_COBRANZA = { 0: 'Pendiente', 1: 'Parcial', 2: 'Pagada', 3: 'Vencida', 4: 'Incobrable', 5: 'Anulada' };
+
+// Errores de la API que pertenecen a un campo del formulario: se muestran junto a él.
+const CAMPO_DEL_ERROR = { cliente_no_existe: 'clienteId', cliente_inactivo: 'clienteId' };
+
+function EstadoHP({ estado }) {
+  const { texto, color } = ESTADOS[estado] ?? { texto: 'Desconocido', color: 'gray' };
+  return <Badge color={color}>{texto}</Badge>;
+}
+
+function Dato({ titulo, children }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold text-slate-600">{titulo}</dt>
+      <dd className="mt-0.5 text-sm text-slate-900 wrap-break-word">{children || '—'}</dd>
+    </div>
+  );
+}
+
+const subtotalDe = (linea, productos) => {
+  const precio = productos.find((p) => String(p.id) === linea.productoId)?.precio ?? 0;
+  return (precio - (Number(linea.descuento) || 0)) * (Number(linea.cantidad) || 0);
+};
 
 export default function HojasPedido() {
-  const [hps, setHps] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [zonas, setZonas] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [detalles, setDetalles] = useState([{ productoId: '', cantidad: 1, descuento: 0 }]);
-  const [showForm, setShowForm] = useState(false);
-  const [showDetalle, setShowDetalle] = useState(null);
-  const [anulandoId, setAnulandoId] = useState(null);
+  const { usuario: yo, tiene } = useAuth();
+  const puedeRegistrar = tiene(ventas.registrarHp);
+  const puedeConfirmar = tiene(ventas.confirmarHp);
+  const puedeAnular = tiene(ventas.anularHp);
+  const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
+
+  const [pagina, setPagina] = useState(null);
+  const [numeroPagina, setNumeroPagina] = useState(1);
+  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const busqueda = useDemorado(filtros.texto.trim(), 300);
+  const [cargando, setCargando] = useState(true);
+  const [reintentando, setReintentando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState('');
+  const [aviso, setAviso] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
-  const [errorAnulacion, setErrorAnulacion] = useState('');
-  const [motivoAnulacion, setMotivoAnulacion] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [filtros, setFiltros] = useState({ estado: '', desde: '', hasta: '' });
 
-  const fetchHPs = () => {
-    const params = {};
-    if (filtros.estado !== '') params.estado = filtros.estado;
-    if (filtros.desde) params.desde = filtros.desde;
-    if (filtros.hasta) params.hasta = filtros.hasta;
-    return api.get('/hojas-pedido', { params }).then((r) => {
-      setHps(r.data);
-      setLoading(false);
-    });
-  };
+  const [detalle, setDetalle] = useState(null);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/clientes/opciones').then(r => setClientes(r.data)),
-      api.get('/zonas').then(r => setZonas(r.data)),
-      api.get('/productos').then(r => setProductos(r.data)),
-    ]);
-    fetchHPs();
-  }, []);
+  const [formulario, setFormulario] = useState(null);
+  const formularioRef = useRef(null);
+  const siguienteLinea = useRef(1);
+  const [clientes, setClientes] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [erroresCampo, setErroresCampo] = useState({});
+  const [errorFormulario, setErrorFormulario] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [buscandoGps, setBuscandoGps] = useState(false);
 
-  const precioProducto = (id) => productos.find(p => p.id === parseInt(id))?.precio ?? 0;
+  const [confirmando, setConfirmando] = useState(null);
+  const [anulando, setAnulando] = useState(null);
+  const anulacionRef = useRef(null);
+  const [enviando, setEnviando] = useState(false);
 
-  const calcSubtotal = (d) => {
-    const precio = precioProducto(d.productoId);
-    return ((precio - (parseFloat(d.descuento) || 0)) * (parseFloat(d.cantidad) || 0)).toFixed(2);
-  };
+  const cargar = useCallback(() => api.get('/hojas-pedido', {
+    params: {
+      pagina: numeroPagina,
+      tamano: TAMANO_PAGINA,
+      buscar: busqueda || undefined,
+      estado: filtros.estado || undefined,
+      tipoVenta: filtros.tipo || undefined,
+      desde: filtros.desde || undefined,
+      hasta: filtros.hasta || undefined,
+    },
+  })
+    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
+    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de hojas de pedido.')))
+    .finally(() => { setCargando(false); setReintentando(false); }),
+  [numeroPagina, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta]);
 
-  const totalHP = detalles.reduce((acc, d) => acc + parseFloat(calcSubtotal(d)), 0) - (parseFloat(form.descuento) || 0);
+  useEffect(() => { cargar(); }, [cargar]);
 
-  const addDetalle = () => setDetalles([...detalles, { productoId: '', cantidad: 1, descuento: 0 }]);
-  const removeDetalle = (i) => setDetalles(detalles.filter((_, idx) => idx !== i));
-  const updateDetalle = (i, field, val) => {
-    const next = [...detalles];
-    next[i] = { ...next[i], [field]: val };
-    setDetalles(next);
-  };
+  const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (detalles.some(d => !d.productoId)) { setError('Todos los detalles deben tener un producto.'); return; }
-    setSaving(true);
-    setError('');
-    try {
-      await api.post('/hojas-pedido', {
-        clienteId: parseInt(form.clienteId),
-        zonaId: parseInt(form.zonaId),
-        latitud: parseFloat(form.latitud) || 0,
-        longitud: parseFloat(form.longitud) || 0,
-        tipoVenta: parseInt(form.tipoVenta),
-        descuento: parseFloat(form.descuento) || 0,
-        detalles: detalles.map(d => ({
-          productoId: parseInt(d.productoId),
-          cantidad: parseFloat(d.cantidad),
-          descuento: parseFloat(d.descuento) || 0,
-        })),
-      });
-      setShowForm(false);
-      setForm(EMPTY_FORM);
-      setDetalles([{ productoId: '', cantidad: 1, descuento: 0 }]);
-      fetchHPs();
-    } catch (err) {
-      setError(mensajeDeError(err, 'Error al crear la HP.'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleConfirmar = async (id) => {
+  const verDetalle = (id) => {
     setErrorAccion('');
+    api.get(`/hojas-pedido/${id}`)
+      .then(({ data }) => setDetalle(data))
+      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
+  };
+
+  // Solo quien registró la HP la confirma: la API responde hp_de_otro_promotor a cualquier otro.
+  const puedeConfirmarla = (hp) => puedeConfirmar && hp.estadoHP === BORRADOR && hp.promotor.id === yo?.id;
+  const puedeAnularla = (hp) => puedeAnular && hp.estadoHP !== ANULADA;
+
+  // El error de un campo se borra en cuanto se cambia: si no, seguiría diciendo "Elige el cliente" con uno elegido.
+  const quitarError = (campo) =>
+    setErroresCampo((e) => Object.fromEntries(Object.entries(e).filter(([clave]) => clave !== campo)));
+  const quitarErrorDeUbicacion = () => quitarError('latitud');
+
+  // La ubicación de la venta la da el GPS del celular (en la app). En el panel se toma del navegador o se marca en el mapa.
+  const tomarUbicacion = () => {
+    if (!navigator.geolocation) {
+      setErroresCampo((e) => ({ ...e, latitud: 'Este navegador no puede dar tu ubicación: márcala en el mapa.' }));
+      return;
+    }
+    setBuscandoGps(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setFormulario((f) => f && {
+          ...f,
+          ubicacion: { latitud: coords.latitude, longitud: coords.longitude },
+          precisionGPS: Math.round(coords.accuracy),
+        });
+        quitarErrorDeUbicacion();
+        setBuscandoGps(false);
+      },
+      () => {
+        setErroresCampo((e) => ({ ...e, latitud: 'No se pudo obtener tu ubicación: márcala en el mapa.' }));
+        setBuscandoGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const nuevaLinea = () => ({ clave: siguienteLinea.current++, productoId: '', cantidad: '1', descuento: '' });
+
+  const abrirFormulario = () => {
+    setAviso('');
+    setErroresCampo({});
+    setErrorFormulario('');
+    setFormulario({ clienteId: '', tipoVenta: '0', descuento: '', lineas: [nuevaLinea()], ubicacion: null, precisionGPS: null });
+    Promise.all([api.get('/clientes/opciones'), api.get('/productos/opciones')])
+      .then(([c, p]) => { setClientes(c.data); setProductos(p.data); })
+      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los clientes y los productos.')));
+    tomarUbicacion();
+  };
+
+  const cambiarLinea = (clave, indice, cambios) => {
+    setFormulario((f) => ({ ...f, lineas: f.lineas.map((l) => (l.clave === clave ? { ...l, ...cambios } : l)) }));
+    Object.keys(cambios).forEach((campo) => quitarError(`detalles[${indice}].${campo}`));
+  };
+
+  const cambiarCampo = (campo, valor) => {
+    setFormulario((f) => ({ ...f, [campo]: valor }));
+    quitarError(campo);
+  };
+
+  const guardar = async () => {
+    setGuardando(true);
+    setErroresCampo({});
+    setErrorFormulario('');
+    const datos = {
+      clienteId: Number(formulario.clienteId) || 0,
+      tipoVenta: Number(formulario.tipoVenta),
+      descuento: Number(formulario.descuento) || 0,
+      latitud: formulario.ubicacion?.latitud ?? null,
+      longitud: formulario.ubicacion?.longitud ?? null,
+      precisionGPS: formulario.precisionGPS,
+      detalles: formulario.lineas.map((l) => ({
+        productoId: Number(l.productoId) || 0,
+        cantidad: Number(l.cantidad) || 0,
+        descuento: Number(l.descuento) || 0,
+      })),
+    };
     try {
-      await api.post(`/hojas-pedido/${id}/confirmar`);
-      fetchHPs();
+      const { data } = await api.post('/hojas-pedido', datos);
+      setAviso(`Se registró ${data.numero} por ${formatearMonto(data.total)}. Queda en borrador hasta que la confirmes.`);
+      setFormulario(null);
+      cargar();
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'Error al confirmar HP.'));
+      const { codigo, detail } = err.response?.data ?? {};
+      flushSync(() => {
+        const campos = erroresPorCampo(err);
+        if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo registrar la hoja de pedido.'));
+      });
+      mostrarPrimerProblema(formularioRef.current);
+    } finally {
+      setGuardando(false);
     }
   };
 
-  const handleAnular = async () => {
-    if (!motivoAnulacion.trim()) return;
-    setErrorAnulacion('');
+  const confirmar = async () => {
+    setEnviando(true);
+    setConfirmando((c) => ({ ...c, error: '' }));
     try {
-      await api.post(`/hojas-pedido/${anulandoId}/anular`, { motivo: motivoAnulacion });
-      setAnulandoId(null);
-      setMotivoAnulacion('');
-      fetchHPs();
+      const { data } = await api.post(`/hojas-pedido/${confirmando.hp.id}/confirmar`);
+      setAviso(data.cobranza
+        ? `${data.numero} quedó confirmada: se descontó el stock y nació la deuda ${data.cobranza.numero}.`
+        : `${data.numero} quedó confirmada: se descontó el stock.`);
+      setConfirmando(null);
+      setDetalle(null);
+      cargar();
     } catch (err) {
-      setErrorAnulacion(mensajeDeError(err, 'Error al anular HP.'));
+      setConfirmando((c) => ({ ...c, error: mensajeDeError(err, 'No se pudo confirmar la hoja de pedido.') }));
+    } finally {
+      setEnviando(false);
     }
   };
 
-  const handleVerDetalle = async (id) => {
-    const r = await api.get(`/hojas-pedido/${id}`);
-    setShowDetalle(r.data);
+  const anular = async () => {
+    setEnviando(true);
+    setAnulando((a) => ({ ...a, error: '', errorMotivo: '' }));
+    try {
+      const { data } = await api.post(`/hojas-pedido/${anulando.hp.id}/anular`, { motivo: anulando.motivo });
+      setAviso(anulando.hp.estadoHP === CONFIRMADA
+        ? `${data.numero} quedó anulada: el stock volvió al inventario${data.cobranza ? ` y la deuda ${data.cobranza.numero} se anuló` : ''}.`
+        : `${data.numero} quedó anulada.`);
+      setAnulando(null);
+      setDetalle(null);
+      cargar();
+    } catch (err) {
+      const errorMotivo = erroresPorCampo(err).motivo;
+      flushSync(() => setAnulando((a) => ({
+        ...a,
+        errorMotivo: errorMotivo ?? '',
+        error: errorMotivo ? '' : mensajeDeError(err, 'No se pudo anular la hoja de pedido.'),
+      })));
+      mostrarPrimerProblema(anulacionRef.current);
+    } finally {
+      setEnviando(false);
+    }
   };
+
+  const hayFiltros = Object.values(filtros).some((v) => v !== '');
+  const hojas = pagina?.items ?? [];
+  const totalFormulario = formulario
+    ? formulario.lineas.reduce((suma, l) => suma + subtotalDe(l, productos), 0) - (Number(formulario.descuento) || 0)
+    : 0;
+
+  let estado = null;
+  if (cargando) estado = <Cargando texto="Cargando hojas de pedido…" />;
+  else if (errorCarga && !pagina) estado = (
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+  );
+  else if (pagina?.total === 0 && !hayFiltros) estado = (
+    <EstadoVacio titulo="Todavía no hay hojas de pedido" icono={ClipboardList}
+      accion={puedeRegistrar && <Btn size="md" onClick={abrirFormulario}><Plus size={16} aria-hidden="true" />Nueva HP</Btn>}>
+      {veCarteraCompleta ? 'Las ventas que registran los promotores aparecen aquí.' : 'Las ventas a los clientes de tu cartera aparecen aquí.'}
+    </EstadoVacio>
+  );
+
+  const encabezados = [
+    'Número', 'Cliente', ...(veCarteraCompleta ? ['Promotor'] : []), 'Tipo', { texto: 'Total', derecha: true }, 'Estado', 'Fecha', '',
+  ];
 
   return (
     <Layout>
       <PageHeader
-        title="Hojas de Pedido"
-        subtitle="Ventas geolocalizadas en campo"
-        action={
-          <Btn variant="primary" size="md" onClick={() => { setShowForm(true); setError(''); }}>
-            + Nueva HP
+        title="Hojas de pedido"
+        subtitle={veCarteraCompleta ? 'Las ventas en campo de todos los promotores.' : 'Las ventas a los clientes de tu cartera.'}
+        action={puedeRegistrar && (
+          <Btn size="md" onClick={abrirFormulario}>
+            <Plus size={16} aria-hidden="true" />
+            Nueva HP
           </Btn>
-        }
+        )}
       />
 
+      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
+      {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
-      {/* Filtros */}
-      <Card className="mb-5">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Estado</label>
-            <select
-              value={filtros.estado}
-              onChange={e => setFiltros({ ...filtros, estado: e.target.value })}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos</option>
-              <option value="0">Borrador</option>
-              <option value="1">Confirmada</option>
-              <option value="2">Anulada</option>
-            </select>
-          </div>
-          <Input label="Desde" type="date" value={filtros.desde} onChange={e => setFiltros({ ...filtros, desde: e.target.value })} />
-          <Input label="Hasta" type="date" value={filtros.hasta} onChange={e => setFiltros({ ...filtros, hasta: e.target.value })} />
-          <Btn onClick={() => { setLoading(true); fetchHPs(); }} variant="primary" size="md">Filtrar</Btn>
-        </div>
-      </Card>
-
-      {/* Formulario nueva HP */}
-      {showForm && (
-        <Card className="mb-5 border-blue-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-700">Nueva Hoja de Pedido</h3>
-            <Btn variant="ghost" onClick={() => setShowForm(false)}>✕</Btn>
-          </div>
-          {error && <Alert type="error" className="mb-4">{error}</Alert>}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Cliente *</label>
-                <select value={form.clienteId} onChange={e => setForm({ ...form, clienteId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                  <option value="">Seleccionar cliente...</option>
-                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nombreCompleto} — {c.codigo}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Zona *</label>
-                <select value={form.zonaId} onChange={e => setForm({ ...form, zonaId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                  <option value="">Seleccionar zona...</option>
-                  {zonas.map(z => <option key={z.id} value={z.id}>{z.nombre}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Tipo de venta</label>
-                <select value={form.tipoVenta} onChange={e => setForm({ ...form, tipoVenta: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value={0}>Contado</option>
-                  <option value={1}>Crédito</option>
-                </select>
-              </div>
+      <Table
+        headers={encabezados}
+        empty="Ninguna hoja de pedido coincide con los filtros."
+        estado={estado}
+        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+          <BarraDeFiltros
+            resultado={`${pagina.total} ${pagina.total === 1 ? 'hoja de pedido' : 'hojas de pedido'}`}
+            hayFiltros={hayFiltros}
+            onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
+          >
+            <Buscador label="Buscar" placeholder="Número, cliente o código…" value={filtros.texto} onChange={(texto) => filtrar({ texto })} />
+            <div className="w-full sm:w-40">
+              <Selector label="Estado" todos="Todos" value={filtros.estado}
+                opciones={Object.entries(ESTADOS).map(([valor, e]) => ({ valor, texto: e.texto }))}
+                onChange={(valor) => filtrar({ estado: valor })} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Input label="Latitud" type="number" step="any" placeholder="-17.783" value={form.latitud} onChange={e => setForm({ ...form, latitud: e.target.value })} />
-              <Input label="Longitud" type="number" step="any" placeholder="-63.182" value={form.longitud} onChange={e => setForm({ ...form, longitud: e.target.value })} />
-              <Input label="Descuento global (Bs.)" type="number" step="0.01" value={form.descuento} onChange={e => setForm({ ...form, descuento: e.target.value })} />
+            <div className="w-full sm:w-36">
+              <Selector label="Tipo" todos="Todos" value={filtros.tipo}
+                opciones={Object.entries(TIPOS).map(([valor, texto]) => ({ valor, texto }))}
+                onChange={(tipo) => filtrar({ tipo })} />
             </div>
+            <div className="w-full sm:w-40">
+              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+            </div>
+            <div className="w-full sm:w-40">
+              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+            </div>
+          </BarraDeFiltros>
+        )}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+      >
+        {hojas.map((hp) => (
+          <Tr key={hp.id}>
+            <Td mono>{hp.numero}</Td>
+            <Td><span className="font-medium">{hp.cliente.nombreCompleto}</span></Td>
+            {veCarteraCompleta && <Td>{hp.promotor.nombreCompleto}</Td>}
+            <Td>{TIPOS[hp.tipoVenta]}</Td>
+            <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(hp.total)}</Td>
+            <Td><EstadoHP estado={hp.estadoHP} /></Td>
+            <Td className="whitespace-nowrap tabular-nums">{formatearFecha(hp.fechaRegistro, { hora: true })}</Td>
+            <Td>
+              <div className="flex items-center justify-end gap-1">
+                <Btn variant="ghost" onClick={() => verDetalle(hp.id)} aria-label={`Ver ${hp.numero}`}>
+                  <Eye size={14} aria-hidden="true" />
+                  Ver
+                </Btn>
+                {puedeConfirmarla(hp) && (
+                  <Btn variant="ghost" onClick={() => setConfirmando({ hp, error: '' })} aria-label={`Confirmar ${hp.numero}`}>
+                    <CircleCheck size={14} aria-hidden="true" />
+                    Confirmar
+                  </Btn>
+                )}
+                {puedeAnularla(hp) && (
+                  <Btn variant="ghost" onClick={() => setAnulando({ hp, motivo: '', error: '', errorMotivo: '' })} aria-label={`Anular ${hp.numero}`}>
+                    <Ban size={14} aria-hidden="true" />
+                    Anular
+                  </Btn>
+                )}
+              </div>
+            </Td>
+          </Tr>
+        ))}
+      </Table>
 
-            {/* Líneas de productos */}
+      {/* Detalle */}
+      <Modal
+        abierto={detalle !== null}
+        onCerrar={() => setDetalle(null)}
+        ancho="lg"
+        titulo={detalle ? `${detalle.numero} · ${detalle.cliente.nombreCompleto}` : ''}
+        pie={(
+          <>
+            <Btn variant="outline" size="md" onClick={() => setDetalle(null)}>Cerrar</Btn>
+            {detalle && puedeAnularla(detalle) && (
+              <Btn variant="danger" size="md" onClick={() => { setAnulando({ hp: detalle, motivo: '', error: '', errorMotivo: '' }); setDetalle(null); }}>
+                <Ban size={16} aria-hidden="true" />Anular
+              </Btn>
+            )}
+            {detalle && puedeConfirmarla(detalle) && (
+              <Btn size="md" onClick={() => { setConfirmando({ hp: detalle, error: '' }); setDetalle(null); }}>
+                <CircleCheck size={16} aria-hidden="true" />Confirmar
+              </Btn>
+            )}
+          </>
+        )}
+      >
+        {detalle && (
+          <div className="space-y-4">
+            {detalle.estadoHP === ANULADA && (
+              <Alert type="warning">
+                Anulada el {formatearFecha(detalle.fechaAnulacion, { hora: true })}
+                {detalle.anuladoPor && ` por ${detalle.anuladoPor.nombreCompleto}`}: {detalle.observacionesAnulacion}
+              </Alert>
+            )}
+            <dl className="grid gap-4 sm:grid-cols-3">
+              <Dato titulo="Estado"><EstadoHP estado={detalle.estadoHP} /></Dato>
+              <Dato titulo="Tipo de venta">{TIPOS[detalle.tipoVenta]}</Dato>
+              <Dato titulo="Registrada el">{formatearFecha(detalle.fechaRegistro, { hora: true })}</Dato>
+              <Dato titulo="Promotor">{detalle.promotor.nombreCompleto}</Dato>
+              <Dato titulo="Zona">{detalle.zona.nombre}</Dato>
+              <Dato titulo="Cobranza">
+                {detalle.cobranza ? `${detalle.cobranza.numero} (${ESTADOS_DE_COBRANZA[detalle.cobranza.estado]})` : 'Sin deuda'}
+              </Dato>
+            </dl>
+            <Table headers={['Producto', { texto: 'Cantidad', derecha: true }, { texto: 'Precio', derecha: true },
+              { texto: 'Descuento', derecha: true }, { texto: 'Subtotal', derecha: true }]}>
+              {detalle.detalles.map((d) => (
+                <Tr key={d.id}>
+                  <Td>
+                    <p className="font-medium">{d.descripcion}</p>
+                    <p className="text-xs text-slate-600 font-mono">{d.sku}</p>
+                  </Td>
+                  <Td className="text-right tabular-nums">{formatearCantidad(d.cantidad)}</Td>
+                  <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(d.precioUnitario)}</Td>
+                  <Td className="text-right tabular-nums whitespace-nowrap">{d.descuento ? formatearMonto(d.descuento) : '—'}</Td>
+                  <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(d.subtotal)}</Td>
+                </Tr>
+              ))}
+            </Table>
+            <dl className="ml-auto w-full max-w-xs space-y-1 text-sm tabular-nums">
+              <div className="flex justify-between"><dt className="text-slate-600">Subtotal</dt><dd>{formatearMonto(detalle.subTotal)}</dd></div>
+              <div className="flex justify-between"><dt className="text-slate-600">Descuento</dt><dd>{formatearMonto(detalle.descuento)}</dd></div>
+              <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold text-slate-900">
+                <dt>Total</dt><dd>{formatearMonto(detalle.total)}</dd>
+              </div>
+            </dl>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-slate-600">Productos *</label>
-                <Btn type="button" variant="ghost" onClick={addDetalle}>+ Agregar línea</Btn>
-              </div>
-              <div className="space-y-2">
-                {detalles.map((d, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-5">
-                      <select value={d.productoId} onChange={e => updateDetalle(i, 'productoId', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                        <option value="">Producto...</option>
-                        {productos.map(p => <option key={p.id} value={p.id}>{p.descripcion} — Bs.{p.precio}</option>)}
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <input type="number" min="0.001" step="0.001" placeholder="Cant." value={d.cantidad}
-                        onChange={e => updateDetalle(i, 'cantidad', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
-                    </div>
-                    <div className="col-span-2">
-                      <input type="number" min="0" step="0.01" placeholder="Desc." value={d.descuento}
-                        onChange={e => updateDetalle(i, 'descuento', e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    </div>
-                    <div className="col-span-2 text-right">
-                      <span className="text-sm font-semibold text-slate-700">Bs. {calcSubtotal(d)}</span>
-                    </div>
-                    <div className="col-span-1">
-                      {detalles.length > 1 && (
-                        <Btn type="button" variant="danger" onClick={() => removeDetalle(i)}>✕</Btn>
+              <p className="text-sm font-medium text-slate-700 mb-1">
+                Dónde se registró
+                {detalle.precisionGPS != null && <span className="font-normal text-slate-600"> (precisión de {detalle.precisionGPS} m)</span>}
+              </p>
+              <MapaUbicacion valor={detalle} alto={220} etiqueta="Mapa con la ubicación de la venta" />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Nueva HP */}
+      <Modal
+        abierto={formulario !== null}
+        onCerrar={() => setFormulario(null)}
+        ancho="lg"
+        titulo="Nueva hoja de pedido"
+        descripcion="Queda en borrador: el stock se descuenta y la deuda nace recién al confirmarla. La zona es la del cliente."
+        pie={(
+          <>
+            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
+            <Btn type="submit" form="formulario-hp" size="md" disabled={guardando}>
+              {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
+              {guardando ? 'Registrando…' : 'Registrar HP'}
+            </Btn>
+          </>
+        )}
+      >
+        {formulario && (
+          <form id="formulario-hp" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
+            {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Selector label="Cliente" placeholder="Elige el cliente" value={formulario.clienteId} error={erroresCampo.clienteId}
+                opciones={clientes.map((c) => ({ valor: String(c.id), texto: `${c.nombreCompleto} · ${c.codigo}` }))}
+                onChange={(clienteId) => cambiarCampo('clienteId', clienteId)} />
+              <Selector label="Tipo de venta" value={formulario.tipoVenta} error={erroresCampo.tipoVenta}
+                opciones={Object.entries(TIPOS).map(([valor, texto]) => ({ valor, texto }))}
+                ayuda={Number(formulario.tipoVenta) === CREDITO ? 'Al confirmarla nace la deuda, que vence en 30 días.' : undefined}
+                onChange={(tipoVenta) => cambiarCampo('tipoVenta', tipoVenta)} />
+            </div>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-slate-700 mb-1">Productos</legend>
+              {erroresCampo.detalles && <Alert type="error">{erroresCampo.detalles}</Alert>}
+              {formulario.lineas.map((linea, i) => {
+                const producto = productos.find((p) => String(p.id) === linea.productoId);
+                // El stock se valida al confirmar; aquí solo se avisa, porque puede llegar mercadería antes.
+                let ayudaDelProducto;
+                if (producto) {
+                  ayudaDelProducto = Number(linea.cantidad) > producto.stockActual
+                    ? `Hay ${formatearCantidad(producto.stockActual)} en stock: con esta cantidad no se podrá confirmar.`
+                    : `Hay ${formatearCantidad(producto.stockActual)} en stock.`;
+                }
+                return (
+                  <div key={linea.clave} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_auto] sm:items-start">
+                    <Selector label={`Producto ${i + 1}`} placeholder="Elige el producto" value={linea.productoId}
+                      error={erroresCampo[`detalles[${i}].productoId`]}
+                      opciones={productos.map((p) => ({ valor: String(p.id), texto: `${p.descripcion} · ${formatearMonto(p.precio)}` }))}
+                      ayuda={ayudaDelProducto}
+                      onChange={(productoId) => cambiarLinea(linea.clave, i, { productoId })} />
+                    <Input label="Cantidad" type="number" inputMode="decimal" min="0" step="1" value={linea.cantidad} autoComplete="off"
+                      error={erroresCampo[`detalles[${i}].cantidad`]}
+                      onChange={(e) => cambiarLinea(linea.clave, i, { cantidad: e.target.value })} />
+                    <Input label="Descuento c/u" type="number" inputMode="decimal" min="0" step="0.01" value={linea.descuento}
+                      placeholder="0,00" autoComplete="off" error={erroresCampo[`detalles[${i}].descuento`]}
+                      onChange={(e) => cambiarLinea(linea.clave, i, { descuento: e.target.value })} />
+                    <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end sm:pt-7">
+                      <span className="text-sm font-semibold tabular-nums whitespace-nowrap">{formatearMonto(subtotalDe(linea, productos))}</span>
+                      {formulario.lineas.length > 1 && (
+                        <Btn variant="ghost" aria-label={`Quitar el producto ${i + 1}`}
+                          onClick={() => setFormulario((f) => ({ ...f, lineas: f.lineas.filter((l) => l.clave !== linea.clave) }))}>
+                          <Trash2 size={14} aria-hidden="true" />
+                        </Btn>
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="flex justify-end mt-3 pt-3 border-t border-slate-100">
-                <span className="text-base font-bold text-slate-800">Total: Bs. {totalHP.toFixed(2)}</span>
-              </div>
+                );
+              })}
+              <Btn variant="outline" onClick={() => setFormulario((f) => ({ ...f, lineas: [...f.lineas, nuevaLinea()] }))}>
+                <Plus size={14} aria-hidden="true" />
+                Agregar producto
+              </Btn>
+            </fieldset>
+
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
+              <Input label="Descuento sobre el total (Bs, opcional)" type="number" inputMode="decimal" min="0" step="0.01"
+                value={formulario.descuento} placeholder="0,00" autoComplete="off" error={erroresCampo.descuento}
+                onChange={(e) => cambiarCampo('descuento', e.target.value)} />
+              <p className="text-right text-base font-semibold text-slate-900 tabular-nums sm:pb-2" aria-live="polite">
+                Total: {formatearMonto(totalFormulario)}
+              </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Btn type="submit" variant="primary" size="md" disabled={saving}>
-                {saving ? 'Creando...' : 'Crear HP (Borrador)'}
-              </Btn>
-              <Btn variant="ghost" size="md" onClick={() => setShowForm(false)}>Cancelar</Btn>
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-1">Ubicación de la venta</p>
+              <MapaUbicacion
+                valor={formulario.ubicacion}
+                etiqueta="Mapa: haz clic donde se hace la venta para marcar la ubicación"
+                onCambiar={(ubicacion) => {
+                  setFormulario((f) => ({ ...f, ubicacion, precisionGPS: null }));
+                  quitarErrorDeUbicacion();
+                }}
+              />
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-slate-600 tabular-nums" aria-live="polite">
+                  {buscandoGps && 'Tomando tu ubicación…'}
+                  {!buscandoGps && (formulario.ubicacion
+                    ? `Marcada en ${Number(formulario.ubicacion.latitud).toFixed(6)}, ${Number(formulario.ubicacion.longitud).toFixed(6)}${
+                      formulario.precisionGPS != null ? `, con ${formulario.precisionGPS} m de precisión` : ''}.`
+                    : 'Haz clic en el mapa donde se hace la venta.')}
+                </p>
+                <Btn variant="outline" onClick={tomarUbicacion} disabled={buscandoGps}>
+                  {buscandoGps ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <LocateFixed size={14} aria-hidden="true" />}
+                  Usar mi ubicación
+                </Btn>
+              </div>
+              {erroresCampo.latitud && <Alert type="error" className="mt-2">{erroresCampo.latitud}</Alert>}
             </div>
           </form>
-        </Card>
-      )}
+        )}
+      </Modal>
 
-      {/* Modal anulación */}
-      {anulandoId && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Anular Hoja de Pedido</h3>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Motivo de anulación *</label>
-              <textarea rows={3} value={motivoAnulacion} onChange={e => setMotivoAnulacion(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="Describe el motivo..." />
-            </div>
-            {errorAnulacion && <Alert type="error" className="mt-3">{errorAnulacion}</Alert>}
-            <div className="flex gap-2 mt-3">
-              <Btn variant="danger" size="md" onClick={handleAnular}>Confirmar anulación</Btn>
-              <Btn variant="ghost" size="md" onClick={() => { setAnulandoId(null); setErrorAnulacion(''); }}>Cancelar</Btn>
-            </div>
-          </Card>
-        </div>
-      )}
+      <Confirmar
+        abierto={confirmando !== null}
+        titulo={`¿Confirmar ${confirmando?.hp.numero ?? ''}?`}
+        textoAccion="Confirmar venta"
+        variante="primary"
+        enviando={enviando}
+        error={confirmando?.error}
+        onConfirmar={confirmar}
+        onCancelar={() => setConfirmando(null)}
+      >
+        {confirmando && (
+          <>
+            <p>
+              Venta {confirmando.hp.tipoVenta === CREDITO ? 'a crédito' : 'al contado'} de{' '}
+              <span className="font-semibold tabular-nums">{formatearMonto(confirmando.hp.total)}</span> a {confirmando.hp.cliente.nombreCompleto}.
+            </p>
+            <p>
+              Se descuenta el stock de sus productos
+              {confirmando.hp.tipoVenta === CREDITO ? ' y nace la deuda, que vence en 30 días' : ''}.
+              No se puede deshacer: si hay un error, la secretaria tendrá que anularla.
+            </p>
+          </>
+        )}
+      </Confirmar>
 
-      {/* Modal detalle */}
-      {showDetalle && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-slate-800">{showDetalle.numero}</h3>
-                <p className="text-xs text-slate-400">{showDetalle.cliente?.nombreCompleto}</p>
-              </div>
-              <Btn variant="ghost" onClick={() => setShowDetalle(null)}>✕</Btn>
-            </div>
-            <div className="space-y-1 mb-4">
-              {showDetalle.detalles?.map(d => (
-                <div key={d.id} className="flex justify-between text-sm py-1 border-b border-slate-50">
-                  <span>{d.producto?.descripcion} × {d.cantidad}</span>
-                  <span className="font-medium">Bs. {d.subtotal?.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between font-bold text-slate-800 pt-2 border-t border-slate-200">
-              <span>Total</span>
-              <span>Bs. {showDetalle.total?.toFixed(2)}</span>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Tabla */}
-      {loading ? (
-        <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Cargando...</div>
-      ) : (
-        <Table headers={['Número', 'Cliente', 'Promotor', 'Tipo', 'Total', 'Estado', 'Fecha', 'Acciones']}>
-          {hps.map(hp => (
-            <Tr key={hp.id}>
-              <Td mono>{hp.numero}</Td>
-              <Td><span className="font-medium">{hp.cliente?.nombreCompleto}</span></Td>
-              <Td>{hp.promotor?.nombreCompleto}</Td>
-              <Td><Badge color={TIPO_COLOR[hp.tipoVenta]}>{TIPO_LABEL[hp.tipoVenta]}</Badge></Td>
-              <Td><span className="font-semibold text-slate-800">Bs. {hp.total?.toFixed(2)}</span></Td>
-              <Td><Badge color={ESTADO_COLOR[hp.estadoHP]}>{ESTADO_LABEL[hp.estadoHP]}</Badge></Td>
-              <Td>{formatearFecha(hp.fechaRegistro)}</Td>
-              <Td>
-                <div className="flex gap-1.5 flex-wrap">
-                  <Btn onClick={() => handleVerDetalle(hp.id)} variant="ghost">Ver</Btn>
-                  {hp.estadoHP === 0 && (
-                    <Btn onClick={() => handleConfirmar(hp.id)} variant="primary">Confirmar</Btn>
-                  )}
-                  {hp.estadoHP !== 2 && (
-                    <Btn onClick={() => { setAnulandoId(hp.id); setMotivoAnulacion(''); }} variant="danger">Anular</Btn>
-                  )}
-                </div>
-              </Td>
-            </Tr>
-          ))}
-        </Table>
-      )}
+      <Confirmar
+        abierto={anulando !== null}
+        titulo={`¿Anular ${anulando?.hp.numero ?? ''}?`}
+        textoAccion="Anular HP"
+        enviando={enviando}
+        error={anulando?.error}
+        onConfirmar={anular}
+        onCancelar={() => setAnulando(null)}
+      >
+        {anulando && (
+          <div ref={anulacionRef} className="space-y-3">
+            <p>
+              {anulando.hp.estadoHP === CONFIRMADA
+                ? 'El stock de sus productos vuelve al inventario y su deuda, si es a crédito, se anula. Si la deuda ya tiene pagos, primero hay que anularlos en Cobranzas.'
+                : 'Todavía no movió el stock ni creó una deuda: solo queda anulada.'}
+            </p>
+            <AreaDeTexto label="Motivo" value={anulando.motivo} error={anulando.errorMotivo} autoComplete="off"
+              placeholder="Por qué se anula la venta…"
+              onChange={(e) => setAnulando({ ...anulando, motivo: e.target.value })} />
+          </div>
+        )}
+      </Confirmar>
     </Layout>
   );
 }

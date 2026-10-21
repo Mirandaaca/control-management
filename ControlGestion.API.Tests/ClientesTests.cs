@@ -339,7 +339,7 @@ public class ClientesTests(ApiDePrueba api)
         try
         {
             // HP a crédito para un cliente sin límite de crédito: la validación credito_insuficiente ya no existe.
-            await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, 1);
+            await operador.CrearCobranzaAsync(clienteId, productoId, 1);
 
             var cliente = await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync();
             var faltan = cliente.GetProperty("proximaVisita").GetDateTime() - DateTime.UtcNow;
@@ -348,7 +348,8 @@ public class ClientesTests(ApiDePrueba api)
         }
         finally
         {
-            await operador.DeleteAsync("/api/configuraciones/DiasRevisita");
+            // Vuelve al valor sembrado: las demás pruebas cuentan con él.
+            await operador.PutAsJsonAsync("/api/configuraciones/DiasRevisita", new { clave = "DiasRevisita", valor = "15" });
         }
     }
 

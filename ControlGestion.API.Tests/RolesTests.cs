@@ -121,11 +121,11 @@ public class RolesTests(ApiDePrueba api)
         var usuario = await api.CrearUsuarioAsync(rolNombre);
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
-        var suya = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)), zonaId, productoId, 1);
-        var ajena = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), zonaId, productoId, 1);
+        var suya = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)), productoId, 1);
+        var ajena = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
         using var cliente = api.ClienteCon(usuario.Token);
-        var visibles = async () => (await (await cliente.GetAsync("/api/cobranzas")).LeerJsonAsync())
-            .EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
+        var visibles = async () => (await (await cliente.GetAsync("/api/cobranzas?tamano=100")).LeerJsonAsync())
+            .GetProperty("items").EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
 
         var antes = await visibles();
         Assert.Contains(suya, antes);

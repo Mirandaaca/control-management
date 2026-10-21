@@ -1,93 +1,50 @@
-using ControlGestion.API.Data;
-using ControlGestion.API.Models;
-using Microsoft.EntityFrameworkCore;
+using ControlGestion.API.Configuracion;
 
 namespace ControlGestion.API.Services;
 
-public class MoraDetectionService : BackgroundService
+/// <summary>
+/// Corre el proceso de mora al arrancar la API y después cada día a las 00:05 de Bolivia, cuando ya terminó el día de
+/// vencimiento de ayer. Al arrancar, porque si la API estuvo apagada a esa hora, las moras de ese día quedarían sin marcar.
+/// </summary>
+public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<MoraDetectionService> logger)
+    : BackgroundService
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<MoraDetectionService> _logger;
-
-    public MoraDetectionService(IServiceScopeFactory scopeFactory, ILogger<MoraDetectionService> logger)
-    {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            var now = DateTime.UtcNow;
-            var nextRun = now.Date.AddDays(1).AddHours(2); // 02:00 UTC next day
-            var delay = nextRun - now;
-
+            await DetectarMorasAsync();
             try
             {
-                await Task.Delay(delay, stoppingToken);
+                await Task.Delay(HastaLaProximaCorrida(), reloj, stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
-
-            if (!stoppingToken.IsCancellationRequested)
-                await DetectarMorasAsync();
         }
+    }
+
+    private TimeSpan HastaLaProximaCorrida()
+    {
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var hoy = HoraBolivia.Hoy(reloj);
+        var proxima = HoraBolivia.InicioDelDiaUtc(hoy).AddMinutes(5);
+        if (proxima <= ahora) proxima = HoraBolivia.InicioDelDiaUtc(hoy.AddDays(1)).AddMinutes(5);
+        return proxima - ahora;
     }
 
     private async Task DetectarMorasAsync()
     {
-        const int intentosMaximos = 3;
-        for (var intento = 1; intento <= intentosMaximos; intento++)
+        try
         {
-            try
-            {
-                await MarcarCobranzasVencidasAsync();
-                return;
-            }
-            catch (DbUpdateConcurrencyException) when (intento < intentosMaximos)
-            {
-                // Un pago cambió alguna cobranza entre la lectura y el guardado. Se vuelve a leer todo:
-                // si ese pago la cerró, ya no aparece como vencida.
-                _logger.LogWarning("Detección de moras: conflicto de concurrencia en el intento {Intento}; se reintenta.", intento);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error en la detección automática de moras.");
-                return;
-            }
+            using var scope = scopeFactory.CreateScope();
+            var marcadas = await scope.ServiceProvider.GetRequiredService<MoraService>().MarcarVencidasAsync();
+            logger.LogInformation("Detección de moras: {Cantidad} cobranzas marcadas como vencidas.", marcadas);
         }
-    }
-
-    private async Task MarcarCobranzasVencidasAsync()
-    {
-        // Un scope nuevo en cada intento: el DbContext de un intento fallido guarda valores viejos.
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var hoy = DateTime.UtcNow.Date;
-
-        var vencidas = await db.Cobranzas
-            .Where(c => c.Estado == EstadoCobranza.Pendiente || c.Estado == EstadoCobranza.Parcial)
-            .Where(c => c.FechaVencimiento.Date < hoy)
-            .Include(c => c.Cliente)
-            .ToListAsync();
-
-        foreach (var cobranza in vencidas)
+        catch (Exception ex)
         {
-            cobranza.Estado = EstadoCobranza.Vencida;
-
-            if (cobranza.Cliente != null)
-            {
-                var estadoMora = await db.EstadosCliente.FirstOrDefaultAsync(e => e.Nombre == "Con Deuda Vencida");
-                if (estadoMora != null)
-                    cobranza.Cliente.EstadoClienteId = estadoMora.Id;
-            }
+            logger.LogError(ex, "Error en la detección automática de moras.");
         }
-
-        await db.SaveChangesAsync();
-        _logger.LogInformation("Mora detection: {Count} cobranzas marcadas como vencidas.", vencidas.Count);
     }
 }

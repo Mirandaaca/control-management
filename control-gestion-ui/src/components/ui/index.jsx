@@ -98,6 +98,26 @@ export function Input({ label, ayuda, error, id, ...props }) {
   );
 }
 
+/** Texto de varias líneas, como un motivo o una observación, con su etiqueta y su error. */
+export function AreaDeTexto({ label, ayuda, error, id, rows = 3, ...props }) {
+  const generado = useId();
+  const campoId = id ?? generado;
+  return (
+    <Campo id={campoId} label={label} ayuda={ayuda} error={error}>
+      <textarea
+        {...props}
+        id={campoId}
+        rows={rows}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describirCon(campoId, error, ayuda)}
+        className={`w-full px-3 py-2 border rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white resize-y transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500 ${
+          error ? 'border-red-600' : 'border-borde-control'
+        }`}
+      />
+    </Campo>
+  );
+}
+
 const SIN_FILTRO = '__todos';
 
 /**
@@ -191,8 +211,11 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
   );
 }
 
-/** Pide confirmación antes de desactivar, anular o eliminar (docs/diseno.md, Mensajes). */
-export function Confirmar({ abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar }) {
+/**
+ * Pide confirmación antes de desactivar, anular o eliminar (docs/diseno.md, Mensajes). Con variante="primary" sirve
+ * para una acción que no destruye pero tampoco se deshace, como confirmar una venta.
+ */
+export function Confirmar({ abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger' }) {
   return (
     <Modal
       abierto={abierto}
@@ -201,7 +224,7 @@ export function Confirmar({ abierto, titulo, children, textoAccion, enviando, er
       pie={(
         <>
           <Btn variant="outline" size="md" onClick={onCancelar} disabled={enviando}>Cancelar</Btn>
-          <Btn variant="danger" size="md" onClick={onConfirmar} disabled={enviando}>
+          <Btn variant={variante} size="md" onClick={onConfirmar} disabled={enviando}>
             {enviando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             {textoAccion}
           </Btn>
@@ -278,6 +301,20 @@ export function Paginacion({ pagina, totalPaginas, onCambiar }) {
         </Btn>
       </div>
     </nav>
+  );
+}
+
+/** Un número que resume la pantalla, como lo que hay por cobrar. */
+export function Indicador({ titulo, valor, detalle, icono: Icono }) {
+  return (
+    <div className="bg-white rounded-xl shadow-tarjeta border border-slate-200 p-5 min-w-0">
+      <p className="flex items-center gap-2 text-sm font-medium text-slate-600">
+        {Icono && <Icono size={16} aria-hidden="true" />}
+        {titulo}
+      </p>
+      <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums truncate">{valor}</p>
+      {detalle && <p className="mt-1 text-sm text-slate-600">{detalle}</p>}
+    </div>
   );
 }
 

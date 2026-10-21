@@ -1,96 +1,267 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { LoaderCircle, Package, PackageX, Pencil, Plus } from 'lucide-react';
 import api from '../api/axios';
+import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
-import { PageHeader, Badge, Btn, Input, Card } from '../components/ui';
+import {
+  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader, Paginacion,
+} from '../components/ui';
+import { useAuth } from '../context/auth';
+import { PERMISOS } from '../context/permisos';
+import { useDemorado } from '../hooks/useDemorado';
+import { mostrarPrimerProblema } from '../utils/foco';
+import { formatearCantidad, formatearMonto } from '../utils/formato';
 
-const EMPTY = { sku: '', descripcion: '', precio: '', categoria: '' };
+const { parametros } = PERMISOS;
+const TAMANO_PAGINA = 25;
+const FORMULARIO_VACIO = { sku: '', descripcion: '', categoria: '', precioCompra: '', precio: '', stockMinimo: '0' };
+
+// Errores de la API que pertenecen a un campo del formulario: se muestran junto a él.
+const CAMPO_DEL_ERROR = { sku_repetido: 'sku' };
 
 export default function Productos() {
-  const [productos, setProductos] = useState([]);
-  const [form, setForm] = useState(EMPTY);
-  const [editId, setEditId] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const { tiene } = useAuth();
+  const puedeRegistrar = tiene(parametros.registrarProducto);
+  const puedeModificar = tiene(parametros.modificarProducto);
+  const puedeEliminar = tiene(parametros.eliminarProducto);
 
-  const fetchProductos = () => api.get('/productos').then((r) => setProductos(r.data));
-  useEffect(() => { fetchProductos(); }, []);
+  const [pagina, setPagina] = useState(null);
+  const [numeroPagina, setNumeroPagina] = useState(1);
+  const [texto, setTexto] = useState('');
+  const busqueda = useDemorado(texto.trim(), 300);
+  const [cargando, setCargando] = useState(true);
+  const [reintentando, setReintentando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState('');
+  const [aviso, setAviso] = useState('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    const payload = { ...form, precio: parseFloat(form.precio), activo: true };
-    try {
-      if (editId) {
-        await api.put(`/productos/${editId}`, { id: editId, ...payload });
-        setEditId(null);
-      } else {
-        await api.post('/productos', payload);
+  const [formulario, setFormulario] = useState(null);
+  const formularioRef = useRef(null);
+  const [erroresCampo, setErroresCampo] = useState({});
+  const [errorFormulario, setErrorFormulario] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  const [desactivando, setDesactivando] = useState(null);
+  const [errorDesactivar, setErrorDesactivar] = useState('');
+  const [enviandoDesactivar, setEnviandoDesactivar] = useState(false);
+
+  const cargar = useCallback(() => api.get('/productos', {
+    params: { pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined },
+  })
+    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
+    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de productos.')))
+    .finally(() => { setCargando(false); setReintentando(false); }),
+  [numeroPagina, busqueda]);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const buscar = (valor) => { setTexto(valor); setNumeroPagina(1); };
+
+  const abrirFormulario = (producto) => {
+    setErroresCampo({});
+    setErrorFormulario('');
+    setFormulario(producto
+      ? {
+        id: producto.id,
+        sku: producto.sku,
+        descripcion: producto.descripcion,
+        categoria: producto.categoria ?? '',
+        precioCompra: String(producto.precioCompra),
+        precio: String(producto.precio),
+        stockMinimo: String(producto.stockMinimo),
       }
-      setForm(EMPTY);
-      fetchProductos();
+      : FORMULARIO_VACIO);
+  };
+
+  const cambiar = (campo) => (e) => setFormulario({ ...formulario, [campo]: e.target.value });
+
+  const guardar = async () => {
+    setGuardando(true);
+    setAviso('');
+    setErroresCampo({});
+    setErrorFormulario('');
+    const { id, categoria, precioCompra, precio, stockMinimo, ...resto } = formulario;
+    const datos = {
+      ...resto,
+      categoria: categoria.trim() || null,
+      precioCompra: Number(precioCompra) || 0,
+      precio: Number(precio) || 0,
+      stockMinimo: Number(stockMinimo) || 0,
+    };
+    try {
+      if (id) await api.put(`/productos/${id}`, datos);
+      else await api.post('/productos', datos);
+      setAviso(id ? `Se guardaron los cambios de ${datos.descripcion}.` : `Se registró ${datos.descripcion}, con stock 0.`);
+      setFormulario(null);
+      cargar();
+    } catch (err) {
+      const { codigo, detail } = err.response?.data ?? {};
+      flushSync(() => {
+        const campos = erroresPorCampo(err);
+        if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el producto.'));
+      });
+      mostrarPrimerProblema(formularioRef.current);
     } finally {
-      setSaving(false);
+      setGuardando(false);
     }
   };
 
-  const handleEdit = (p) => {
-    setEditId(p.id);
-    setForm({ sku: p.sku, descripcion: p.descripcion, precio: String(p.precio), categoria: p.categoria || '' });
+  const desactivar = async () => {
+    setEnviandoDesactivar(true);
+    setErrorDesactivar('');
+    try {
+      await api.delete(`/productos/${desactivando.id}`);
+      setAviso(`${desactivando.descripcion} quedó inactivo.`);
+      setDesactivando(null);
+      cargar();
+    } catch (err) {
+      setErrorDesactivar(mensajeDeError(err, 'No se pudo desactivar el producto.'));
+    } finally {
+      setEnviandoDesactivar(false);
+    }
   };
-  const handleCancel = () => { setEditId(null); setForm(EMPTY); };
-  const handleDelete = async (id) => {
-    if (!confirm('¿Desactivar este producto?')) return;
-    await api.delete(`/productos/${id}`);
-    fetchProductos();
-  };
+
+  const hayFiltros = texto !== '';
+  const productos = pagina?.items ?? [];
+
+  let estado = null;
+  if (cargando) estado = <Cargando texto="Cargando productos…" />;
+  else if (errorCarga && !pagina) estado = (
+    <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
+  );
+  else if (pagina?.total === 0 && !hayFiltros) estado = (
+    <EstadoVacio titulo="Todavía no hay productos" icono={Package}
+      accion={puedeRegistrar && <Btn size="md" onClick={() => abrirFormulario(null)}><Plus size={16} aria-hidden="true" />Nuevo producto</Btn>}>
+      Registra el primero con sus precios. Su stock empieza en cero y sube con los ingresos de mercadería.
+    </EstadoVacio>
+  );
+
+  const hayAcciones = puedeModificar || puedeEliminar;
+  const encabezados = [
+    'Producto', 'Categoría', { texto: 'Precio de compra', derecha: true }, { texto: 'Precio de venta', derecha: true },
+    { texto: 'Stock', derecha: true }, { texto: 'Stock mínimo', derecha: true }, ...(hayAcciones ? [''] : []),
+  ];
 
   return (
     <Layout>
-      <PageHeader title="Productos" subtitle="Catálogo maestro de inventario" />
+      <PageHeader
+        title="Productos"
+        subtitle="El catálogo que se vende en las hojas de pedido y los pedidos, con sus precios y su stock mínimo."
+        action={puedeRegistrar && (
+          <Btn size="md" onClick={() => abrirFormulario(null)}>
+            <Plus size={16} aria-hidden="true" />
+            Nuevo producto
+          </Btn>
+        )}
+      />
 
-      <Card className="mb-6">
-        <h3 className="text-sm font-semibold text-slate-700 mb-4">
-          {editId ? 'Editar producto' : 'Nuevo producto'}
-        </h3>
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
-          <Input label="SKU" placeholder="PROD-001" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} required />
-          <Input label="Descripción" placeholder="Nombre del producto" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} required />
-          <Input label="Precio" type="number" step="0.01" placeholder="0.00" value={form.precio} onChange={(e) => setForm({ ...form, precio: e.target.value })} required />
-          <Input label="Categoría" placeholder="Bebidas, Snacks..." value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} />
-          <div className="col-span-2 md:col-span-4 flex gap-2">
-            <Btn type="submit" variant="primary" size="md" disabled={saving}>
-              {editId ? 'Actualizar' : 'Agregar producto'}
-            </Btn>
-            {editId && <Btn onClick={handleCancel} variant="ghost" size="md">Cancelar</Btn>}
-          </div>
-        </form>
-      </Card>
+      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
+      {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
-      <Table headers={['SKU', 'Descripción', 'Precio', 'Categoría', 'Acciones']}>
+      <Table
+        headers={encabezados}
+        empty="Ningún producto coincide con la búsqueda."
+        estado={estado}
+        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+          <BarraDeFiltros
+            resultado={`${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}`}
+            hayFiltros={hayFiltros}
+            onLimpiar={() => buscar('')}
+          >
+            <Buscador label="Buscar" placeholder="Código, descripción o categoría…" value={texto} onChange={buscar} />
+          </BarraDeFiltros>
+        )}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+      >
         {productos.map((p) => (
           <Tr key={p.id}>
-            <Td mono>{p.sku}</Td>
-            <Td><span className="font-medium text-slate-800">{p.descripcion}</span></Td>
             <Td>
-              <span className="font-semibold text-slate-800">
-                Bs. {p.precio?.toFixed(2)}
-              </span>
+              <p className="font-medium">{p.descripcion}</p>
+              <p className="text-xs text-slate-600 font-mono">{p.sku}</p>
             </Td>
-            <Td>
-              {p.categoria
-                ? <Badge color="blue">{p.categoria}</Badge>
-                : <span className="text-slate-400 text-xs">Sin categoría</span>
-              }
-            </Td>
-            <Td>
-              <div className="flex gap-2">
-                <Btn onClick={() => handleEdit(p)} variant="ghost">Editar</Btn>
-                <Btn onClick={() => handleDelete(p.id)} variant="danger">Desactivar</Btn>
-              </div>
-            </Td>
+            <Td>{p.categoria ?? <span className="text-slate-600">Sin categoría</span>}</Td>
+            <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(p.precioCompra)}</Td>
+            <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(p.precio)}</Td>
+            <Td className="text-right tabular-nums">{formatearCantidad(p.stockActual)}</Td>
+            <Td className="text-right tabular-nums">{formatearCantidad(p.stockMinimo)}</Td>
+            {hayAcciones && (
+              <Td>
+                <div className="flex items-center justify-end gap-1">
+                  {puedeModificar && (
+                    <Btn variant="ghost" onClick={() => abrirFormulario(p)} aria-label={`Editar ${p.descripcion}`}>
+                      <Pencil size={14} aria-hidden="true" />
+                      Editar
+                    </Btn>
+                  )}
+                  {puedeEliminar && (
+                    <Btn variant="ghost" onClick={() => { setErrorDesactivar(''); setDesactivando(p); }} aria-label={`Desactivar ${p.descripcion}`}>
+                      <PackageX size={14} aria-hidden="true" />
+                      Desactivar
+                    </Btn>
+                  )}
+                </div>
+              </Td>
+            )}
           </Tr>
         ))}
       </Table>
+
+      <Modal
+        abierto={formulario !== null}
+        onCerrar={() => setFormulario(null)}
+        titulo={formulario?.id ? 'Editar producto' : 'Nuevo producto'}
+        descripcion={formulario?.id ? undefined : 'El stock empieza en cero: sube con los ingresos de mercadería, en Inventario.'}
+        pie={(
+          <>
+            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
+            <Btn type="submit" form="formulario-producto" size="md" disabled={guardando}>
+              {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </Btn>
+          </>
+        )}
+      >
+        {formulario && (
+          <form id="formulario-producto" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
+            {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Código (SKU)" value={formulario.sku} error={erroresCampo.sku} autoComplete="off" spellCheck={false}
+                placeholder="ARZ-1KG…" onChange={cambiar('sku')} />
+              <Input label="Categoría (opcional)" value={formulario.categoria} error={erroresCampo.categoria} autoComplete="off"
+                placeholder="Abarrotes, limpieza…" onChange={cambiar('categoria')} />
+            </div>
+            <Input label="Descripción" value={formulario.descripcion} error={erroresCampo.descripcion} autoComplete="off"
+              placeholder="Arroz 1 kg…" onChange={cambiar('descripcion')} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Precio de compra (Bs)" type="number" inputMode="decimal" step="0.01" min="0" value={formulario.precioCompra}
+                error={erroresCampo.precioCompra} autoComplete="off" onChange={cambiar('precioCompra')} />
+              <Input label="Precio de venta (Bs)" type="number" inputMode="decimal" step="0.01" min="0" value={formulario.precio}
+                error={erroresCampo.precio} autoComplete="off" onChange={cambiar('precio')} />
+              <Input label="Stock mínimo" type="number" inputMode="decimal" step="1" min="0" value={formulario.stockMinimo}
+                error={erroresCampo.stockMinimo} autoComplete="off" ayuda="Con este stock o menos, sale bajo el mínimo."
+                onChange={cambiar('stockMinimo')} />
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Confirmar
+        abierto={desactivando !== null}
+        titulo={`¿Desactivar “${desactivando?.descripcion ?? ''}”?`}
+        textoAccion="Desactivar"
+        enviando={enviandoDesactivar}
+        error={errorDesactivar}
+        onConfirmar={desactivar}
+        onCancelar={() => setDesactivando(null)}
+      >
+        <p>
+          Deja de aparecer en el catálogo, en el inventario y al registrar ventas y pedidos. Las hojas de pedido y el kardex
+          que ya lo usan no cambian.
+        </p>
+      </Confirmar>
     </Layout>
   );
 }

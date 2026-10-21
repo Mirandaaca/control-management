@@ -9,11 +9,34 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
-public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
 {
-    public async Task<List<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
+    public async Task<Pagina<CobranzaResumenDTO>> ListarAsync(FiltrosCobranzaDTO filtros)
     {
-        var consulta = db.Cobranzas.VisiblesPara(usuario);
+        var consulta = Filtrar(filtros);
+        var total = await consulta.CountAsync();
+        var items = await consulta
+            .OrderByDescending(c => c.FechaEmision).ThenByDescending(c => c.Id)
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(CobranzaConsultas.ComoResumen)
+            .ToListAsync();
+        return new Pagina<CobranzaResumenDTO>(items, total, filtros.Pagina, filtros.Tamano);
+    }
+
+    /// <summary>Los indicadores de la pantalla (3.2), con los mismos filtros que la lista.</summary>
+    public async Task<ResumenCobranzasDTO> ResumenAsync(FiltrosCobranzaDTO filtros)
+    {
+        var abiertas = Filtrar(filtros).Where(c => EstadosAbiertos.Contains(c.Estado));
+        return new ResumenCobranzasDTO(
+            await abiertas.SumAsync(c => c.MontoTotal - c.MontoPagado),
+            await abiertas.CountAsync(c => c.Estado != EstadoCobranza.Vencida),
+            await abiertas.CountAsync(c => c.Estado == EstadoCobranza.Vencida));
+    }
+
+    private IQueryable<Cobranza> Filtrar(FiltrosCobranzaDTO filtros)
+    {
+        var consulta = db.Cobranzas.VisiblesPara(usuario).Buscar(filtros.Buscar);
 
         if (filtros.ClienteId.HasValue) consulta = consulta.Where(c => c.ClienteId == filtros.ClienteId);
         if (filtros.Estado.HasValue) consulta = consulta.Where(c => c.Estado == filtros.Estado);
@@ -28,11 +51,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
             var fin = HoraBolivia.FinDelDiaUtc(hasta);
             consulta = consulta.Where(c => c.FechaEmision < fin);
         }
-
-        return await consulta
-            .OrderByDescending(c => c.FechaEmision)
-            .Select(CobranzaConsultas.ComoResumen)
-            .ToListAsync();
+        return consulta;
     }
 
     public async Task<CobranzaDetalleDTO> ObtenerAsync(int id) =>
@@ -54,7 +73,7 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
             return repetido;
 
         var cobranza = await db.Cobranzas.Include(c => c.Cliente).FirstAsync(c => c.Id == id);
-        if (cobranza.Estado is EstadoCobranza.Pagada or EstadoCobranza.Incobrable)
+        if (cobranza.Estado is EstadoCobranza.Pagada or EstadoCobranza.Incobrable or EstadoCobranza.Anulada)
             throw new ReglaDeNegocioException("cobranza_cerrada", "La cobranza ya está cerrada.");
 
         var saldo = Math.Max(0, cobranza.MontoTotal - cobranza.MontoPagado);
@@ -71,8 +90,8 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
             Monto = dto.Monto,
             MetodoPago = dto.MetodoPago,
             FechaPago = ahora,
-            Referencia = dto.Referencia,
-            Observaciones = dto.Observaciones,
+            Referencia = string.IsNullOrWhiteSpace(dto.Referencia) ? null : dto.Referencia.Trim(),
+            Observaciones = string.IsNullOrWhiteSpace(dto.Observaciones) ? null : dto.Observaciones.Trim(),
             ClaveIdempotencia = dto.ClaveIdempotencia
         };
 
@@ -119,6 +138,8 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
             ?? throw new NoEncontradoException("No se encontró la cobranza.");
         if (cobranza.Estado == EstadoCobranza.Pagada)
             throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
+        if (cobranza.Estado == EstadoCobranza.Anulada)
+            throw new ReglaDeNegocioException("cobranza_anulada", "La cobranza está anulada: su venta se anuló.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
@@ -134,6 +155,90 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, TimeProvid
         }
 
         return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Anular un pago (3.1): queda marcado con su motivo y deja de contar. La cobranza vuelve a calcular lo pagado y
+    /// su estado, y el cliente su saldo, todo en un solo guardado.
+    /// </summary>
+    public async Task<CobranzaDetalleDTO> AnularPagoAsync(int id, int pagoId, string motivo)
+    {
+        var cobranza = await db.Cobranzas.VisiblesPara(usuario).Include(c => c.Cliente).Include(c => c.Pagos)
+            .FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NoEncontradoException("No se encontró la cobranza.");
+        var pago = cobranza.Pagos.FirstOrDefault(p => p.Id == pagoId)
+            ?? throw new NoEncontradoException("No se encontró el pago.");
+        if (pago.Anulado)
+            throw new ReglaDeNegocioException("pago_ya_anulado", "El pago ya está anulado.");
+
+        pago.Anulado = true;
+        pago.MotivoAnulacion = motivo.Trim();
+        cobranza.MontoPagado = cobranza.Pagos.Where(p => !p.Anulado).Sum(p => p.Monto);
+        // Incobrable y Anulada son decisiones tomadas a mano: anular un pago no las cambia.
+        if (cobranza.Estado is not (EstadoCobranza.Incobrable or EstadoCobranza.Anulada))
+        {
+            cobranza.FechaPagoCompleto = null;
+            cobranza.Estado = cobranza.FechaVencimiento < InicioDeHoyUtc ? EstadoCobranza.Vencida
+                : cobranza.MontoPagado > 0 ? EstadoCobranza.Parcial
+                : EstadoCobranza.Pendiente;
+        }
+        await RecalcularSaldoDelClienteAsync(cobranza);
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia",
+                "La cobranza o el saldo del cliente cambió mientras anulabas el pago. Vuelve a intentarlo.");
+        }
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Una cobranza vence cuando termina el día de su vencimiento en Bolivia, igual que en el proceso de mora.</summary>
+    private DateTime InicioDeHoyUtc => HoraBolivia.InicioDelDiaUtc(HoraBolivia.Hoy(reloj));
+
+    /// <summary>
+    /// La deuda de una venta a crédito (2.1): vence a los días de DiasVencimientoCredito y queda a nombre del promotor
+    /// que vendió, aunque otro la cobre. La HP tiene que traer a su cliente. No guarda: lo hace quien confirma la HP.
+    /// </summary>
+    public async Task CrearPorVentaAsync(HojaPedido hp)
+    {
+        var ahora = reloj.GetUtcNow().UtcDateTime;
+        var dias = await db.ConfiguracionesGenerales.DiasAsync(ClavesDeConfiguracion.DiasVencimientoCredito,
+            ClavesDeConfiguracion.DiasVencimientoCreditoPorDefecto);
+        var cobranza = new Cobranza
+        {
+            Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Cobranza),
+            ClienteId = hp.ClienteId,
+            Cliente = hp.Cliente,
+            HojaPedidoId = hp.Id,
+            PromotorId = hp.PromotorId,
+            MontoTotal = hp.Total,
+            FechaEmision = ahora,
+            FechaVencimiento = ahora.AddDays(dias),
+            Estado = EstadoCobranza.Pendiente
+        };
+        db.Cobranzas.Add(cobranza);
+        await RecalcularSaldoDelClienteAsync(cobranza);
+    }
+
+    /// <summary>
+    /// Al anular una HP confirmada, su deuda pasa a Anulada y deja de contar en el saldo (2.1). Si ya tiene pagos no se
+    /// anula: primero hay que anular esos pagos. Una venta al contado no tiene cobranza. No guarda.
+    /// </summary>
+    public async Task AnularPorHojaAsync(HojaPedido hp)
+    {
+        var cobranza = await db.Cobranzas.Include(c => c.Cliente).Include(c => c.Pagos)
+            .FirstOrDefaultAsync(c => c.HojaPedidoId == hp.Id);
+        if (cobranza == null) return;
+        if (cobranza.Pagos.Any(p => !p.Anulado))
+            throw new ReglaDeNegocioException("cobranza_con_pagos",
+                $"No se puede anular: su cobranza {cobranza.Numero} ya tiene pagos. Primero hay que anular esos pagos.");
+
+        cobranza.Estado = EstadoCobranza.Anulada;
+        await RecalcularSaldoDelClienteAsync(cobranza);
     }
 
     /// <summary>

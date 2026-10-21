@@ -10,6 +10,10 @@ public enum TipoMovimiento
 
 public class MovimientoInventario
 {
+    // ReferenciaTabla dice de dónde salió el movimiento; con HojaPedido, ReferenciaId es el id de la HP.
+    public const string ReferenciaHojaPedido = "HojaPedido";
+    public const string ReferenciaIngreso = "Ingreso";
+
     public int Id { get; set; }
     public int ProductoId { get; set; }
     public Producto? Producto { get; set; }

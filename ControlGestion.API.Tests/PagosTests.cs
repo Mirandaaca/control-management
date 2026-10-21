@@ -15,7 +15,7 @@ public class PagosTests(ApiDePrueba api)
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(precio);
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        return (operador, await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, cantidad: 1));
+        return (operador, await operador.CrearCobranzaAsync(clienteId, productoId, cantidad: 1));
     }
 
     private static async Task<JsonElement> CobranzaAsync(HttpClient cliente, int id) =>

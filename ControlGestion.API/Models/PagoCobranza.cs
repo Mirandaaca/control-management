@@ -2,7 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.Models;
 
-public enum MetodoPago { Efectivo = 0, Transferencia = 1, Cheque = 2, TarjetaDebito = 3, TarjetaCredito = 4 }
+/// <summary>Efectivo o QR (3.1). El QR lleva su número de referencia.</summary>
+public enum MetodoPago { Efectivo = 0, QR = 1 }
 
 public class PagoCobranza
 {
@@ -30,4 +31,10 @@ public class PagoCobranza
 
     // La genera quien envía el pago. Si el mismo pago llega dos veces, la clave repetida evita duplicarlo.
     public Guid? ClaveIdempotencia { get; set; }
+
+    // Un pago anulado no se borra: queda en el historial con su motivo y deja de contar (3.1, 7.5).
+    public bool Anulado { get; set; }
+
+    [MaxLength(500)]
+    public string? MotivoAnulacion { get; set; }
 }

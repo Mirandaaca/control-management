@@ -25,7 +25,7 @@ public class ErroresTests(ApiDePrueba api)
     public async Task Un_JSON_con_un_valor_invalido_no_muestra_detalles_internos()
     {
         using var operador = await api.OperadorAsync();
-        var respuesta = await operador.PostAsJsonAsync("/api/cobranzas/1/pagos", new { monto = 1, metodoPago = "QR" });
+        var respuesta = await operador.PostAsJsonAsync("/api/cobranzas/1/pagos", new { monto = 1, metodoPago = "Tarjeta" });
 
         var problema = await respuesta.ProblemaAsync(400, "validacion");
         var mensaje = problema.GetProperty("errors").GetProperty("metodoPago")[0].GetString();
