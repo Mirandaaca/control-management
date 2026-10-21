@@ -160,13 +160,7 @@ final class _Reportes {
   final inventario = 'reportes.inventario';
   final imprimirHp = 'reportes.imprimir-hp';
 
-  List<String> get todas => [
-    ventasPorPromotor,
-    ventasPorZona,
-    clientesNuevosRecurrentes,
-    inventario,
-    imprimirHp,
-  ];
+  List<String> get todas => [ventasPorPromotor, ventasPorZona, clientesNuevosRecurrentes, inventario, imprimirHp];
 }
 
 final class _Parametros {

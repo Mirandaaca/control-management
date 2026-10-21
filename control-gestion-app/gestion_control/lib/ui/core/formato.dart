@@ -10,9 +10,7 @@ final _diaYHora = DateFormat('dd/MM/yyyy HH:mm');
 /// tomaría como hora local del celular.
 DateTime? leerFechaUtc(String? valor) {
   if (valor == null || valor.isEmpty) return null;
-  return DateTime.tryParse(
-    _conZona.hasMatch(valor) ? valor : '${valor}Z',
-  )?.toUtc();
+  return DateTime.tryParse(_conZona.hasMatch(valor) ? valor : '${valor}Z')?.toUtc();
 }
 
 /// Un momento exacto (un registro, un pago, un evento) en la hora de Bolivia: dd/mm/aaaa, o dd/mm/aaaa hh:mm con

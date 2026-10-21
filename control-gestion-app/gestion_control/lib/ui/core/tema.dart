@@ -30,34 +30,15 @@ final tema = ThemeData(
     onError: Colors.white,
   ),
   scaffoldBackgroundColor: fondo,
-  appBarTheme: const AppBarTheme(
-    backgroundColor: marca900,
-    foregroundColor: Colors.white,
-  ),
+  appBarTheme: const AppBarTheme(backgroundColor: marca900, foregroundColor: Colors.white),
   textTheme: const TextTheme(
-    headlineSmall: TextStyle(
-      fontSize: 22,
-      height: 28 / 22,
-      fontWeight: FontWeight.w600,
-    ),
-    titleMedium: TextStyle(
-      fontSize: 18,
-      height: 24 / 18,
-      fontWeight: FontWeight.w600,
-    ),
+    headlineSmall: TextStyle(fontSize: 22, height: 28 / 22, fontWeight: FontWeight.w600),
+    titleMedium: TextStyle(fontSize: 18, height: 24 / 18, fontWeight: FontWeight.w600),
     bodyLarge: TextStyle(fontSize: 16, height: 24 / 16),
     // Un Text sin estilo usa bodyMedium: sin esta línea saldría en 14 sp, y el cuerpo va en 16.
     bodyMedium: TextStyle(fontSize: 16, height: 24 / 16),
-    labelLarge: TextStyle(
-      fontSize: 16,
-      height: 24 / 16,
-      fontWeight: FontWeight.w600,
-    ),
-    labelMedium: TextStyle(
-      fontSize: 14,
-      height: 20 / 14,
-      fontWeight: FontWeight.w500,
-    ),
+    labelLarge: TextStyle(fontSize: 16, height: 24 / 16, fontWeight: FontWeight.w600),
+    labelMedium: TextStyle(fontSize: 14, height: 20 / 14, fontWeight: FontWeight.w500),
   ),
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
