@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/sesion_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
 import 'data/services/cliente_api.dart';
@@ -27,3 +28,5 @@ final sesionRepositoryProvider = Provider<SesionRepository>(
 );
 
 final sesionProvider = NotifierProvider<SesionNotifier, EstadoDeSesion>(SesionNotifier.new);
+
+final perfilRepositoryProvider = Provider<PerfilRepository>((ref) => PerfilRepository(ref.watch(clienteApiProvider)));

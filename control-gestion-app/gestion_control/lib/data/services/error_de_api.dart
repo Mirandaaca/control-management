@@ -44,6 +44,10 @@ class ErrorDeApi implements Exception {
   /// La API no respondió: la pantalla ofrece "Reintentar".
   final bool sinConexion;
 
+  /// Los errores por campo, más los de reglas de negocio que pertenecen a un campo (por ejemplo, `correo_duplicado` va
+  /// en `email`): así cada uno se muestra junto a su campo, como `CAMPO_DEL_ERROR` en el panel.
+  Map<String, String> camposCon(Map<String, String> campoDelCodigo) => {...campos, ?campoDelCodigo[codigo]: mensaje};
+
   @override
   String toString() => mensaje;
 }

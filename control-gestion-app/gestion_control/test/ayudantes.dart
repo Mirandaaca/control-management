@@ -3,7 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gestion_control/data/models/perfil.dart';
 import 'package:gestion_control/data/models/sesion.dart';
+import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/ui/core/tema.dart';
@@ -56,6 +58,50 @@ class SesionRepositoryFalso implements SesionRepository {
 
   @override
   Future<void> olvidar() async => token = null;
+}
+
+const perfilDePrueba = Perfil(
+  id: 'u1',
+  email: 'promotor@test.local',
+  nombreCompleto: 'Pablo Promotor',
+  rol: 'Promotor',
+  // 03:30 UTC del 20/10 son las 23:30 del 19/10 en Bolivia.
+  fechaCreacion: '2026-10-20T03:30:00',
+);
+
+/// El perfil sin API: cada prueba dice qué responde y ve qué se le pidió.
+class PerfilRepositoryFalso implements PerfilRepository {
+  Future<Perfil> Function() alObtener = () async => perfilDePrueba;
+  Future<Perfil> Function(String nombreCompleto, String email)? alEditar;
+  Future<void> Function(String actual, String nueva)? alCambiar;
+  var obtenciones = 0;
+  final ediciones = <(String, String)>[];
+  final cambios = <(String, String)>[];
+
+  @override
+  Future<Perfil> obtener() {
+    obtenciones++;
+    return alObtener();
+  }
+
+  @override
+  Future<Perfil> editar({required String nombreCompleto, required String email}) async {
+    ediciones.add((nombreCompleto, email));
+    return (alEditar ??
+        (n, e) async => Perfil(
+          id: 'u1',
+          email: e,
+          nombreCompleto: n,
+          rol: 'Promotor',
+          fechaCreacion: perfilDePrueba.fechaCreacion,
+        ))(nombreCompleto, email);
+  }
+
+  @override
+  Future<void> cambiarContrasena({required String actual, required String nueva}) async {
+    cambios.add((actual, nueva));
+    await alCambiar?.call(actual, nueva);
+  }
 }
 
 /// La sesión en un estado fijo, para probar una pantalla sin pasar por el arranque.
