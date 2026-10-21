@@ -27,6 +27,9 @@ public class SesionService(
     IOptions<SesionOptions> opciones,
     TimeProvider reloj)
 {
+    // Una sesión terminada se guarda 30 días más y después la borra el proceso diario.
+    private static readonly TimeSpan DiasDeHistorial = TimeSpan.FromDays(30);
+
     public async Task<LoginRespuestaDTO> IniciarAsync(LoginDTO dto)
     {
         var usuario = await usuarios.FindByEmailAsync(dto.Email);
@@ -70,6 +73,18 @@ public class SesionService(
         return db.Sesiones
             .Where(s => s.UsuarioId == usuarioId && s.Id != sesionId && s.CerradaEn == null)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.CerradaEn, ahora));
+    }
+
+    /// <summary>Borra las sesiones que terminaron hace más de 30 días, cerradas o vencidas por inactividad (proceso diario).</summary>
+    public Task<int> BorrarTerminadasAsync()
+    {
+        var terminadaAntesDe = reloj.GetUtcNow().UtcDateTime - DiasDeHistorial;
+        // Una sesión que nadie cerró terminó por inactividad, unas horas después de su última actividad.
+        var activaPorUltimaVezAntesDe = terminadaAntesDe - TimeSpan.FromHours(opciones.Value.HorasDeInactividad);
+        return db.Sesiones
+            .Where(s => s.CerradaEn < terminadaAntesDe
+                || (s.CerradaEn == null && s.UltimaActividad < activaPorUltimaVezAntesDe))
+            .ExecuteDeleteAsync();
     }
 
     // El token no lleva el rol ni los permisos: se leen de la base en cada petición (SesionDesdeLaBase), junto con la sesión.

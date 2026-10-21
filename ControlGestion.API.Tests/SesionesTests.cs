@@ -7,6 +7,7 @@ using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using ControlGestion.API.Tests.Infraestructura;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -124,6 +125,36 @@ public class SesionesTests(ApiDePrueba api)
         (await api.ClienteCon(promotor.Token).PostAsync("/api/auth/logout", null)).EnsureSuccessStatusCode();
 
         Assert.Equal(HttpStatusCode.OK, (await enLaApp.GetAsync("/api/auth/yo")).StatusCode);
+    }
+
+    [Fact]
+    public async Task El_proceso_diario_borra_las_sesiones_terminadas_hace_mas_de_30_dias()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var ahora = DateTime.UtcNow;
+        Sesion Nueva(DateTime ultimaActividad, DateTime? cerradaEn = null) => new()
+        {
+            Id = Guid.NewGuid(), UsuarioId = promotor.Id, Origen = OrigenSesion.App,
+            Creada = ultimaActividad, UltimaActividad = ultimaActividad, CerradaEn = cerradaEn
+        };
+        var cerradaHace31 = Nueva(ahora.AddDays(-32), cerradaEn: ahora.AddDays(-31));
+        var cerradaHace29 = Nueva(ahora.AddDays(-30), cerradaEn: ahora.AddDays(-29));
+        var inactivaHace31 = Nueva(ahora.AddDays(-31));
+        // Su última actividad fue hace 30 días, pero terminó 8 horas después: hace menos de 30 días.
+        var inactivaHace30 = Nueva(ahora.AddDays(-30));
+
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Sesiones.AddRange(cerradaHace31, cerradaHace29, inactivaHace31, inactivaHace30);
+        await db.SaveChangesAsync();
+
+        await ActivatorUtilities.CreateInstance<SesionService>(scope.ServiceProvider, new RelojFijo(new DateTimeOffset(ahora)))
+            .BorrarTerminadasAsync();
+
+        var quedan = await db.Sesiones.AsNoTracking().Where(s => s.UsuarioId == promotor.Id).Select(s => s.Id).ToListAsync();
+        Assert.Equal(
+            new[] { cerradaHace29.Id, inactivaHace30.Id, SesionDelToken(promotor.Token) }.Order(),
+            quedan.Order());
     }
 
     [Fact]
