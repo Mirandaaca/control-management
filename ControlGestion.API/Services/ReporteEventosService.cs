@@ -21,6 +21,12 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
     private static readonly (EstadoEvento Estado, string Nombre)[] Estados =
         [(EstadoEvento.Pendiente, "Pendiente"), (EstadoEvento.Resuelto, "Resuelto")];
 
+    // Como en el panel: la prioridad es baja, media o alta (el enum dice Bajo, Medio y Alto).
+    private static readonly Dictionary<NivelPrioridad, string> Prioridades = new()
+    {
+        [NivelPrioridad.Bajo] = "Baja", [NivelPrioridad.Medio] = "Media", [NivelPrioridad.Alto] = "Alta"
+    };
+
     private IQueryable<Evento> Filtrados(FiltrosEventoDTO filtros) => db.Eventos.VisiblesPara(usuario).Filtrar(filtros);
 
     public async Task<ReporteEventosDTO> GenerarAsync(FiltrosEventoDTO filtros)
@@ -83,7 +89,7 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
             hoja.Cell(fila, 1).Value = e.Numero;
             Fecha(hoja.Cell(fila, 2), e.FechaEvento);
             hoja.Cell(fila, 3).Value = e.Tipo;
-            hoja.Cell(fila, 4).Value = e.NivelPrioridad.ToString();
+            hoja.Cell(fila, 4).Value = Prioridades[e.NivelPrioridad];
             hoja.Cell(fila, 5).Value = NombreDe(e.EstadoEvento);
             hoja.Cell(fila, 6).Value = e.Cliente;
             hoja.Cell(fila, 7).Value = e.Pedido;
