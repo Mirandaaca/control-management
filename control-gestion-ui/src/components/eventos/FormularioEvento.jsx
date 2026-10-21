@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, X } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
+import { subirFoto } from '../../api/fotos';
+import BotonDeFoto from '../BotonDeFoto';
 import CampoUbicacion from '../CampoUbicacion';
 import { Alert, AreaDeTexto, Btn, Modal, Selector } from '../ui';
 import { useUbicacionDelNavegador } from '../../hooks/useUbicacionDelNavegador';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { formatearFecha } from '../../utils/formato';
+import { MAXIMO_DE_FOTOS } from './estados';
 
 // Errores de la API que pertenecen a un campo del formulario: se muestran junto a él.
 const CAMPO_DEL_ERROR = {
@@ -29,9 +32,10 @@ function datosIniciales(evento) {
 /**
  * Nuevo evento o editar uno (4.1). Se monta cada vez que se abre, así empieza limpio. Al registrar, la ubicación se pide
  * sola al navegador, como haría el GPS en la app, o se marca en el mapa; al editar no cambia. El pedido es opcional y
- * se elige entre los del cliente.
+ * se elige entre los del cliente. Las fotos elegidas se suben después de registrarlo: si alguna falla, el evento queda
+ * registrado igual y onGuardado recibe cuáles fallaron, para agregarlas desde el detalle.
  */
-export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, onGuardado }) {
+export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregarFotos, onCerrar, onGuardado }) {
   const esNuevo = !evento;
   const [datos, setDatos] = useState(() => datosIniciales(evento));
   const [tipos, setTipos] = useState([]);
@@ -39,6 +43,7 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
   const [pedidos, setPedidos] = useState([]);
   const [ubicacion, setUbicacion] = useState(null);
   const [precision, setPrecision] = useState(null);
+  const [fotos, setFotos] = useState([]);
   const [errores, setErrores] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -105,7 +110,15 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
       const { data } = esNuevo
         ? await api.post('/eventos', { ...cuerpo, latitud: ubicacion?.latitud ?? null, longitud: ubicacion?.longitud ?? null })
         : await api.put(`/eventos/${evento.id}`, cuerpo);
-      onGuardado(data, esNuevo);
+      const fallidas = [];
+      for (const foto of fotos) {
+        try {
+          await subirFoto(data.id, foto);
+        } catch (err) {
+          fallidas.push(`${foto.name}: ${mensajeDeError(err, 'no se pudo subir.')}`);
+        }
+      }
+      onGuardado(data, esNuevo, fallidas);
     } catch (err) {
       const { codigo, detail } = err.response?.data ?? {};
       flushSync(() => {
@@ -171,6 +184,32 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
         <AreaDeTexto label="Qué pasó" rows={4} value={datos.descripcion} autoComplete="off" maxLength={1000}
           placeholder="Por ejemplo: el local estaba cerrado y nadie atendió…" error={errores.descripcion}
           onChange={(e) => cambiar('descripcion', e.target.value)} />
+        {esNuevo && puedeAgregarFotos && (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-slate-700">
+                Fotos (opcional) <span className="font-normal text-slate-600 tabular-nums">· {fotos.length} de {MAXIMO_DE_FOTOS}</span>
+              </p>
+              <BotonDeFoto disabled={fotos.length >= MAXIMO_DE_FOTOS} onElegir={(foto) => setFotos((f) => [...f, foto])}>
+                Elegir foto
+              </BotonDeFoto>
+            </div>
+            {fotos.length > 0 && (
+              <ul className="mt-2 divide-y divide-slate-200 rounded-lg border border-slate-200">
+                {fotos.map((foto, i) => (
+                  <li key={`${foto.name}-${i}`} className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                    <span className="min-w-0 truncate">{foto.name}</span>
+                    <Btn variant="ghost" aria-label={`Quitar ${foto.name}`}
+                      onClick={() => setFotos((f) => f.filter((_, j) => j !== i))}>
+                      <X size={14} aria-hidden="true" />Quitar
+                    </Btn>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1 text-sm text-slate-600">JPEG, PNG o WebP. Se suben al registrar el evento.</p>
+          </div>
+        )}
         {esNuevo && (
           <CampoUbicacion
             titulo="Dónde pasó"

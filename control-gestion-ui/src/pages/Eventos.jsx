@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, Pencil, Plus, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Eye, Pencil, Plus, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
@@ -7,6 +7,8 @@ import { Table, Td, Tr } from '../components/Table';
 import DetalleEvento from '../components/eventos/DetalleEvento';
 import EstadoEvento from '../components/eventos/EstadoEvento';
 import FormularioEvento from '../components/eventos/FormularioEvento';
+import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
+import ResolverEvento from '../components/eventos/ResolverEvento';
 import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
@@ -40,6 +42,7 @@ export default function Eventos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [aviso, setAviso] = useState('');
+  const [advertencia, setAdvertencia] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
 
   const [tipos, setTipos] = useState([]);
@@ -48,6 +51,7 @@ export default function Eventos() {
   const [detalle, setDetalle] = useState(null);
   // null: cerrado. { evento: null }: nuevo. { evento }: editar ese evento.
   const [formulario, setFormulario] = useState(null);
+  const [resolviendo, setResolviendo] = useState(null);
 
   // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
   useEffect(() => {
@@ -82,23 +86,48 @@ export default function Eventos() {
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
-  // El detalle trae la descripción, la ubicación y las fotos: la lista solo trae el resumen.
-  const abrirEvento = (id) => {
+  // El detalle trae la descripción, la ubicación y las fotos: la lista solo trae el resumen. Resolver también lo necesita.
+  const abrirEvento = (id, alAbrir = setDetalle) => {
     setErrorAccion('');
-    return api.get(`/eventos/${id}`)
-      .then(({ data }) => setDetalle(data))
+    api.get(`/eventos/${id}`)
+      .then(({ data }) => alAbrir(data))
       .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
+  const limpiarAvisos = () => { setAviso(''); setAdvertencia(''); };
+
   const abrirFormulario = (evento = null) => {
-    setAviso('');
+    limpiarAvisos();
     setDetalle(null);
     setFormulario({ evento });
   };
 
-  const alGuardar = (evento, esNuevo) => {
+  const abrirResolver = (evento) => {
+    limpiarAvisos();
+    setDetalle(null);
+    setResolviendo(evento);
+  };
+
+  // Si alguna foto del alta no se subió, el evento igual quedó registrado: se avisa cuál, y se agrega desde el detalle.
+  const alGuardar = (evento, esNuevo, fallidas = []) => {
     setFormulario(null);
     setAviso(esNuevo ? `Se registró ${evento.numero}: queda pendiente hasta que se resuelva.` : `${evento.numero} quedó modificado.`);
+    if (fallidas.length > 0) {
+      setAdvertencia(`${fallidas.length === 1 ? 'Una foto no se subió' : `${fallidas.length} fotos no se subieron`} (${fallidas.join(' ')}). Abre ${evento.numero} para agregarlas.`);
+    }
+    cargar();
+  };
+
+  const alResolver = (evento) => {
+    setResolviendo(null);
+    setAviso(`${evento.numero} quedó resuelto.`);
+    cargar();
+  };
+
+  // Agregar o quitar una foto cambia el detalle y la cantidad de fotos de la lista.
+  const alCambiarFotos = (evento, mensaje) => {
+    setDetalle(evento);
+    setAviso(mensaje);
     cargar();
   };
 
@@ -139,6 +168,7 @@ export default function Eventos() {
       />
 
       {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
+      {advertencia && <Alert type="warning" className="mb-4">{advertencia}</Alert>}
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
@@ -203,6 +233,12 @@ export default function Eventos() {
                   <Eye size={14} aria-hidden="true" />
                   Ver
                 </Btn>
+                {acciones(e).resolver && (
+                  <Btn variant="ghost" onClick={() => abrirEvento(e.id, abrirResolver)} aria-label={`Resolver ${e.numero}`}>
+                    <CircleCheck size={14} aria-hidden="true" />
+                    Resolver
+                  </Btn>
+                )}
               </div>
             </Td>
           </Tr>
@@ -213,20 +249,33 @@ export default function Eventos() {
         evento={detalle}
         onCerrar={() => setDetalle(null)}
         fotos={detalle && (
-          <p className="text-sm text-slate-600">
-            {detalle.fotos.length === 0 ? 'Sin fotos.' : `${detalle.fotos.length} ${detalle.fotos.length === 1 ? 'foto' : 'fotos'}.`}
-          </p>
+          <GaleriaDeFotos evento={detalle} puedeAgregar={delDetalle.agregarFoto} puedeEliminar={delDetalle.eliminarFoto}
+            onCambio={alCambiarFotos} />
         )}
-        acciones={detalle && delDetalle.modificar && (
-          <Btn variant="outline" size="md" onClick={() => abrirFormulario(detalle)}>
-            <Pencil size={16} aria-hidden="true" />Editar
-          </Btn>
+        acciones={detalle && (
+          <>
+            {delDetalle.modificar && (
+              <Btn variant="outline" size="md" onClick={() => abrirFormulario(detalle)}>
+                <Pencil size={16} aria-hidden="true" />Editar
+              </Btn>
+            )}
+            {delDetalle.resolver && (
+              <Btn size="md" onClick={() => abrirResolver(detalle)}>
+                <CircleCheck size={16} aria-hidden="true" />Resolver
+              </Btn>
+            )}
+          </>
         )}
       />
 
       {formulario && (
-        <FormularioEvento evento={formulario.evento} puedeVerPedidos={puedeVerPedidos} onCerrar={() => setFormulario(null)}
-          onGuardado={alGuardar} />
+        <FormularioEvento evento={formulario.evento} puedeVerPedidos={puedeVerPedidos}
+          puedeAgregarFotos={tiene(permisos.agregarFoto)} onCerrar={() => setFormulario(null)} onGuardado={alGuardar} />
+      )}
+
+      {resolviendo && (
+        <ResolverEvento evento={resolviendo} puedeAgregarFoto={acciones(resolviendo).agregarFoto}
+          onCambio={(evento) => { setResolviendo(evento); cargar(); }} onCerrar={() => setResolviendo(null)} onHecho={alResolver} />
       )}
     </Layout>
   );
