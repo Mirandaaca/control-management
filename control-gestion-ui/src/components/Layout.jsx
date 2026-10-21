@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, House, Inbox, LogOut, Map as Mapa, MapPinned, Menu, Package, PanelLeftClose,
+  Boxes, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, House, Inbox, LogOut, Map as Mapa, MapPin, MapPinned, Menu, Package, PanelLeftClose,
   PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
@@ -27,6 +27,7 @@ const modulos = [
   ] },
   { id: 'eventos', seccion: 'operacion', nombre: 'Eventos', icon: TriangleAlert, items: [
     { to: '/eventos', label: 'Eventos', icon: TriangleAlert, permisos: PANTALLAS.eventos },
+    { to: '/eventos/mapa', label: 'Mapa de eventos', icon: MapPin, permisos: PANTALLAS.mapaEventos },
   ] },
   { id: 'territorio', seccion: 'operacion', nombre: 'Territorio', icon: MapPinned, items: [
     { to: '/rutas', label: 'Rutas', icon: Route, permisos: PANTALLAS.rutas },
