@@ -2,6 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ControlGestion.API.Configuracion;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests.Infraestructura;
 
@@ -19,7 +22,7 @@ public static class Ayudantes
     public const int OrigenPanel = 0;
     public const int OrigenApp = 1;
 
-    public static async Task<string> IniciarSesionAsync(this ApiDePrueba api, string correo, string contrasena,
+    public static async Task<string> IniciarSesionAsync(this WebApplicationFactory<Program> api, string correo, string contrasena,
         int origen = OrigenPanel)
     {
         using var cliente = api.CreateClient();
@@ -28,12 +31,19 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("token").GetString()!;
     }
 
-    public static HttpClient ClienteCon(this ApiDePrueba api, string token)
+    public static HttpClient ClienteCon(this WebApplicationFactory<Program> api, string token)
     {
         var cliente = api.CreateClient();
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return cliente;
     }
+
+    /// <summary>
+    /// La misma API, contra la misma base, con otro reloj: para probar lo que depende del paso del tiempo en una petición.
+    /// Levanta otro servidor, así que conviene usarla solo donde hace falta.
+    /// </summary>
+    public static WebApplicationFactory<Program> ConReloj(this ApiDePrueba api, TimeProvider reloj) =>
+        api.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton(reloj)));
 
     public static async Task<HttpClient> AdminAsync(this ApiDePrueba api) =>
         api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoAdmin, api.ContrasenaAdmin));

@@ -62,7 +62,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer();
 
-// El JWT Bearer valida los tokens con las mismas JwtOptions que AuthController usa para firmarlos.
+// El JWT Bearer valida los tokens con las mismas JwtOptions que SesionService usa para firmarlos.
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
     {
@@ -77,7 +77,11 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
         };
-        options.Events = new JwtBearerEvents { OnTokenValidated = SesionDesdeLaBase.CargarAsync };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = SesionDesdeLaBase.CargarAsync,
+            OnChallenge = SesionDesdeLaBase.ResponderSesionTerminadaAsync
+        };
     });
 
 // Política de respaldo: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige sesión.

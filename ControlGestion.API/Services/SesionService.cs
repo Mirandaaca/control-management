@@ -57,7 +57,7 @@ public class SesionService(
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, usuario.Id),
-            new(ClaimsDeSeguridad.SesionEnElToken, sesionId.ToString()),
+            new(ClaimsDeSeguridad.Sesion, sesionId.ToString()),
             new(ClaimTypes.Email, usuario.Email!),
             new(ClaimTypes.Name, usuario.NombreCompleto)
         };

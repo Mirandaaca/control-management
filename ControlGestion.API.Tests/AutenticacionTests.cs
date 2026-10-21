@@ -75,7 +75,7 @@ public class AutenticacionTests(ApiDePrueba api)
 
         (await admin.PutAsync($"/api/usuarios/{promotor.Id}/desactivar", null)).EnsureSuccessStatusCode();
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await cliente.GetAsync("/api/clientes")).StatusCode);
+        await (await cliente.GetAsync("/api/clientes")).ProblemaAsync(401, "sesion_terminada");
     }
 
     // La API ya no borra usuarios, pero alguien podría hacerlo en la base: el token tampoco debe servir.
@@ -92,6 +92,6 @@ public class AutenticacionTests(ApiDePrueba api)
             await usuarios.DeleteAsync((await usuarios.FindByIdAsync(promotor.Id))!);
         }
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await cliente.GetAsync("/api/clientes")).StatusCode);
+        await (await cliente.GetAsync("/api/clientes")).ProblemaAsync(401, "sesion_terminada");
     }
 }
