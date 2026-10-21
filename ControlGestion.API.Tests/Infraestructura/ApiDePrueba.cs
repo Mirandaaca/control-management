@@ -21,6 +21,8 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     public const string CorreoAdmin = "admin@control.com";
     public const string CorreoOperador = "operador@test.local";
     public const string RolOperador = "Pruebas: todos los permisos";
+    /// <summary>El único origen que CORS permite en las pruebas (Cors:Origenes).</summary>
+    public const string OrigenDePrueba = "http://origen-de-prueba.local";
     private const string PrefijoDeBase = "control_test_";
     private const int PuertoDeDesarrollo = 9093;
 
@@ -72,6 +74,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Jwt:Key", _claveJwt);
         builder.UseSetting("Seed:AdminPassword", ContrasenaAdmin);
         builder.UseSetting("Almacenamiento:Ruta", CarpetaDeArchivos);
+        builder.UseSetting("Cors:Origenes:0", OrigenDePrueba);
 
         builder.ConfigureServices(servicios =>
             servicios.Remove(servicios.Single(d => d.ImplementationType == typeof(MoraDetectionService))));
