@@ -201,18 +201,12 @@ namespace ControlGestion.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("CreadoPorId")
                         .HasColumnType("varchar(255)");
-
-                    b.Property<int>("DiasRevisita")
-                        .HasColumnType("int");
 
                     b.Property<string>("DireccionTexto")
                         .IsRequired()
@@ -230,10 +224,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<decimal>("Latitud")
                         .HasPrecision(10, 8)
                         .HasColumnType("decimal(10,8)");
-
-                    b.Property<decimal>("LimiteCredito")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Longitud")
                         .HasPrecision(11, 8)
@@ -262,9 +252,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("Telefono")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<bool>("TieneCredito")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("UltimaVisita")
                         .HasColumnType("datetime(6)");
@@ -1015,6 +1002,37 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("Pedidos");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Permiso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Clave")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Modulo")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Clave")
+                        .IsUnique();
+
+                    b.ToTable("Permisos");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.Producto", b =>
                 {
                     b.Property<int>("Id")
@@ -1043,6 +1061,21 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Productos");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.RolPermiso", b =>
+                {
+                    b.Property<string>("RolId")
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("PermisoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RolId", "PermisoId");
+
+                    b.HasIndex("PermisoId");
+
+                    b.ToTable("RolesPermisos");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Ruta", b =>
@@ -1244,16 +1277,16 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("IdSupervisor")
-                        .HasColumnType("varchar(255)");
-
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PromotorId")
+                        .HasColumnType("varchar(255)");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("IdSupervisor");
+                    b.HasIndex("PromotorId");
 
                     b.ToTable("Zonas");
                 });
@@ -1711,6 +1744,25 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("Zona");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.RolPermiso", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.Permiso", "Permiso")
+                        .WithMany()
+                        .HasForeignKey("PermisoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", "Rol")
+                        .WithMany()
+                        .HasForeignKey("RolId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permiso");
+
+                    b.Navigation("Rol");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.Ruta", b =>
                 {
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
@@ -1751,12 +1803,12 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.Zona", b =>
                 {
-                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Supervisor")
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
                         .WithMany()
-                        .HasForeignKey("IdSupervisor")
+                        .HasForeignKey("PromotorId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.Navigation("Supervisor");
+                    b.Navigation("Promotor");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

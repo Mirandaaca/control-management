@@ -6,3 +6,5 @@ public record UsuarioResumenDTO(string Id, string NombreCompleto);
 public record ClienteResumenDTO(int Id, string NombreCompleto);
 
 public record HojaPedidoResumenDTO(int Id, string Numero);
+
+public record ZonaResumenDTO(int Id, string Nombre);

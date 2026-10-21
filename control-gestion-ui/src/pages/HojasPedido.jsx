@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 const ESTADO_COLOR = { 0: 'gray', 1: 'green', 2: 'red' };
 const ESTADO_LABEL = { 0: 'Borrador', 1: 'Confirmada', 2: 'Anulada' };
@@ -22,6 +23,8 @@ export default function HojasPedido() {
   const [showForm, setShowForm] = useState(false);
   const [showDetalle, setShowDetalle] = useState(null);
   const [anulandoId, setAnulandoId] = useState(null);
+  const [errorAccion, setErrorAccion] = useState('');
+  const [errorAnulacion, setErrorAnulacion] = useState('');
   const [motivoAnulacion, setMotivoAnulacion] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +44,7 @@ export default function HojasPedido() {
 
   useEffect(() => {
     Promise.all([
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/productos').then(r => setProductos(r.data)),
     ]);
@@ -96,23 +99,25 @@ export default function HojasPedido() {
   };
 
   const handleConfirmar = async (id) => {
+    setErrorAccion('');
     try {
       await api.post(`/hojas-pedido/${id}/confirmar`);
       fetchHPs();
     } catch (err) {
-      alert(mensajeDeError(err, 'Error al confirmar HP.'));
+      setErrorAccion(mensajeDeError(err, 'Error al confirmar HP.'));
     }
   };
 
   const handleAnular = async () => {
     if (!motivoAnulacion.trim()) return;
+    setErrorAnulacion('');
     try {
       await api.post(`/hojas-pedido/${anulandoId}/anular`, { motivo: motivoAnulacion });
       setAnulandoId(null);
       setMotivoAnulacion('');
       fetchHPs();
     } catch (err) {
-      alert(mensajeDeError(err, 'Error al anular HP.'));
+      setErrorAnulacion(mensajeDeError(err, 'Error al anular HP.'));
     }
   };
 
@@ -132,6 +137,8 @@ export default function HojasPedido() {
           </Btn>
         }
       />
+
+      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
 
       {/* Filtros */}
       <Card className="mb-5">
@@ -259,9 +266,10 @@ export default function HojasPedido() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Describe el motivo..." />
             </div>
+            {errorAnulacion && <Alert type="error" className="mt-3">{errorAnulacion}</Alert>}
             <div className="flex gap-2 mt-3">
               <Btn variant="danger" size="md" onClick={handleAnular}>Confirmar anulación</Btn>
-              <Btn variant="ghost" size="md" onClick={() => setAnulandoId(null)}>Cancelar</Btn>
+              <Btn variant="ghost" size="md" onClick={() => { setAnulandoId(null); setErrorAnulacion(''); }}>Cancelar</Btn>
             </div>
           </Card>
         </div>
@@ -307,7 +315,7 @@ export default function HojasPedido() {
               <Td><Badge color={TIPO_COLOR[hp.tipoVenta]}>{TIPO_LABEL[hp.tipoVenta]}</Badge></Td>
               <Td><span className="font-semibold text-slate-800">Bs. {hp.total?.toFixed(2)}</span></Td>
               <Td><Badge color={ESTADO_COLOR[hp.estadoHP]}>{ESTADO_LABEL[hp.estadoHP]}</Badge></Td>
-              <Td>{new Date(hp.fechaRegistro).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(hp.fechaRegistro)}</Td>
               <Td>
                 <div className="flex gap-1.5 flex-wrap">
                   <Btn onClick={() => handleVerDetalle(hp.id)} variant="ghost">Ver</Btn>

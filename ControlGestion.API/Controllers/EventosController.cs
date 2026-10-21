@@ -3,6 +3,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,7 @@ public class EventosController : ControllerBase
     }
 
     [HttpGet]
+    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.VerMapa)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? tipoEventoId,
         [FromQuery] EstadoEvento? estado,
@@ -52,6 +54,7 @@ public class EventosController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Permiso(Permisos.Eventos.ConsultarEventos, Permisos.Eventos.VerMapa)]
     public async Task<IActionResult> GetById(int id)
     {
         var evento = await _db.Eventos
@@ -70,6 +73,7 @@ public class EventosController : ControllerBase
         Ok(await _db.TiposEvento.Where(t => t.Activo).ToListAsync());
 
     [HttpPost]
+    [Permiso(Permisos.Eventos.RegistrarEvento)]
     public async Task<IActionResult> Create([FromBody] EventoCreateDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -94,7 +98,7 @@ public class EventosController : ControllerBase
     }
 
     [HttpPost("{id}/resolver")]
-    [Authorize(Roles = "Admin,Supervisor")]
+    [Permiso(Permisos.Eventos.ResolverEvento)]
     public async Task<IActionResult> Resolver(int id, [FromBody] ResolverEventoDTO dto)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -110,6 +114,7 @@ public class EventosController : ControllerBase
     }
 
     [HttpPost("{id}/anexos")]
+    [Permiso(Permisos.Eventos.AgregarFoto)]
     public async Task<IActionResult> SubirAnexo(int id, IFormFile archivo, [FromForm] string? descripcion)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;

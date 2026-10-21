@@ -32,6 +32,10 @@ public static class Ayudantes
     public static async Task<HttpClient> AdminAsync(this ApiDePrueba api) =>
         api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoAdmin, api.ContrasenaAdmin));
 
+    /// <summary>Un usuario con todos los permisos, para preparar datos de negocio (zonas, clientes, HP…).</summary>
+    public static async Task<HttpClient> OperadorAsync(this ApiDePrueba api) =>
+        api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoOperador, api.ContrasenaOperador));
+
     public static async Task<UsuarioDePrueba> CrearUsuarioAsync(this ApiDePrueba api, string rol)
     {
         var correo = $"{Unico("t").ToLowerInvariant()}@test.local";
@@ -42,6 +46,15 @@ public static class Ayudantes
         respuesta.EnsureSuccessStatusCode();
         var id = (await respuesta.LeerJsonAsync()).GetProperty("id").GetString()!;
         return new UsuarioDePrueba(id, correo, contrasena, await api.IniciarSesionAsync(correo, contrasena));
+    }
+
+    /// <summary>Crea un rol con esos permisos y devuelve su id y su nombre.</summary>
+    public static async Task<(string Id, string Nombre)> CrearRolAsync(this HttpClient admin, params string[] permisos)
+    {
+        var nombre = Unico("Rol");
+        var respuesta = await admin.PostAsJsonAsync("/api/roles", new { nombre, permisos });
+        respuesta.EnsureSuccessStatusCode();
+        return ((await respuesta.LeerJsonAsync()).GetProperty("id").GetString()!, nombre);
     }
 
     public static async Task<JsonElement> LeerJsonAsync(this HttpResponseMessage respuesta) =>
@@ -60,11 +73,11 @@ public static class Ayudantes
         return problema;
     }
 
-    public static async Task<int> CrearZonaAsync(this HttpClient admin, string? supervisorId = null)
+    public static async Task<int> CrearZonaAsync(this HttpClient admin, string? promotorId = null)
     {
         var codigo = Unico("Z");
         var respuesta = await admin.PostAsJsonAsync("/api/zonas",
-            new { nombre = $"Zona {codigo}", codigo, idSupervisor = supervisorId });
+            new { nombre = $"Zona {codigo}", codigo, promotorId });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
@@ -82,20 +95,17 @@ public static class Ayudantes
         return id;
     }
 
-    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId, string? promotorId = null,
-        decimal limiteCredito = 1000)
+    /// <summary>Crea un cliente en la zona. Su promotor es el de la zona: para el cliente de un promotor, usa una zona suya.</summary>
+    public static async Task<int> CrearClienteAsync(this HttpClient admin, int zonaId)
     {
         var respuesta = await admin.PostAsJsonAsync("/api/clientes", new
         {
             nombreCompleto = $"Cliente {Unico("C")}",
-            telefono = "70000000",
+            telefono = $"7{Random.Shared.Next(1000000, 9999999)}",
             direccionTexto = "Calle de prueba",
             latitud = -17.7833m,
             longitud = -63.1821m,
-            zonaId,
-            promotorId,
-            tieneCredito = limiteCredito > 0,
-            limiteCredito
+            zonaId
         });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();

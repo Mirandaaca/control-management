@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 export default function Pedidos() {
   const [pedidos, setPedidos] = useState([]);
@@ -15,6 +16,7 @@ export default function Pedidos() {
   const [showForm, setShowForm] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [cambioEstado, setCambioEstado] = useState(null);
+  const [errorEstado, setErrorEstado] = useState('');
   const [form, setForm] = useState({ clienteId: '', zonaId: '', fechaEntregaEstimada: '', descuento: 0, observaciones: '' });
   const [lineas, setLineas] = useState([{ productoId: '', cantidad: 1, descuento: 0 }]);
   const [estadoForm, setEstadoForm] = useState({ nuevoEstadoId: '', observacion: '', latitud: '', longitud: '' });
@@ -36,7 +38,7 @@ export default function Pedidos() {
   useEffect(() => {
     Promise.all([
       api.get('/pedidos/estados').then(r => setEstados(r.data)),
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
       api.get('/zonas').then(r => setZonas(r.data)),
       api.get('/productos').then(r => setProductos(r.data)),
     ]);
@@ -71,6 +73,7 @@ export default function Pedidos() {
 
   const handleCambiarEstado = async () => {
     if (!estadoForm.nuevoEstadoId) return;
+    setErrorEstado('');
     try {
       await api.post(`/pedidos/${cambioEstado.id}/estado`, {
         nuevoEstadoId: parseInt(estadoForm.nuevoEstadoId),
@@ -80,8 +83,10 @@ export default function Pedidos() {
       });
       setCambioEstado(null);
       fetchPedidos();
-    } catch (err) { alert(mensajeDeError(err, 'Transición no permitida.')); }
+    } catch (err) { setErrorEstado(mensajeDeError(err, 'Transición no permitida.')); }
   };
+
+  const cerrarCambioEstado = () => { setCambioEstado(null); setErrorEstado(''); };
 
   const handleVerDetalle = async (id) => {
     const r = await api.get(`/pedidos/${id}`);
@@ -201,7 +206,7 @@ export default function Pedidos() {
           <Card className="w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-700">Cambiar estado — {cambioEstado.numero}</h3>
-              <Btn variant="ghost" onClick={() => setCambioEstado(null)}>✕</Btn>
+              <Btn variant="ghost" onClick={cerrarCambioEstado}>✕</Btn>
             </div>
             <p className="text-xs text-slate-500 mb-3">
               Estado actual: <span className="font-semibold" style={{ color: cambioEstado.estadoPedido?.color }}>{cambioEstado.estadoPedido?.nombre}</span>
@@ -225,9 +230,10 @@ export default function Pedidos() {
                 </div>
               )}
             </div>
+            {errorEstado && <Alert type="error" className="mt-4">{errorEstado}</Alert>}
             <div className="flex gap-2 mt-4">
               <Btn variant="primary" size="md" onClick={handleCambiarEstado}>Confirmar cambio</Btn>
-              <Btn variant="ghost" size="md" onClick={() => setCambioEstado(null)}>Cancelar</Btn>
+              <Btn variant="ghost" size="md" onClick={cerrarCambioEstado}>Cancelar</Btn>
             </div>
           </Card>
         </div>
@@ -262,7 +268,7 @@ export default function Pedidos() {
                   <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ backgroundColor: h.estadoPedido?.color }} />
                   <div>
                     <span className="font-medium">{h.estadoPedido?.nombre}</span>
-                    <span className="text-slate-400 ml-2">{new Date(h.fechaCambio).toLocaleString()}</span>
+                    <span className="text-slate-400 ml-2">{formatearFecha(h.fechaCambio, { hora: true })}</span>
                     {h.observacion && <p className="text-slate-500">{h.observacion}</p>}
                   </div>
                 </div>
@@ -289,7 +295,7 @@ export default function Pedidos() {
                   {p.estadoPedido?.nombre}
                 </span>
               </Td>
-              <Td>{new Date(p.fechaRegistro).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(p.fechaRegistro)}</Td>
               <Td>
                 <div className="flex gap-1.5">
                   <Btn onClick={() => handleVerDetalle(p.id)} variant="ghost">Ver</Btn>

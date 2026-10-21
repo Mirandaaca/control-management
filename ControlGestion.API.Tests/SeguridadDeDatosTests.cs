@@ -1,4 +1,5 @@
 using ControlGestion.API.Tests.Infraestructura;
+using ControlGestion.API.Seguridad;
 
 namespace ControlGestion.API.Tests;
 
@@ -11,19 +12,19 @@ public class SeguridadDeDatosTests(ApiDePrueba api)
     [Fact]
     public async Task Ningun_usuario_anidado_expone_los_campos_internos_de_Identity()
     {
-        var supervisor = await api.CrearUsuarioAsync("Supervisor");
-        var promotor = await api.CrearUsuarioAsync("Promotor");
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync(supervisor.Id);
-        var productoId = await admin.CrearProductoAsync(10m);
-        var clienteId = await admin.CrearClienteAsync(zonaId, promotor.Id);
+        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync(gerente.Id);
+        var productoId = await operador.CrearProductoAsync(10m);
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);
         var hojaId = await vendedor.CrearHojaPedidoAsync(clienteId, zonaId, productoId, 1, credito: false);
 
         foreach (var ruta in new[] { "/api/zonas", $"/api/clientes/{clienteId}", "/api/hojas-pedido", $"/api/hojas-pedido/{hojaId}",
                                      $"/api/inventario/{productoId}/movimientos" })
         {
-            var cuerpo = await (await admin.GetAsync(ruta)).Content.ReadAsStringAsync();
+            var cuerpo = await (await operador.GetAsync(ruta)).Content.ReadAsStringAsync();
             Assert.Contains("nombreCompleto", cuerpo);
             foreach (var campo in CamposDeIdentity)
                 Assert.DoesNotContain($"\"{campo}\"", cuerpo, StringComparison.OrdinalIgnoreCase);

@@ -1,0 +1,160 @@
+using ControlGestion.API.Data;
+using ControlGestion.API.Data.Consultas;
+using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
+using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
+using Microsoft.EntityFrameworkCore;
+
+namespace ControlGestion.API.Services;
+
+/// <summary>Clientes en campo (2.2) y su ubicación (2.4). Cada usuario ve y edita solo su cartera, salvo con cartera completa.</summary>
+public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
+{
+    private IQueryable<Cliente> Visibles => db.Clientes.VisiblesPara(usuario);
+
+    public async Task<Pagina<ClienteListaDTO>> ListarAsync(FiltrosClienteDTO filtros)
+    {
+        var consulta = Visibles.Buscar(filtros.Buscar);
+        if (filtros.ZonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == filtros.ZonaId);
+        if (filtros.EstadoId.HasValue) consulta = consulta.Where(c => c.EstadoClienteId == filtros.EstadoId);
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
+        if (filtros.PorVisitar)
+        {
+            // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
+            // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
+            var ahora = reloj.GetUtcNow().UtcDateTime;
+            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId)
+                && (c.ProximaVisita == null || c.ProximaVisita <= ahora));
+        }
+
+        var total = await consulta.CountAsync();
+        var items = await consulta
+            .OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id)
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(ClienteConsultas.ComoLista)
+            .ToListAsync();
+        return new Pagina<ClienteListaDTO>(items, total, filtros.Pagina, filtros.Tamano);
+    }
+
+    /// <summary>Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos.</summary>
+    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar) =>
+        Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
+            .Buscar(buscar).OrderBy(c => c.NombreCompleto).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+
+    public Task<List<ClienteMapaDTO>> MapaAsync(int? zonaId)
+    {
+        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo && c.Latitud != 0 && c.Longitud != 0);
+        if (zonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == zonaId);
+        return consulta.Select(ClienteConsultas.ComoMapa).ToListAsync();
+    }
+
+    public async Task<ClienteDTO> ObtenerAsync(int id) =>
+        await Visibles.Where(c => c.Id == id).Select(ClienteConsultas.ComoDetalle).FirstOrDefaultAsync()
+        ?? throw new NoEncontradoException("No se encontró el cliente.");
+
+    public Task<List<EstadoClienteDTO>> EstadosAsync() =>
+        db.EstadosCliente.Where(e => e.Activo).OrderBy(e => e.Id).Select(ClienteConsultas.EstadoComoDTO).ToListAsync();
+
+    public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
+    {
+        var promotorDeLaZona = await PromotorDeLaZonaAsync(dto.ZonaId);
+        await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: null);
+        var cliente = new Cliente
+        {
+            Codigo = await numerador.SiguienteAsync(NumeradorService.Cliente),
+            // Un cliente sin visitas está disponible para re-visita (5.2).
+            EstadoClienteId = EstadosDeCliente.DisponibleParaRevisita,
+            CreadoPorId = usuario.Id,
+            FechaCreacion = reloj.GetUtcNow().UtcDateTime
+        };
+        Copiar(dto, cliente, promotorDeLaZona);
+        db.Clientes.Add(cliente);
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(cliente.Id);
+    }
+
+    public async Task<ClienteDTO> EditarAsync(int id, GuardarClienteDTO dto)
+    {
+        var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el cliente.");
+        // Solo se avisa si el celular cambió: si no, editar otro dato avisaría cada vez.
+        if (cliente.Telefono != dto.Telefono.Trim())
+            await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: id);
+        // Editar no toca el estado: antes lo devolvía a "Activo" sin avisar.
+        Copiar(dto, cliente, await PromotorDeLaZonaAsync(dto.ZonaId));
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>Desactivar a un cliente es asignarle el estado Inactivo: los clientes no se borran.</summary>
+    public async Task<ClienteDTO> AsignarEstadoAsync(int id, AsignarEstadoClienteDTO dto)
+    {
+        var cliente = await Visibles.FirstOrDefaultAsync(c => c.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el cliente.");
+
+        if (dto.EstadoClienteId is { } estadoId)
+        {
+            if (EstadosDeCliente.DelSistema.Contains(estadoId))
+                throw new ReglaDeNegocioException("estado_del_sistema",
+                    "Activo y Disponible para re-visita los asigna el sistema según las visitas.");
+            if (!await db.EstadosCliente.AnyAsync(e => e.Id == estadoId && e.Activo))
+                throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
+            cliente.EstadoClienteId = estadoId;
+        }
+        else
+        {
+            var ahora = reloj.GetUtcNow().UtcDateTime;
+            cliente.EstadoClienteId = cliente.ProximaVisita > ahora ? EstadosDeCliente.Activo : EstadosDeCliente.DisponibleParaRevisita;
+        }
+
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Avisar si el celular ya existe (2.2): puede ser el mismo cliente registrado dos veces. No se bloquea, porque un
+    /// celular también se comparte (un negocio familiar), pero quien registra tiene que confirmarlo.
+    /// </summary>
+    private async Task AvisarSiElTelefonoSeRepiteAsync(GuardarClienteDTO dto, int? idPropio)
+    {
+        if (dto.ConfirmarTelefonoRepetido) return;
+        var telefono = dto.Telefono.Trim();
+        var otro = await db.Clientes.Where(c => c.Telefono == telefono && c.Id != idPropio).Select(c => new { c.Id }).FirstOrDefaultAsync();
+        if (otro == null) return;
+
+        // Solo se nombra al otro cliente si el usuario puede verlo: a un promotor no se le muestra la cartera de otro.
+        var visible = await Visibles.Where(c => c.Id == otro.Id).Select(c => new { c.NombreCompleto, c.Codigo }).FirstOrDefaultAsync();
+        throw new ConflictoException("telefono_repetido", visible == null
+            ? "Ya existe otro cliente con ese celular."
+            : $"Ya existe el cliente {visible.NombreCompleto} ({visible.Codigo}) con ese celular.");
+    }
+
+    /// <summary>
+    /// El cliente siempre tiene el promotor de su zona (7.2). Sin cartera completa, el usuario solo registra o mueve
+    /// clientes a sus propias zonas: en otra, el cliente pasaría a otro promotor y desaparecería de su lista.
+    /// </summary>
+    private async Task<string?> PromotorDeLaZonaAsync(int zonaId)
+    {
+        var zona = await db.Zonas.Where(z => z.Id == zonaId).Select(z => new { z.PromotorId }).FirstOrDefaultAsync()
+            ?? throw new ReglaDeNegocioException("zona_no_existe", "La zona elegida no existe.");
+        if (!usuario.VeCarteraCompleta && zona.PromotorId != usuario.Id)
+            throw new ReglaDeNegocioException("zona_fuera_de_cartera", "Solo puedes registrar clientes en tus zonas.");
+        return zona.PromotorId;
+    }
+
+    private static void Copiar(GuardarClienteDTO dto, Cliente cliente, string? promotorDeLaZona)
+    {
+        cliente.NombreCompleto = dto.NombreCompleto.Trim();
+        cliente.RazonSocial = dto.RazonSocial?.Trim();
+        cliente.NIT = dto.NIT?.Trim();
+        cliente.Telefono = dto.Telefono.Trim();
+        cliente.Email = dto.Email?.Trim();
+        cliente.DireccionTexto = dto.DireccionTexto.Trim();
+        cliente.Latitud = dto.Latitud!.Value;
+        cliente.Longitud = dto.Longitud!.Value;
+        cliente.ZonaId = dto.ZonaId;
+        cliente.PromotorId = promotorDeLaZona;
+    }
+}

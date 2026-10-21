@@ -7,10 +7,10 @@ namespace ControlGestion.API.Data.Consultas;
 
 public static class CobranzaConsultas
 {
-    /// <summary>Un Promotor solo ve las cobranzas de los clientes que tiene asignados; Admin y Supervisor, todas.</summary>
+    /// <summary>Sin seguridad.ver-cartera-completa, el usuario solo ve las cobranzas de los clientes que tiene asignados.</summary>
     public static IQueryable<Cobranza> VisiblesPara(this IQueryable<Cobranza> cobranzas, IUsuarioActual usuario)
     {
-        if (usuario.VeTodosLosRegistros) return cobranzas;
+        if (usuario.VeCarteraCompleta) return cobranzas;
         var usuarioId = usuario.Id;
         return cobranzas.Where(c => c.Cliente!.PromotorId == usuarioId);
     }

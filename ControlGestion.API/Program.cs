@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,12 +26,16 @@ if (string.IsNullOrWhiteSpace(connStr))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connStr, ServerVersion.AutoDetect(connStr)));
 
+// Contraseña (8.1): 8 caracteres o más, con al menos un número. Solo se aplica al crearla o cambiarla, así que las
+// contraseñas que ya existen siguen valiendo.
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
+    options.Password.RequiredLength = 8;
     options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireLowercase = false;
     options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredUniqueChars = 1;
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders()
@@ -64,23 +67,14 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
             ValidAudience = jwt.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
         };
-        options.Events = new JwtBearerEvents
-        {
-            // Un token dura 8 h: sin esta consulta, un usuario desactivado o borrado seguiría entrando hasta que venza.
-            OnTokenValidated = async contexto =>
-            {
-                var usuarioId = contexto.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                var db = contexto.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-                var activo = usuarioId != null && await db.Users.AnyAsync(u => u.Id == usuarioId && u.Activo);
-                if (!activo)
-                    contexto.Fail("El usuario no existe o está inactivo.");
-            }
-        };
+        options.Events = new JwtBearerEvents { OnTokenValidated = SesionDesdeLaBase.CargarAsync };
     });
 
 // Política de respaldo: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige sesión.
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, ProveedorDePoliticasDePermiso>();
+builder.Services.AddSingleton<IAuthorizationHandler, PermisoRequeridoHandler>();
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = RespuestasDeError.Personalizar);
 builder.Services.AddExceptionHandler<ManejadorDeExcepciones>();
 builder.Services.AddControllers(options => RespuestasDeError.TraducirMensajesDeEnlace(options.ModelBindingMessageProvider))
@@ -98,6 +92,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
 builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
+builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
+builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
+builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
 builder.Services.AddCors(options =>
@@ -120,24 +118,22 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    foreach (var rol in new[] { "Admin", "Supervisor", "Promotor" })
-    {
-        if (!await roleManager.RoleExistsAsync(rol))
-            await roleManager.CreateAsync(new IdentityRole(rol));
-    }
+    await SembradorDeSeguridad.SembrarAsync(db, roleManager, app.Logger);
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
     // La contraseña del admin sale de Seed:AdminPassword (user-secrets o variable de entorno Seed__AdminPassword).
-    await SembrarUsuarioAsync(userManager, app.Logger, "admin@control.com", "Administrador del Sistema", "Admin",
+    await SembrarUsuarioAsync(userManager, app.Logger, "admin@control.com", "Administrador del Sistema", Roles.Administrador,
         app.Configuration["Seed:AdminPassword"], "Seed:AdminPassword");
 
     if (app.Environment.IsDevelopment())
     {
         var demoPassword = app.Configuration["Seed:DemoPassword"];
-        await SembrarUsuarioAsync(userManager, app.Logger, "supervisor@control.com", "Supervisor del Sistema", "Supervisor",
+        await SembrarUsuarioAsync(userManager, app.Logger, "gerente@control.com", "Gerente General", Roles.GerenteGeneral,
             demoPassword, "Seed:DemoPassword");
-        await SembrarUsuarioAsync(userManager, app.Logger, "promotor@control.com", "Promotor del Sistema", "Promotor",
+        await SembrarUsuarioAsync(userManager, app.Logger, "secretaria@control.com", "Secretaria", Roles.Secretaria,
+            demoPassword, "Seed:DemoPassword");
+        await SembrarUsuarioAsync(userManager, app.Logger, "promotor@control.com", "Promotor del Sistema", Roles.Promotor,
             demoPassword, "Seed:DemoPassword");
     }
 }

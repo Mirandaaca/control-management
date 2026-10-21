@@ -13,25 +13,25 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
     [Fact]
     public async Task Un_producto_nuevo_aparece_en_el_inventario_con_stock_cero()
     {
-        using var admin = await api.AdminAsync();
-        var productoId = await admin.CrearProductoAsync(5m, stockInicial: 0);
+        using var operador = await api.OperadorAsync();
+        var productoId = await operador.CrearProductoAsync(5m, stockInicial: 0);
 
-        Assert.Equal(0m, (await InventarioDe(admin, productoId)).GetProperty("stockActual").GetDecimal());
+        Assert.Equal(0m, (await InventarioDe(operador, productoId)).GetProperty("stockActual").GetDecimal());
     }
 
     [Fact]
     public async Task Confirmar_una_HP_a_credito_crea_la_cobranza_y_descuenta_el_stock()
     {
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync();
-        var productoId = await admin.CrearProductoAsync(12.5m, stockInicial: 100);
-        var clienteId = await admin.CrearClienteAsync(zonaId);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var productoId = await operador.CrearProductoAsync(12.5m, stockInicial: 100);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
 
-        var cobranzaId = await admin.CrearCobranzaAsync(clienteId, zonaId, productoId, cantidad: 3);
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, zonaId, productoId, cantidad: 3);
 
-        var cobranza = await (await admin.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
+        var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
         Assert.Equal(37.5m, cobranza.GetProperty("montoTotal").GetDecimal());
         Assert.Equal(0m, cobranza.GetProperty("montoPagado").GetDecimal());
-        Assert.Equal(97m, (await InventarioDe(admin, productoId)).GetProperty("stockActual").GetDecimal());
+        Assert.Equal(97m, (await InventarioDe(operador, productoId)).GetProperty("stockActual").GetDecimal());
     }
 }

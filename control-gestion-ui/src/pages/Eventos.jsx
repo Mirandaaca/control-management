@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha } from '../utils/formato';
 
 const ESTADO_COLOR = { 0: 'blue', 1: 'yellow', 2: 'green', 3: 'red' };
 const ESTADO_LABEL = { 0: 'Registrado', 1: 'Revisado', 2: 'Resuelto', 3: 'Escalado' };
@@ -39,7 +40,7 @@ export default function Eventos() {
   useEffect(() => {
     Promise.all([
       api.get('/eventos/tipos').then(r => setTipos(r.data)),
-      api.get('/clientes').then(r => setClientes(r.data)),
+      api.get('/clientes/opciones').then(r => setClientes(r.data)),
     ]);
     fetchEventos();
   }, []);
@@ -235,7 +236,7 @@ export default function Eventos() {
                   : <span className="text-slate-400 text-xs">Sin archivos</span>
                 }
               </Td>
-              <Td>{new Date(ev.fechaEvento).toLocaleDateString()}</Td>
+              <Td>{formatearFecha(ev.fechaEvento)}</Td>
               <Td>
                 <div className="flex gap-1.5">
                   {ev.estadoEvento !== 2 && (

@@ -11,7 +11,7 @@ public class ErroresTests(ApiDePrueba api)
     {
         using var admin = await api.AdminAsync();
         var problema = await (await admin.PostAsJsonAsync("/api/usuarios",
-            new { email = "no-es-correo", nombreCompleto = "", password = "abcdef", rol = "Root" })).ProblemaAsync(400, "validacion");
+            new { email = "no-es-correo", nombreCompleto = "", password = "abcdef", rol = "" })).ProblemaAsync(400, "validacion");
 
         var errores = problema.GetProperty("errors");
         foreach (var campo in new[] { "email", "nombreCompleto", "password", "rol" })
@@ -24,8 +24,8 @@ public class ErroresTests(ApiDePrueba api)
     [Fact]
     public async Task Un_JSON_con_un_valor_invalido_no_muestra_detalles_internos()
     {
-        using var admin = await api.AdminAsync();
-        var respuesta = await admin.PostAsJsonAsync("/api/cobranzas/1/pagos", new { monto = 1, metodoPago = "QR" });
+        using var operador = await api.OperadorAsync();
+        var respuesta = await operador.PostAsJsonAsync("/api/cobranzas/1/pagos", new { monto = 1, metodoPago = "QR" });
 
         var problema = await respuesta.ProblemaAsync(400, "validacion");
         var mensaje = problema.GetProperty("errors").GetProperty("metodoPago")[0].GetString();
@@ -36,11 +36,11 @@ public class ErroresTests(ApiDePrueba api)
     [Fact]
     public async Task Una_referencia_a_un_id_que_no_existe_responde_400_y_no_500()
     {
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync();
-        var productoId = await admin.CrearProductoAsync(1m);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var productoId = await operador.CrearProductoAsync(1m);
 
-        await (await admin.PostAsJsonAsync("/api/pedidos", new
+        await (await operador.PostAsJsonAsync("/api/pedidos", new
         {
             clienteId = 999999,
             zonaId,
@@ -51,18 +51,18 @@ public class ErroresTests(ApiDePrueba api)
     [Fact]
     public async Task Borrar_una_zona_con_clientes_responde_409_y_no_500()
     {
-        using var admin = await api.AdminAsync();
-        var zonaId = await admin.CrearZonaAsync();
-        await admin.CrearClienteAsync(zonaId);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        await operador.CrearClienteAsync(zonaId);
 
-        await (await admin.DeleteAsync($"/api/zonas/{zonaId}")).ProblemaAsync(409, "tiene_registros_asociados");
+        await (await operador.DeleteAsync($"/api/zonas/{zonaId}")).ProblemaAsync(409, "tiene_registros_asociados");
     }
 
     [Fact]
     public async Task Un_registro_o_una_ruta_que_no_existen_responden_404_con_ProblemDetails()
     {
-        using var admin = await api.AdminAsync();
-        await (await admin.GetAsync("/api/clientes/999999")).ProblemaAsync(404, "no_encontrado");
-        await (await admin.GetAsync("/api/no-existe")).ProblemaAsync(404, "no_encontrado");
+        using var operador = await api.OperadorAsync();
+        await (await operador.GetAsync("/api/clientes/999999")).ProblemaAsync(404, "no_encontrado");
+        await (await operador.GetAsync("/api/no-existe")).ProblemaAsync(404, "no_encontrado");
     }
 }

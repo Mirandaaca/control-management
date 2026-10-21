@@ -4,6 +4,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PageHeader, Badge, Btn, Input, Card, Alert } from '../components/ui';
+import { formatearFecha, leerFechaUtc } from '../utils/formato';
 
 const ESTADO_COLOR = { 0: 'yellow', 1: 'blue', 2: 'green', 3: 'red', 4: 'gray' };
 const ESTADO_LABEL = { 0: 'Pendiente', 1: 'Parcial', 2: 'Pagada', 3: 'Vencida', 4: 'Incobrable' };
@@ -150,7 +151,7 @@ export default function Cobranzas() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">Vencimiento</p>
-                <p className="font-medium">{new Date(detalle.fechaVencimiento).toLocaleDateString()}</p>
+                <p className="font-medium">{formatearFecha(detalle.fechaVencimiento)}</p>
               </div>
             </div>
 
@@ -165,7 +166,7 @@ export default function Cobranzas() {
                         <span className="text-slate-400 text-xs ml-2">— {METODO_LABEL[p.metodoPago]}</span>
                         {p.referencia && <span className="text-slate-400 text-xs ml-2">Ref: {p.referencia}</span>}
                       </div>
-                      <span className="text-xs text-slate-400">{new Date(p.fechaPago).toLocaleDateString()}</span>
+                      <span className="text-xs text-slate-400">{formatearFecha(p.fechaPago, { hora: true })}</span>
                     </div>
                   ))}
                 </div>
@@ -255,8 +256,8 @@ export default function Cobranzas() {
                 Bs {c.saldoPendiente?.toFixed(2)}
               </span></Td>
               <Td>
-                <span className={new Date(c.fechaVencimiento) < new Date() && c.estado !== 2 ? 'text-red-600 font-medium' : ''}>
-                  {new Date(c.fechaVencimiento).toLocaleDateString()}
+                <span className={leerFechaUtc(c.fechaVencimiento) < new Date() && c.estado !== 2 ? 'text-red-600 font-medium' : ''}>
+                  {formatearFecha(c.fechaVencimiento)}
                 </span>
               </Td>
               <Td><Badge color={ESTADO_COLOR[c.estado]}>{ESTADO_LABEL[c.estado]}</Badge></Td>
