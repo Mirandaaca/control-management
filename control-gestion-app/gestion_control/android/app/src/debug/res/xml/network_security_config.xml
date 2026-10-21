@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Solo en debug (la versión que instala `flutter run`): permite http, porque en desarrollo la API corre en la PC sin
+  https. Vale para cualquier dirección, porque la IP de la PC cambia y va solo en el dart-define API_URL. La versión de
+  lanzamiento no usa este archivo y exige https.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

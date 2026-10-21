@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gestion_control"
+    namespace = "com.delcampo.controlgestion"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,11 +15,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.gestion_control"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Cambiarlo después de instalar la app obliga a desinstalarla: Android la toma como otra app.
+        applicationId = "com.delcampo.controlgestion"
+        // Android 7.0. Es el mínimo de Flutter 3.44 y cubre geolocator, image_picker y flutter_secure_storage. Va escrito
+        // aquí para que no cambie solo al actualizar Flutter.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
