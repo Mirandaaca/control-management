@@ -14,6 +14,7 @@ import HojasPedido from './pages/HojasPedido';
 import Inventario from './pages/Inventario';
 import Pedidos from './pages/Pedidos';
 import BandejaPedidos from './pages/BandejaPedidos';
+import ReportePedidos from './pages/ReportePedidos';
 import Eventos from './pages/Eventos';
 import Cobranzas from './pages/Cobranzas';
 import Rutas from './pages/Rutas';
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/zonas" element={<PrivateRoute permisos={PANTALLAS.zonas}><Zonas /></PrivateRoute>} />
           <Route path="/productos" element={<PrivateRoute permisos={PANTALLAS.productos}><Productos /></PrivateRoute>} />
           <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />
+          <Route path="/reportes/pedidos" element={<PrivateRoute permisos={PANTALLAS.reportePedidos}><ReportePedidos /></PrivateRoute>} />
           <Route path="/configuraciones" element={<PrivateRoute permisos={PANTALLAS.configuraciones}><Configuraciones /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

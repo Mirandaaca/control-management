@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, ChartColumn, ChevronDown, ClipboardList, House, Inbox, LogOut, Map as Mapa, MapPinned, Menu, Package, PanelLeftClose,
+  Boxes, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, House, Inbox, LogOut, Map as Mapa, MapPinned, Menu, Package, PanelLeftClose,
   PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
@@ -33,6 +33,7 @@ const modulos = [
   ] },
   { id: 'reportes', seccion: 'operacion', nombre: 'Reportes', icon: ChartColumn, items: [
     { to: '/reportes', label: 'Reportes', icon: ChartColumn, permisos: PANTALLAS.reportes },
+    { to: '/reportes/pedidos', label: 'Reporte de pedidos', icon: FileSpreadsheet, permisos: PANTALLAS.reportePedidos },
   ] },
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
     { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
