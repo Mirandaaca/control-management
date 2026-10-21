@@ -71,6 +71,13 @@ public record AnularPagoDTO
     public string Motivo { get; init; } = string.Empty;
 }
 
+/// <summary>El comprobante de un pago (multipart): una foto JPEG, PNG o WebP.</summary>
+public record AdjuntarComprobanteDTO
+{
+    [Required(ErrorMessage = "Elige la foto del comprobante.")]
+    public IFormFile? Archivo { get; init; }
+}
+
 public record MarcarIncobrableDTO
 {
     [Required(ErrorMessage = "La observación es obligatoria.")]
@@ -103,7 +110,9 @@ public record PagoDTO(
     string? Observaciones,
     UsuarioResumenDTO RegistradoPor,
     bool Anulado,
-    string? MotivoAnulacion);
+    string? MotivoAnulacion,
+    /// <summary>La foto del comprobante, si tiene: se abre con GET /evidencias/{id}/archivo.</summary>
+    int? ComprobanteId);
 
 public record CobranzaDetalleDTO(
     int Id,

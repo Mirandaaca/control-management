@@ -31,6 +31,18 @@ public class CobranzasController(CobranzaService cobranzas) : ControllerBase
     public async Task<ActionResult<PagoRegistradoDTO>> RegistrarPago(int id, [FromBody] RegistrarPagoDTO dto) =>
         await cobranzas.RegistrarPagoAsync(id, dto);
 
+    // Registrar el pago sigue siendo JSON, con su clave de idempotencia: el comprobante se sube aparte, al registrarlo o
+    // después. Lo adjunta quien puede registrar pagos en esa cobranza (cartera).
+    [HttpPut("{id}/pagos/{pagoId}/comprobante")]
+    [Permiso(Permisos.Cobranzas.RegistrarPago)]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<CobranzaDetalleDTO>> AdjuntarComprobante(int id, int pagoId, [FromForm] AdjuntarComprobanteDTO dto)
+    {
+        await using var contenido = dto.Archivo!.OpenReadStream();
+        return await cobranzas.AdjuntarComprobanteAsync(id, pagoId,
+            new ArchivoRecibido(dto.Archivo.FileName, dto.Archivo.Length, contenido));
+    }
+
     [HttpPost("{id}/pagos/{pagoId}/anular")]
     [Permiso(Permisos.Cobranzas.AnularPago)]
     public async Task<ActionResult<CobranzaDetalleDTO>> AnularPago(int id, int pagoId, [FromBody] AnularPagoDTO dto) =>
