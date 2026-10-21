@@ -96,6 +96,35 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         return (clienteId, null);
     }
 
+    /// <summary>
+    /// Modificar (4.1): el tipo, el cliente o el pedido y la descripción, mientras está pendiente. La ubicación es la del
+    /// registro y no cambia.
+    /// </summary>
+    public async Task<EventoDTO> ModificarAsync(int id, ModificarEventoDTO dto)
+    {
+        var evento = await BuscarPendienteAsync(id, "ya está resuelto: no se modifica");
+        ExigirQueSeaSuyo(evento);
+        // Un tipo que se desactivó después se puede conservar; uno nuevo tiene que estar activo.
+        if (dto.TipoEventoId != evento.TipoEventoId) await ExigirTipoActivoAsync(dto.TipoEventoId);
+        var (clienteId, pedidoId) = await VinculoAsync(dto);
+
+        evento.TipoEventoId = dto.TipoEventoId;
+        evento.ClienteId = clienteId;
+        evento.PedidoId = pedidoId;
+        evento.Descripcion = dto.Descripcion.Trim();
+        await GuardarAsync("El evento cambió mientras lo modificabas. Vuelve a intentarlo.");
+        return await ObtenerAsync(id);
+    }
+
+    // La regla del dueño no es un permiso: ver el evento por la cartera no alcanza para cambiarlo. Con cartera completa
+    // (la secretaria) se cambia cualquiera.
+    private void ExigirQueSeaSuyo(Evento evento)
+    {
+        if (!usuario.VeCarteraCompleta && evento.PromotorId != usuario.Id)
+            throw new ReglaDeNegocioException("evento_de_otro_promotor",
+                $"El evento {evento.Numero} lo registró otro promotor: solo quien lo registró lo cambia.");
+    }
+
     /// <summary>Resolver (4.1): guarda la solución, la fecha y quién lo resolvió. Un evento resuelto ya no cambia.</summary>
     public async Task<EventoDTO> ResolverAsync(int id, string solucion)
     {

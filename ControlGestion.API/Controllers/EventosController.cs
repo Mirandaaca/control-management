@@ -38,6 +38,12 @@ public class EventosController(EventoService eventos) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = registrado.Id }, registrado);
     }
 
+    // Además del permiso, el promotor solo modifica los eventos que registró (lo revisa el servicio).
+    [HttpPut("{id:int}")]
+    [Permiso(Permisos.Eventos.ModificarEvento)]
+    public async Task<ActionResult<EventoDTO>> Modificar(int id, [FromBody] ModificarEventoDTO dto) =>
+        await eventos.ModificarAsync(id, dto);
+
     [HttpPost("{id:int}/resolver")]
     [Permiso(Permisos.Eventos.ResolverEvento)]
     public async Task<ActionResult<EventoDTO>> Resolver(int id, [FromBody] ResolverEventoDTO dto) =>
