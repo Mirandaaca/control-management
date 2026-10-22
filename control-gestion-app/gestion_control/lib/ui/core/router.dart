@@ -11,6 +11,7 @@ import '../clientes/clientes_screen.dart';
 import '../clientes/formulario_cliente_screen.dart';
 import '../cobranzas/cobranza_screen.dart';
 import '../cobranzas/cobranzas_screen.dart';
+import '../cobranzas/registrar_pago_screen.dart';
 import '../elegir/elegir_cliente_screen.dart';
 import '../elegir/elegir_producto_screen.dart';
 import '../hojas_pedido/hoja_pedido_screen.dart';
@@ -44,6 +45,7 @@ abstract final class Rutas {
   static const cobranzas = '/cobranzas';
   static String cobranzasDe(int clienteId) => '/cobranzas?clienteId=$clienteId';
   static String cobranza(int id) => '/cobranzas/$id';
+  static String registrarPago(int cobranzaId) => '/cobranzas/$cobranzaId/pago';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -156,6 +158,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                   permisos: PermisosDe.cobranzas,
                   child: CobranzaScreen(id: int.parse(state.pathParameters['id']!), mensaje: state.extra as String?),
                 ),
+                routes: [
+                  GoRoute(
+                    path: 'pago',
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.cobranzas.registrarPago],
+                      child: RegistrarPagoScreen(cobranzaId: int.parse(state.pathParameters['id']!)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

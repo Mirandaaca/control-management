@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/models/cobranza.dart';
 import '../../data/services/error_de_api.dart';
 import '../../domain/permisos.dart';
 import '../core/formato.dart';
+import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/confirmar.dart';
 import '../core/widgets/error_con_reintento.dart';
@@ -37,6 +40,14 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
     super.initState();
     final mensaje = widget.mensaje;
     if (mensaje != null) Future.microtask(() => _viewModel.avisar(mensaje));
+  }
+
+  // Al volver con el pago registrado, avisa lo que pasó y trae la cobranza de nuevo.
+  Future<void> _registrarPago() async {
+    final mensaje = await context.push<String>(Rutas.registrarPago(widget.id));
+    if (mensaje == null || !mounted) return;
+    _viewModel.avisar(mensaje);
+    await _viewModel.cargar();
   }
 
   // Reemplazar borra la foto anterior: se confirma antes de tomar la nueva (7.3.10, ext. 3.2a).
@@ -106,6 +117,10 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
         ),
         _ => const Cargando('Cargando la cobranza…'),
       },
+      // Solo las que reciben pagos: una pagada, incobrable o anulada, no.
+      bottomNavigationBar: cobranza != null && cobranza.recibePagos && puedeRegistrar
+          ? BarraDeAcciones(principal: Accion('Registrar pago', _registrarPago))
+          : null,
     );
   }
 }
