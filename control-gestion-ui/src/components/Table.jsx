@@ -11,7 +11,9 @@ export function Table({ headers, children, empty = 'Sin registros.', barra, esta
       {barra}
       {estado ?? (
         <>
-          <div className="overflow-x-auto">
+          {/* relative: el título oculto de una columna (sr-only, absoluto) se queda dentro del desplazamiento; si no,
+              ensancha la página en el celular. */}
+          <div className="relative overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
