@@ -6,7 +6,8 @@ import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { subirFoto } from '../../api/fotos';
 import BotonDeFoto from '../BotonDeFoto';
 import CampoUbicacion from '../CampoUbicacion';
-import { Alert, AreaDeTexto, Btn, Modal, Selector } from '../ui';
+import { Alert, AreaDeTexto, Btn, Combobox, Modal, Selector } from '../ui';
+import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../../hooks/useOpcionesDeClientes';
 import { useUbicacionDelNavegador } from '../../hooks/useUbicacionDelNavegador';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { formatearFecha } from '../../utils/formato';
@@ -39,7 +40,7 @@ export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregar
   const esNuevo = !evento;
   const [datos, setDatos] = useState(() => datosIniciales(evento));
   const [tipos, setTipos] = useState([]);
-  const [clientes, setClientes] = useState([]);
+  const clientes = useOpcionesDeClientes();
   const [pedidos, setPedidos] = useState([]);
   const [ubicacion, setUbicacion] = useState(null);
   const [precision, setPrecision] = useState(null);
@@ -55,9 +56,9 @@ export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregar
     setErrores((e) => Object.fromEntries(Object.entries(e).filter(([clave]) => !campos.includes(clave))));
 
   useEffect(() => {
-    Promise.all([api.get('/eventos/tipos'), api.get('/clientes/opciones')])
-      .then(([t, c]) => { setTipos(t.data); setClientes(c.data); })
-      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los tipos de evento y los clientes.')));
+    api.get('/eventos/tipos')
+      .then(({ data }) => setTipos(data))
+      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los tipos de evento.')));
   }, []);
 
   // Los pedidos del cliente elegido. Si se cambia de cliente antes de que llegue la respuesta, se descarta.
@@ -134,10 +135,7 @@ export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregar
   };
 
   // Al editar, el cliente o el pedido del evento pueden no estar entre las opciones (un cliente que pasó a inactivo, un
-  // pedido de otra cartera): se agregan para que el selector los muestre.
-  const opcionesDeCliente = clientes.map((c) => ({ valor: String(c.id), texto: `${c.nombreCompleto} · ${c.codigo}` }));
-  if (evento?.cliente && !clientes.some((c) => c.id === evento.cliente.id))
-    opcionesDeCliente.unshift({ valor: String(evento.cliente.id), texto: evento.cliente.nombreCompleto });
+  // pedido de otra cartera): el cliente se muestra con textoInicial y el pedido se agrega a la lista.
   const opcionesDePedido = pedidos.map((p) => ({
     valor: String(p.id), texto: `${p.numero} · ${p.estado.nombre} · entrega ${formatearFecha(p.fechaEntregaEstimada)}`,
   }));
@@ -172,8 +170,10 @@ export default function FormularioEvento({ evento, puedeVerPedidos, puedeAgregar
           ayuda={tipoElegido?.requiereEvidencia ? 'Este tipo se resuelve con al menos una foto: agrégala ahora o después.' : undefined}
           onChange={(valor) => cambiar('tipoEventoId', valor)} />
         <div className="grid gap-4 md:grid-cols-2">
-          <Selector label="Cliente" placeholder="Elige el cliente" value={datos.clienteId} error={errores.clienteId}
-            opciones={opcionesDeCliente} onChange={elegirCliente} />
+          <Combobox label="Cliente" placeholder="Elige el cliente" placeholderBusqueda="Nombre, código o celular…"
+            value={datos.clienteId} error={errores.clienteId} textoInicial={evento?.cliente?.nombreCompleto}
+            opciones={clientes.opciones} onBuscar={clientes.buscar} cargando={clientes.cargando} errorBusqueda={clientes.error}
+            limite={LIMITE_DE_CLIENTES} onChange={elegirCliente} />
           {puedeVerPedidos && (
             <Selector label="Pedido (opcional)" todos="Sin pedido" value={datos.pedidoId} error={errores.pedidoId}
               opciones={opcionesDePedido} disabled={!datos.clienteId}

@@ -6,9 +6,13 @@ import { useDemorado } from './useDemorado';
 /** Cuántos clientes pide cada búsqueda: en producción hay más de 2.000, y no se piden todos. */
 export const LIMITE_DE_CLIENTES = 50;
 
+/** Un cliente de GET /clientes/opciones como opción de un Combobox. La opción lleva al cliente entero. */
+const comoOpcion = (c) => ({ valor: String(c.id), texto: c.nombreCompleto, detalle: `${c.codigo} · ${c.direccionTexto}`, cliente: c });
+
 /**
  * Las opciones de clientes para un Combobox, buscadas en la API: espera 300 ms sin teclear, pide los primeros 50 que
- * coinciden y descarta una respuesta que llega después de otra búsqueda. Se usa así:
+ * coinciden (por nombre, código, celular, razón social o NIT) y descarta una respuesta que llega después de otra
+ * búsqueda. Se usa así:
  * <Combobox opciones={opciones} onBuscar={buscar} cargando={cargando} errorBusqueda={error} limite={LIMITE_DE_CLIENTES} />
  */
 export function useOpcionesDeClientes() {
@@ -29,7 +33,7 @@ export function useOpcionesDeClientes() {
   }, [demorado]);
 
   return {
-    clientes: resultado.clientes,
+    opciones: resultado.clientes.map(comoOpcion),
     cargando: texto !== null && texto !== resultado.de,
     error: resultado.error,
     buscar: setTexto,

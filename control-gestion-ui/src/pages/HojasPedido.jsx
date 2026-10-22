@@ -10,11 +10,12 @@ import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Paginacion, Selector,
+  PageHeader, Paginacion, Selector, Combobox,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../hooks/useOpcionesDeClientes';
 import { useUbicacionDelNavegador } from '../hooks/useUbicacionDelNavegador';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
@@ -76,7 +77,7 @@ export default function HojasPedido() {
   const [formulario, setFormulario] = useState(null);
   const formularioRef = useRef(null);
   const siguienteLinea = useRef(1);
-  const [clientes, setClientes] = useState([]);
+  const clientes = useOpcionesDeClientes();
   const [productos, setProductos] = useState([]);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
@@ -140,9 +141,9 @@ export default function HojasPedido() {
     setErroresCampo({});
     setErrorFormulario('');
     setFormulario({ clienteId: '', tipoVenta: '0', descuento: '', lineas: [nuevaLinea()], ubicacion: null, precisionGPS: null });
-    Promise.all([api.get('/clientes/opciones'), api.get('/productos/opciones')])
-      .then(([c, p]) => { setClientes(c.data); setProductos(p.data); })
-      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los clientes y los productos.')));
+    api.get('/productos/opciones')
+      .then(({ data }) => setProductos(data))
+      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los productos.')));
     tomarUbicacion();
   };
 
@@ -429,9 +430,10 @@ export default function HojasPedido() {
           <form id="formulario-hp" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
             {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
             <div className="grid gap-4 md:grid-cols-2">
-              <Selector label="Cliente" placeholder="Elige el cliente" value={formulario.clienteId} error={erroresCampo.clienteId}
-                opciones={clientes.map((c) => ({ valor: String(c.id), texto: `${c.nombreCompleto} · ${c.codigo}` }))}
-                onChange={(clienteId) => cambiarCampo('clienteId', clienteId)} />
+              <Combobox label="Cliente" placeholder="Elige el cliente" placeholderBusqueda="Nombre, código o celular…"
+                value={formulario.clienteId} error={erroresCampo.clienteId}
+                opciones={clientes.opciones} onBuscar={clientes.buscar} cargando={clientes.cargando} errorBusqueda={clientes.error}
+                limite={LIMITE_DE_CLIENTES} onChange={(clienteId) => cambiarCampo('clienteId', clienteId)} />
               <Selector label="Tipo de venta" value={formulario.tipoVenta} error={erroresCampo.tipoVenta}
                 opciones={Object.entries(TIPOS).map(([valor, texto]) => ({ valor, texto }))}
                 ayuda={Number(formulario.tipoVenta) === CREDITO ? 'Al confirmarla nace la deuda, que vence en 30 días.' : undefined}

@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { Alert, Btn, Input, Selector } from './ui';
+import { Alert, Btn, Combobox, Input } from './ui';
 import { formatearCantidad, formatearMonto } from '../utils/formato';
 import { subtotalDe } from '../utils/lineas';
 
@@ -9,6 +9,8 @@ import { subtotalDe } from '../utils/lineas';
  * llegar mercadería antes. Los errores vienen de la API con claves como "detalles[0].cantidad".
  */
 export default function LineasDeProductos({ lineas, productos, errores, sinStock, onCambiar, onQuitar, onAgregar }) {
+  // Los productos son pocos y llegan completos: el selector filtra aquí mismo, sin pedir a la API en cada tecla.
+  const opciones = productos.map((p) => ({ valor: String(p.id), texto: p.descripcion, detalle: `${p.sku} · ${formatearMonto(p.precio)}` }));
   return (
     <fieldset className="space-y-3">
       <legend className="text-sm font-medium text-slate-700 mb-1">Productos</legend>
@@ -23,9 +25,8 @@ export default function LineasDeProductos({ lineas, productos, errores, sinStock
         }
         return (
           <div key={linea.clave} className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_7rem_8rem_auto] sm:items-start">
-            <Selector label={`Producto ${i + 1}`} placeholder="Elige el producto" value={linea.productoId}
-              error={errores[`detalles[${i}].productoId`]}
-              opciones={productos.map((p) => ({ valor: String(p.id), texto: `${p.descripcion} · ${formatearMonto(p.precio)}` }))}
+            <Combobox label={`Producto ${i + 1}`} placeholder="Elige el producto" placeholderBusqueda="Nombre o código…"
+              value={linea.productoId} error={errores[`detalles[${i}].productoId`]} opciones={opciones}
               ayuda={ayudaDelProducto}
               onChange={(productoId) => onCambiar(linea.clave, i, { productoId })} />
             <Input label="Cantidad" type="number" inputMode="decimal" min="0" step="1" value={linea.cantidad} autoComplete="off"
