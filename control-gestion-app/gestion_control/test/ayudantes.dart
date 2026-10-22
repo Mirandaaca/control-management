@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
+import 'package:gestion_control/data/models/cobranza.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/data/models/perfil.dart';
@@ -15,11 +16,13 @@ import 'package:gestion_control/data/models/producto.dart';
 import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
+import 'package:gestion_control/data/repositories/cobranzas_repository.dart';
 import 'package:gestion_control/data/repositories/hojas_pedido_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/repositories/zonas_repository.dart';
+import 'package:gestion_control/data/services/camara.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/ui/core/tema.dart';
@@ -210,7 +213,9 @@ class UbicacionFalsa implements ServicioDeUbicacion {
 
 /// Las tres guías de accesibilidad de cada pantalla, sin excepciones de dibujo (como un texto que se desborda).
 Future<void> cumpleLasGuias(WidgetTester tester) async {
-  expect(tester.takeException(), isNull);
+  final excepcion = tester.takeException();
+  if (excepcion != null) debugPrint('EXCEPCION: $excepcion');
+  expect(excepcion, isNull);
   await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
   await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
   await expectLater(tester, meetsGuideline(textContrastGuideline));
@@ -545,5 +550,205 @@ class HojasPedidoRepositoryFalso implements HojasPedidoRepository {
   Future<HojaPedido> confirmar(int id) {
     confirmadas.add(id);
     return alConfirmar(id);
+  }
+}
+
+/// El primer pago de la COB-2026-00012 (datos-ejemplo.md): Lucía, en el panel, Bs 100,00 con QR y su comprobante.
+const pagoDeLucia = Pago(
+  id: 1,
+  monto: 100,
+  metodo: MetodoPago.qr,
+  fecha: '2026-10-29T14:00:00',
+  referencia: '48213097',
+  registradoPor: 'Lucía Vargas Rojas',
+  anulado: false,
+  comprobanteId: 7,
+);
+
+/// La COB-2026-00012 de Rosa antes del segundo pago: 240 − 100 = 140 de saldo.
+Cobranza cobranzaDeRosa({double pagado = 100, List<Pago> pagos = const [pagoDeLucia], EstadoCobranza? estado}) =>
+    Cobranza(
+      id: 12,
+      numero: 'COB-2026-00012',
+      estado: estado ?? (pagado >= 240 ? EstadoCobranza.pagada : EstadoCobranza.parcial),
+      montoTotal: 240,
+      montoPagado: pagado,
+      saldo: 240 - pagado,
+      fechaEmision: '2026-10-08T13:30:00',
+      fechaVencimiento: '2026-11-07T13:30:00',
+      clienteNombre: 'Rosa Quispe Mamani',
+      hojaPedido: 'HP-2026-00018',
+      pagos: pagos,
+    );
+
+const resumenDeRosa = CobranzaResumen(
+  id: 12,
+  numero: 'COB-2026-00012',
+  estado: EstadoCobranza.parcial,
+  montoTotal: 240,
+  montoPagado: 100,
+  saldo: 140,
+  fechaEmision: '2026-10-08T13:30:00',
+  fechaVencimiento: '2026-11-07T13:30:00',
+  clienteId: 42,
+  clienteNombre: 'Rosa Quispe Mamani',
+  hojaPedido: 'HP-2026-00018',
+);
+
+/// La COB-2026-00007 de Marta: vencida, con 14 días de mora el 29/10/2026.
+const resumenDeMarta = CobranzaResumen(
+  id: 7,
+  numero: 'COB-2026-00007',
+  estado: EstadoCobranza.vencida,
+  montoTotal: 327,
+  montoPagado: 0,
+  saldo: 327,
+  fechaEmision: '2026-09-15T13:30:00',
+  fechaVencimiento: '2026-10-15T13:30:00',
+  clienteId: 80,
+  clienteNombre: 'Marta Rivero Salas',
+  hojaPedido: 'HP-2026-00011',
+  diasDeMora: 14,
+);
+
+/// Lo que se le envió al repositorio de cobranzas al registrar un pago.
+typedef EnvioDePagoPrueba = ({int cobranzaId, DatosDePago datos, String clave});
+
+class CobranzasRepositoryFalso implements CobranzasRepository {
+  Future<Pagina<CobranzaResumen>> Function(FiltroDeCobranzas filtro, int? clienteId) alListar = (_, _) async =>
+      const Pagina(items: [resumenDeMarta, resumenDeRosa], total: 2, numero: 1, tamano: 25);
+  Future<ResumenDeCobranzas> Function(int? clienteId) alResumir = (_) async =>
+      const ResumenDeCobranzas(porCobrar: 467, vencidas: 1);
+  Future<Cobranza> Function(int id) alObtener = (_) async => cobranzaDeRosa();
+  Future<PagoRegistrado> Function(EnvioDePagoPrueba envio) alRegistrarPago = (envio) async =>
+      PagoRegistrado(id: 2, estado: EstadoCobranza.pagada, saldo: 140 - envio.datos.monto);
+  Future<Cobranza> Function(int pagoId, FotoTomada foto)? alSubir;
+
+  final listados = <({FiltroDeCobranzas filtro, int? clienteId, String buscar})>[];
+  final pagos = <EnvioDePagoPrueba>[];
+  final subidas = <({int pagoId, FotoTomada foto})>[];
+
+  @override
+  Future<Pagina<CobranzaResumen>> listar({
+    FiltroDeCobranzas filtro = FiltroDeCobranzas.porCobrar,
+    int? clienteId,
+    String buscar = '',
+    int pagina = 1,
+  }) {
+    listados.add((filtro: filtro, clienteId: clienteId, buscar: buscar));
+    return alListar(filtro, clienteId);
+  }
+
+  @override
+  Future<ResumenDeCobranzas> resumen({int? clienteId}) => alResumir(clienteId);
+
+  @override
+  Future<Cobranza> obtener(int id) => alObtener(id);
+
+  @override
+  Future<PagoRegistrado> registrarPago(int cobranzaId, DatosDePago datos, {required String clave}) {
+    final envio = (cobranzaId: cobranzaId, datos: datos, clave: clave);
+    pagos.add(envio);
+    return alRegistrarPago(envio);
+  }
+
+  @override
+  Future<Cobranza> subirComprobante(int cobranzaId, int pagoId, FotoTomada foto) {
+    subidas.add((pagoId: pagoId, foto: foto));
+    return (alSubir ?? (_, _) async => cobranzaDeRosa())(pagoId, foto);
+  }
+
+  @override
+  Future<Uint8List> comprobante(int evidenciaId) async => fotoDePrueba.bytes;
+}
+
+/// Un PNG de 1 × 1, para que Image.memory tenga algo que dibujar.
+final fotoDePrueba = FotoTomada(
+  bytes: Uint8List.fromList(const [
+    0x89,
+    0x50,
+    0x4E,
+    0x47,
+    0x0D,
+    0x0A,
+    0x1A,
+    0x0A,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x08,
+    0x06,
+    0x00,
+    0x00,
+    0x00,
+    0x1F,
+    0x15,
+    0xC4,
+    0x89,
+    0x00,
+    0x00,
+    0x00,
+    0x0D,
+    0x49,
+    0x44,
+    0x41,
+    0x54,
+    0x78,
+    0x9C,
+    0x63,
+    0xF8,
+    0xCF,
+    0xC0,
+    0xF0,
+    0x1F,
+    0x00,
+    0x05,
+    0x00,
+    0x01,
+    0xFF,
+    0x89,
+    0x99,
+    0x3D,
+    0x1D,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x49,
+    0x45,
+    0x4E,
+    0x44,
+    0xAE,
+    0x42,
+    0x60,
+    0x82,
+  ]),
+  nombre: 'comprobante.png',
+  // 13:05 UTC son las 09:05 de Bolivia, la hora del 8.6.7.
+  tomadaUtc: DateTime.utc(2026, 10, 30, 13, 5),
+);
+
+/// La cámara sin celular: cada prueba dice qué foto devuelve (null: se cerró sin tomarla).
+class CamaraFalsa implements Camara {
+  FotoTomada? siguiente = fotoDePrueba;
+  var tomas = 0;
+
+  @override
+  Future<FotoTomada?> tomarFoto() async {
+    tomas++;
+    return siguiente;
   }
 }

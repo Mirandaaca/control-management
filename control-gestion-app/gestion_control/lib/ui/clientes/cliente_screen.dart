@@ -13,6 +13,9 @@ import '../core/widgets/aviso.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
+import '../cobranzas/cobranza_ui.dart';
+import '../cobranzas/cobranzas_view_model.dart';
+import '../../data/services/error_de_api.dart';
 import '../sesion/sesion_notifier.dart';
 import 'cliente_view_model.dart';
 import 'etiqueta_del_cliente.dart';
@@ -47,6 +50,7 @@ class _ClienteScreenState extends ConsumerState<ClienteScreen> {
     final sesion = ref.watch(sesionProvider);
     final puedeEditar = sesion is ConSesion && sesion.sesion.tiene([Permisos.ventas.editarCliente]);
     final puedeVender = sesion is ConSesion && sesion.sesion.tiene([Permisos.ventas.registrarHp]);
+    final veCobranzas = sesion is ConSesion && sesion.sesion.tiene(PermisosDe.cobranzas);
     final cliente = estado.cliente;
 
     return Scaffold(
@@ -77,6 +81,7 @@ class _ClienteScreenState extends ConsumerState<ClienteScreen> {
             if (cliente.email != null) _Dato('Correo', cliente.email!),
             _Dato('Última visita', formatearFecha(cliente.ultimaVisita)),
             _Dato('Próxima visita', formatearFecha(cliente.proximaVisita)),
+            if (veCobranzas) _PorCobrar(cliente),
           ],
         ),
         DetalleDeCliente(error: final error?) => ErrorConReintento.de(
@@ -155,6 +160,55 @@ class _Dato extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Sus cobranzas por cobrar (3.2), y el camino a todas.
+class _PorCobrar extends ConsumerWidget {
+  const _PorCobrar(this.cliente);
+
+  final Cliente cliente;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cobranzas = ref.watch(porCobrarDelClienteProvider(cliente.id));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Semantics(
+          header: true,
+          container: true,
+          child: Text('Por cobrar', style: Theme.of(context).textTheme.titleMedium),
+        ),
+        const SizedBox(height: 8),
+        ...switch (cobranzas) {
+          AsyncData(:final value) when value.isEmpty => [
+            const Text('No tiene deudas por cobrar.', style: TextStyle(color: textoSecundario)),
+          ],
+          AsyncData(:final value) => [
+            for (final cobranza in value) ...[
+              TarjetaDeCobranza(cobranza, conCliente: false),
+              const SizedBox(height: 8),
+            ],
+          ],
+          AsyncError(:final error) => [
+            Aviso.deError(
+              ErrorDeApi.desde(error),
+              accion: AccionDeAviso('Reintentar', () => ref.invalidate(porCobrarDelClienteProvider(cliente.id))),
+            ),
+          ],
+          _ => [const LinearProgressIndicator()],
+        },
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () => context.push(Rutas.cobranzasDe(cliente.id), extra: cliente.nombreCompleto),
+            child: const Text('Ver todas sus cobranzas'),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -43,6 +43,13 @@ final entradasDelMenu = [
     permisos: PermisosDe.hojasPedido,
   ),
   EntradaDelMenu(
+    titulo: 'Cobranzas',
+    descripcion: 'Lo que deben tus clientes, la mora y los pagos.',
+    icono: Icons.request_quote_outlined,
+    ruta: Rutas.cobranzas,
+    permisos: PermisosDe.cobranzas,
+  ),
+  EntradaDelMenu(
     titulo: 'Productos',
     descripcion: 'El catálogo, con el precio y el stock de cada producto.',
     icono: Icons.category_outlined,

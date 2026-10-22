@@ -488,7 +488,11 @@ class _Fila extends StatelessWidget {
             Expanded(
               child: Text(titulo, style: estilo ?? const TextStyle(color: textoSecundario)),
             ),
-            Text(valor, style: estilo),
+            const SizedBox(width: 8),
+            // Con la letra grande, un monto largo pasa de línea en vez de salirse.
+            Flexible(
+              child: Text(valor, textAlign: TextAlign.end, style: estilo),
+            ),
           ],
         ),
       ),
@@ -511,7 +515,10 @@ class _TotalDeLaBarra extends StatelessWidget {
         child: Row(
           children: [
             Expanded(child: Text('Total', style: estilo)),
-            Text(formatearMonto(total), style: estilo),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(formatearMonto(total), textAlign: TextAlign.end, style: estilo),
+            ),
           ],
         ),
       ),

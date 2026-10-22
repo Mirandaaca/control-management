@@ -2,12 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/repositories/clientes_repository.dart';
+import 'data/repositories/cobranzas_repository.dart';
 import 'data/repositories/hojas_pedido_repository.dart';
 import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
 import 'data/repositories/sesion_repository.dart';
 import 'data/repositories/zonas_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
+import 'data/services/camara.dart';
 import 'data/services/cliente_api.dart';
 import 'data/services/conexion.dart';
 import 'data/services/ubicacion.dart';
@@ -55,3 +57,9 @@ final zonasRepositoryProvider = Provider<ZonasRepository>((ref) => ZonasReposito
 final hojasPedidoRepositoryProvider = Provider<HojasPedidoRepository>(
   (ref) => HojasPedidoRepository(ref.watch(clienteApiProvider)),
 );
+
+final cobranzasRepositoryProvider = Provider<CobranzasRepository>(
+  (ref) => CobranzasRepository(ref.watch(clienteApiProvider)),
+);
+
+final camaraProvider = Provider<Camara>((ref) => CamaraConImagePicker());

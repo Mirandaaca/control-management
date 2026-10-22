@@ -9,6 +9,8 @@ import '../../data/models/producto.dart';
 import '../clientes/cliente_screen.dart';
 import '../clientes/clientes_screen.dart';
 import '../clientes/formulario_cliente_screen.dart';
+import '../cobranzas/cobranza_screen.dart';
+import '../cobranzas/cobranzas_screen.dart';
 import '../elegir/elegir_cliente_screen.dart';
 import '../elegir/elegir_producto_screen.dart';
 import '../hojas_pedido/hoja_pedido_screen.dart';
@@ -39,6 +41,9 @@ abstract final class Rutas {
   static String hojaPedido(int id) => '/hojas-pedido/$id';
   static const elegirCliente = '/elegir-cliente';
   static const elegirProducto = '/elegir-producto';
+  static const cobranzas = '/cobranzas';
+  static String cobranzasDe(int clienteId) => '/cobranzas?clienteId=$clienteId';
+  static String cobranza(int id) => '/cobranzas/$id';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -57,6 +62,9 @@ abstract final class PermisosDe {
 
   // Los de `PANTALLAS.hojasPedido` del panel, que son los de GET /hojas-pedido.
   static final hojasPedido = [Permisos.ventas.consultarHp, Permisos.ventas.anularHp];
+
+  // Los de `PANTALLAS.cobranzas` del panel, que son los de GET /cobranzas.
+  static final cobranzas = [Permisos.cobranzas.consultarDeudas, Permisos.cobranzas.consultarPagos];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -127,6 +135,26 @@ final routerProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => ConPermiso(
                   permisos: PermisosDe.hojasPedido,
                   child: HojaPedidoScreen(id: int.parse(state.pathParameters['id']!), abrir: state.extra as AbrirHoja?),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'cobranzas',
+            builder: (context, state) => ConPermiso(
+              permisos: PermisosDe.cobranzas,
+              // Desde un cliente: solo las de él, con su nombre arriba.
+              child: CobranzasScreen(
+                clienteId: int.tryParse(state.uri.queryParameters['clienteId'] ?? ''),
+                clienteNombre: state.extra as String?,
+              ),
+            ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.cobranzas,
+                  child: CobranzaScreen(id: int.parse(state.pathParameters['id']!), mensaje: state.extra as String?),
                 ),
               ),
             ],

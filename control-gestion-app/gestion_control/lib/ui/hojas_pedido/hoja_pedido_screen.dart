@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/hoja_pedido.dart';
 import '../../domain/permisos.dart';
 import '../../proveedores.dart';
+import 'package:go_router/go_router.dart';
+
 import '../core/formato.dart';
+import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/ubicacion/mapa_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
@@ -137,7 +140,16 @@ class _Contenido extends StatelessWidget {
         _Dato('Cliente', hoja.cliente.nombre),
         _Dato('Fecha', formatearFecha(hoja.fechaRegistro, hora: true)),
         _Dato('Tipo de venta', tipoDeVenta(hoja.tipoVenta)),
-        if (hoja.cobranza != null) _Dato('Deuda', hoja.cobranza!.numero),
+        if (hoja.cobranza != null) ...[
+          _Dato('Deuda', hoja.cobranza!.numero),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => context.push(Rutas.cobranza(hoja.cobranza!.id)),
+              child: Text('Ver la deuda ${hoja.cobranza!.numero}'),
+            ),
+          ),
+        ],
         if (hoja.estado == EstadoHP.anulada) ...[
           Aviso(
             hoja.motivoDeAnulacion ?? '',
@@ -263,7 +275,11 @@ class _Fila extends StatelessWidget {
           Expanded(
             child: Text(titulo, style: estilo ?? const TextStyle(color: textoSecundario)),
           ),
-          Text(valor, style: estilo),
+          const SizedBox(width: 8),
+          // Con la letra grande, un monto largo pasa de línea en vez de salirse.
+          Flexible(
+            child: Text(valor, textAlign: TextAlign.end, style: estilo),
+          ),
         ],
       ),
     );
