@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -9,6 +11,7 @@ import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
+import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/ui/core/tema.dart';
 import 'package:gestion_control/ui/core/widgets/campo_de_texto.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
@@ -154,4 +157,51 @@ Future<void> cargarInter() async {
     inter.addFont(rootBundle.load('assets/fuentes/inter/Inter-$peso.ttf'));
   }
   await inter.load();
+}
+
+/// El GPS sin celular: cada prueba dice si está activado, qué permiso hay y qué lee, y ve qué se le pidió.
+class UbicacionFalsa implements ServicioDeUbicacion {
+  var activado = true;
+  var permisoActual = PermisoDeUbicacion.concedido;
+
+  /// Lo que responde el usuario cuando se le pide el permiso. Null: lo deja como estaba.
+  PermisoDeUbicacion? alPedir;
+  final _lecturas = StreamController<Posicion>.broadcast();
+  var pedidosDePermiso = 0;
+  var ajustesDeUbicacion = 0;
+  var ajustesDeLaApp = 0;
+
+  void leer(double latitud, double longitud, double precision) => _lecturas.add(Posicion(latitud, longitud, precision));
+
+  void fallar(Object error) => _lecturas.addError(error);
+
+  @override
+  Future<bool> gpsActivado() async => activado;
+
+  @override
+  Future<PermisoDeUbicacion> permiso() async => permisoActual;
+
+  @override
+  Future<PermisoDeUbicacion> pedirPermiso() async {
+    pedidosDePermiso++;
+    permisoActual = alPedir ?? permisoActual;
+    return permisoActual;
+  }
+
+  @override
+  Stream<Posicion> lecturas() => _lecturas.stream;
+
+  @override
+  Future<void> abrirAjustesDeUbicacion() async => ajustesDeUbicacion++;
+
+  @override
+  Future<void> abrirAjustesDeLaApp() async => ajustesDeLaApp++;
+}
+
+/// Las tres guías de accesibilidad de cada pantalla, sin excepciones de dibujo (como un texto que se desborda).
+Future<void> cumpleLasGuias(WidgetTester tester) async {
+  expect(tester.takeException(), isNull);
+  await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+  await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+  await expectLater(tester, meetsGuideline(textContrastGuideline));
 }

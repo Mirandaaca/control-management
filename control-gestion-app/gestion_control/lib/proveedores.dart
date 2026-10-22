@@ -6,6 +6,7 @@ import 'data/repositories/sesion_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
 import 'data/services/cliente_api.dart';
 import 'data/services/conexion.dart';
+import 'data/services/ubicacion.dart';
 import 'ui/sesion/sesion_notifier.dart';
 
 // Dónde se arma cada pieza de la app. Las pruebas reemplazan las que necesitan con overrides de Riverpod.
@@ -16,6 +17,8 @@ final urlDeLaApiProvider = Provider<String>((ref) => throw UnimplementedError('F
 final almacenDeSesionProvider = Provider<AlmacenDeSesion>((ref) => AlmacenDeSesion());
 
 final verificadorDeConexionProvider = Provider<VerificadorDeConexion>((ref) => VerificadorConConnectivity());
+
+final servicioDeUbicacionProvider = Provider<ServicioDeUbicacion>((ref) => ServicioConGeolocator());
 
 final clienteApiProvider = Provider<Dio>(
   (ref) => crearClienteApi(

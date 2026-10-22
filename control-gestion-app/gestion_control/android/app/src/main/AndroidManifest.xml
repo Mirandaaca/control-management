@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Sin este permiso, la versión de lanzamiento no puede hablar con la API: solo lo traían debug y profile. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- La ubicación de la venta y del cliente (2.1 y 2.4), solo con la app abierta: no se pide la de segundo plano.
+         Desde Android 12 el usuario puede dar solo la aproximada; la app lo avisa y pide la precisa. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="Control de Gestión"
