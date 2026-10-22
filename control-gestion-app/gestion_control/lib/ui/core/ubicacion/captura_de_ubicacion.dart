@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/services/ubicacion.dart';
@@ -122,10 +123,19 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
     _detener();
     state = const UbicacionBuscando();
     final servicio = _servicio;
-    if (!await servicio.gpsActivado()) return _terminar(const GpsDesactivado());
-    var permiso = await servicio.permiso();
-    if (permiso == PermisoDeUbicacion.denegado) permiso = await servicio.pedirPermiso();
+    final bool activado;
+    PermisoDeUbicacion permiso;
+    try {
+      activado = await servicio.gpsActivado();
+      permiso = activado ? await servicio.permiso() : PermisoDeUbicacion.denegado;
+      if (activado && permiso == PermisoDeUbicacion.denegado) permiso = await servicio.pedirPermiso();
+    } catch (e) {
+      // Un error inesperado del GPS no deja la tarjeta buscando para siempre: ofrece "Reintentar".
+      debugPrint('No se pudo empezar a buscar la ubicación. $e');
+      return _terminar(const SinSenalDelGps());
+    }
     if (!ref.mounted) return;
+    if (!activado) return _terminar(const GpsDesactivado());
     if (permiso == PermisoDeUbicacion.denegado || permiso == PermisoDeUbicacion.denegadoParaSiempre) {
       return _terminar(UbicacionSinPermiso(paraSiempre: permiso == PermisoDeUbicacion.denegadoParaSiempre));
     }

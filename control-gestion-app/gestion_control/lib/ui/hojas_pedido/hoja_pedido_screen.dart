@@ -271,8 +271,9 @@ class _Fila extends StatelessWidget {
     return MergeSemantics(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(
+          Flexible(
             child: Text(titulo, style: estilo ?? const TextStyle(color: textoSecundario)),
           ),
           const SizedBox(width: 8),

@@ -56,7 +56,8 @@ class CampoDeEleccion extends StatelessWidget {
           label: etiqueta,
           // El campo excluye su propia semántica: el error se lee junto al valor.
           value: error == null ? (valor ?? ejemplo) : '${valor ?? ejemplo}. $error',
-          hint: buscando ? 'Abre la búsqueda' : null,
+          // La ayuda va en la pista: la del producto es su precio y su stock.
+          hint: [?ayuda, if (buscando) 'Abre la búsqueda'].join('. '),
           excludeSemantics: true,
           child: InkWell(
             focusNode: focusNode,

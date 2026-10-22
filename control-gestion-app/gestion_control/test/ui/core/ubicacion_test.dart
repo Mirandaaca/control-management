@@ -142,6 +142,17 @@ void main() {
     expect(gps.pedidosDePermiso, 1);
   });
 
+  testWidgets('un error inesperado al empezar no deja la tarjeta buscando: ofrece reintentar', (tester) async {
+    gps.fallaAlEmpezar = Exception('Sin implementación del GPS');
+    await abrir(tester);
+
+    expect(find.text('No hay señal del GPS.'), findsOneWidget);
+    gps.fallaAlEmpezar = null;
+    await tester.tap(find.text('Reintentar'));
+    await tester.pump();
+    expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
+  });
+
   testWidgets('el GPS que se apaga mientras busca lo dice', (tester) async {
     await abrir(tester);
 

@@ -177,8 +177,9 @@ class _Fila extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
+            Flexible(
               child: Text(titulo, style: const TextStyle(color: textoSecundario)),
             ),
             const SizedBox(width: 8),

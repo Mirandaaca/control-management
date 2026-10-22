@@ -188,8 +188,14 @@ class UbicacionFalsa implements ServicioDeUbicacion {
 
   void fallar(Object error) => _lecturas.addError(error);
 
+  /// Si no es null, el GPS falla así al empezar a buscar.
+  Object? fallaAlEmpezar;
+
   @override
-  Future<bool> gpsActivado() async => activado;
+  Future<bool> gpsActivado() async {
+    if (fallaAlEmpezar != null) throw fallaAlEmpezar!;
+    return activado;
+  }
 
   @override
   Future<PermisoDeUbicacion> permiso() async => permisoActual;

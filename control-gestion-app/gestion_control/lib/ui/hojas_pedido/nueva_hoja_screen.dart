@@ -484,8 +484,9 @@ class _Fila extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
+            Flexible(
               child: Text(titulo, style: estilo ?? const TextStyle(color: textoSecundario)),
             ),
             const SizedBox(width: 8),
@@ -513,8 +514,9 @@ class _TotalDeLaBarra extends StatelessWidget {
       liveRegion: true,
       child: MergeSemantics(
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(child: Text('Total', style: estilo)),
+            Flexible(child: Text('Total', style: estilo)),
             const SizedBox(width: 8),
             Flexible(
               child: Text(formatearMonto(total), textAlign: TextAlign.end, style: estilo),
