@@ -5,13 +5,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gestion_control/data/models/cliente.dart';
+import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/data/models/perfil.dart';
 import 'package:gestion_control/data/models/producto.dart';
+import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/models/sesion.dart';
+import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
+import 'package:gestion_control/data/repositories/zonas_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/ui/core/tema.dart';
@@ -244,3 +250,184 @@ class ProductosRepositoryFalso implements ProductosRepository {
     return alListar();
   }
 }
+
+/// Una pantalla dentro de un router de prueba: arranca en [inicio] y conoce [rutas], que pueden ser pantallas de mentira
+/// para ver a dónde navega. Devuelve el router para leer dónde quedó.
+Future<GoRouter> abrirConRouter(
+  WidgetTester tester, {
+  required List<RouteBase> rutas,
+  String inicio = '/',
+  List<Override> overrides = const [],
+  double letra = 1,
+  double alto = 800,
+}) async {
+  tamanoDeCelular(tester, letra: letra, alto: alto);
+  final router = GoRouter(initialLocation: inicio, routes: rutas);
+  addTearDown(router.dispose);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: overrides,
+      child: MaterialApp.router(
+        theme: tema,
+        locale: const Locale('es', 'BO'),
+        supportedLocales: const [Locale('es', 'BO')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        routerConfig: router,
+      ),
+    ),
+  );
+  await tester.pump();
+  return router;
+}
+
+/// Una pantalla de mentira que muestra a dónde se navegó y con qué.
+GoRoute destino(String ruta) => GoRoute(
+  path: ruta,
+  builder: (context, state) => Scaffold(body: Text('En ${state.uri} con ${state.extra}')),
+);
+
+// La Zona Norte de datos-ejemplo.md, con un límite que contiene sus ubicaciones, y la Zona Sur.
+const zonaNorte = Zona(
+  id: 1,
+  codigo: 'ZN',
+  nombre: 'Zona Norte',
+  promotorId: 'u1',
+  limite: [
+    (latitud: -17.760, longitud: -63.195),
+    (latitud: -17.760, longitud: -63.165),
+    (latitud: -17.790, longitud: -63.165),
+    (latitud: -17.790, longitud: -63.195),
+  ],
+);
+const zonaSur = Zona(
+  id: 2,
+  codigo: 'ZS',
+  nombre: 'Zona Sur',
+  promotorId: 'u1',
+  limite: [
+    (latitud: -17.800, longitud: -63.200),
+    (latitud: -17.800, longitud: -63.160),
+    (latitud: -17.830, longitud: -63.160),
+    (latitud: -17.830, longitud: -63.200),
+  ],
+);
+const zonaDeOtro = Zona(id: 3, codigo: 'ZE', nombre: 'Zona Este', promotorId: 'otro');
+
+const estadoActivo = EstadoCliente(id: 1, nombre: 'Activo', color: '#DC2626', delSistema: true);
+const estadoDisponible = EstadoCliente(id: 2, nombre: 'Disponible para re-visita', color: '#15803D', delSistema: true);
+const estadoInactivo = EstadoCliente(id: 4, nombre: 'Inactivo', color: '#475569', delSistema: false);
+const zonaNorteResumen = ZonaResumen(id: 1, nombre: 'Zona Norte');
+
+const rosaResumen = ClienteResumen(
+  id: 42,
+  codigo: 'CLI-00042',
+  nombreCompleto: 'Rosa Quispe Mamani',
+  telefono: '70010042',
+  direccion: 'Calle 4 N.º 120, frente al Mercado Norte',
+  zona: zonaNorteResumen,
+  estado: estadoActivo,
+  saldoPendiente: 140,
+);
+
+const rosa = Cliente(
+  id: 42,
+  codigo: 'CLI-00042',
+  nombreCompleto: 'Rosa Quispe Mamani',
+  telefono: '70010042',
+  direccion: 'Calle 4 N.º 120, frente al Mercado Norte',
+  latitud: -17.783412,
+  longitud: -63.182106,
+  zona: zonaNorteResumen,
+  estado: estadoActivo,
+  saldoPendiente: 140,
+  ultimaVisita: '2026-10-08T13:30:00',
+  proximaVisita: '2026-10-23T13:30:00',
+);
+
+/// Lo que se le envió al repositorio de clientes.
+typedef EnvioDeClientePrueba = ({DatosDeCliente datos, Posicion ubicacion, String? clave, bool confirmar});
+
+class ClientesRepositoryFalso implements ClientesRepository {
+  Future<Pagina<ClienteResumen>> Function(String buscar, int pagina) alListar = (_, _) async =>
+      const Pagina(items: [rosaResumen], total: 1, numero: 1, tamano: 25);
+  Future<List<ClienteOpcion>> Function(String buscar) alBuscarOpciones = (_) async => const [];
+  Future<Cliente> Function(int id) alObtener = (_) async => rosa;
+  Future<ClienteResumen?> Function(String telefono) alBuscarCelular = (_) async => null;
+  Future<Cliente> Function(EnvioDeClientePrueba envio)? alRegistrar;
+  Future<Cliente> Function(EnvioDeClientePrueba envio)? alEditar;
+
+  final listados = <(String, int)>[];
+  final busquedas = <String>[];
+  final celulares = <String>[];
+  final registros = <EnvioDeClientePrueba>[];
+  final ediciones = <EnvioDeClientePrueba>[];
+
+  @override
+  Future<Pagina<ClienteResumen>> listar({String buscar = '', int pagina = 1}) {
+    listados.add((buscar, pagina));
+    return alListar(buscar, pagina);
+  }
+
+  @override
+  Future<List<ClienteOpcion>> opciones(String buscar) {
+    busquedas.add(buscar);
+    return alBuscarOpciones(buscar);
+  }
+
+  @override
+  Future<ClienteResumen?> conCelular(String telefono) {
+    celulares.add(telefono);
+    return alBuscarCelular(telefono);
+  }
+
+  @override
+  Future<Cliente> obtener(int id) => alObtener(id);
+
+  @override
+  Future<Cliente> registrar(
+    DatosDeCliente datos,
+    Posicion ubicacion, {
+    required String clave,
+    bool confirmarTelefonoRepetido = false,
+  }) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: clave, confirmar: confirmarTelefonoRepetido);
+    registros.add(envio);
+    return (alRegistrar ?? (_) async => _guardado(datos, ubicacion, id: 92, codigo: 'CLI-00092'))(envio);
+  }
+
+  @override
+  Future<Cliente> editar(int id, DatosDeCliente datos, Posicion ubicacion, {bool confirmarTelefonoRepetido = false}) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: null, confirmar: confirmarTelefonoRepetido);
+    ediciones.add(envio);
+    return (alEditar ?? (_) async => _guardado(datos, ubicacion, id: id, codigo: 'CLI-000$id'))(envio);
+  }
+
+  Cliente _guardado(DatosDeCliente datos, Posicion ubicacion, {required int id, required String codigo}) => Cliente(
+    id: id,
+    codigo: codigo,
+    nombreCompleto: datos.nombreCompleto,
+    telefono: datos.telefono,
+    direccion: datos.direccion,
+    latitud: ubicacion.latitud,
+    longitud: ubicacion.longitud,
+    zona: zonaNorteResumen,
+    estado: estadoDisponible,
+    saldoPendiente: 0,
+  );
+}
+
+class ZonasRepositoryFalso implements ZonasRepository {
+  Future<List<Zona>> Function() alListar = () async => const [zonaNorte, zonaDeOtro];
+
+  @override
+  Future<List<Zona>> listar() => alListar();
+}
+
+/// Una sesión de promotor con esos permisos.
+Sesion promotorCon(List<String> permisos) => Sesion(
+  id: 'u1',
+  email: 'promotor@test.local',
+  nombreCompleto: 'Carlos Mendoza Flores',
+  rol: 'Promotor',
+  permisos: permisos.toSet(),
+);

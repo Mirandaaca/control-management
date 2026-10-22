@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/permisos.dart';
 import '../../proveedores.dart';
+import '../clientes/cliente_screen.dart';
+import '../clientes/clientes_screen.dart';
+import '../clientes/formulario_cliente_screen.dart';
 import '../menu/menu_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
@@ -20,6 +23,10 @@ abstract final class Rutas {
   static const perfil = '/perfil';
   static const contrasena = '/contrasena';
   static const productos = '/productos';
+  static const clientes = '/clientes';
+  static const nuevoCliente = '/clientes/nuevo';
+  static String cliente(int id) => '/clientes/$id';
+  static String editarCliente(int id) => '/clientes/$id/editar';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -27,6 +34,14 @@ abstract final class Rutas {
 abstract final class PermisosDe {
   // Los mismos de GET /productos/opciones: quien vende también ve el catálogo.
   static final productos = [Permisos.ventas.consultarProductos, Permisos.ventas.registrarHp];
+
+  // Los de `PANTALLAS.clientes` del panel. La lista y el detalle no piden permiso en la API: cada uno ve su cartera.
+  static final clientes = [
+    Permisos.ventas.registrarCliente,
+    Permisos.ventas.editarCliente,
+    Permisos.ventas.asignarEstadoCliente,
+    Permisos.ventas.verUbicacionCliente,
+  ];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -80,6 +95,40 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'productos',
             builder: (context, state) => ConPermiso(permisos: PermisosDe.productos, child: const ProductosScreen()),
+          ),
+          GoRoute(
+            path: 'clientes',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.clientes, child: const ClientesScreen()),
+            routes: [
+              // Antes que ':id': si no, "nuevo" se leería como un id.
+              GoRoute(
+                path: 'nuevo',
+                builder: (context, state) => ConPermiso(
+                  permisos: [Permisos.ventas.registrarCliente],
+                  // Desde la búsqueda de una venta, vuelve con el cliente elegido.
+                  child: FormularioClienteScreen(devolver: state.extra == true),
+                ),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.clientes,
+                  child: ClienteScreen(id: int.parse(state.pathParameters['id']!), mensaje: state.extra as String?),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'editar',
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.ventas.editarCliente],
+                      child: FormularioClienteScreen(
+                        id: int.parse(state.pathParameters['id']!),
+                        capturarAlAbrir: state.extra == true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

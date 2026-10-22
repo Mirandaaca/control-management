@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'data/repositories/clientes_repository.dart';
 import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
 import 'data/repositories/sesion_repository.dart';
+import 'data/repositories/zonas_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
 import 'data/services/cliente_api.dart';
 import 'data/services/conexion.dart';
@@ -42,3 +44,9 @@ final perfilRepositoryProvider = Provider<PerfilRepository>((ref) => PerfilRepos
 final productosRepositoryProvider = Provider<ProductosRepository>(
   (ref) => ProductosRepository(ref.watch(clienteApiProvider)),
 );
+
+final clientesRepositoryProvider = Provider<ClientesRepository>(
+  (ref) => ClientesRepository(ref.watch(clienteApiProvider)),
+);
+
+final zonasRepositoryProvider = Provider<ZonasRepository>((ref) => ZonasRepository(ref.watch(clienteApiProvider)));

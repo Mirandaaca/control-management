@@ -29,6 +29,13 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Clientes',
+    descripcion: 'Tu cartera: registrarlos, editarlos y ver dónde están.',
+    icono: Icons.storefront_outlined,
+    ruta: Rutas.clientes,
+    permisos: PermisosDe.clientes,
+  ),
+  EntradaDelMenu(
     titulo: 'Productos',
     descripcion: 'El catálogo, con el precio y el stock de cada producto.',
     icono: Icons.category_outlined,
