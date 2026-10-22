@@ -155,6 +155,18 @@ void main() {
       expect(find.text('Bs 240,00'), findsNWidgets(2));
     });
 
+    testWidgets('el producto es un botón del tamaño de su campo, no de toda la línea', (tester) async {
+      final semantica = tester.ensureSemantics();
+      await abrirFormulario(tester);
+
+      // Voice Access toca el centro del botón: tiene que caer en el campo, no en "Cantidad".
+      final boton = tester.getSemantics(find.bySemanticsLabel(RegExp('^Producto 1')));
+      final campoDelProducto = tester.getRect(find.text('Busca el producto…'));
+      final cantidad = tester.getRect(campo('Cantidad'));
+      expect(boton.rect.height, lessThan(cantidad.bottom - campoDelProducto.top));
+      semantica.dispose();
+    });
+
     testWidgets('si la cantidad supera el stock, lo avisa en ámbar en su línea', (tester) async {
       await abrirFormulario(tester);
       await elegirProducto(tester, 'Arroz grano largo 5 kg');

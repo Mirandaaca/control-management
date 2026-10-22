@@ -50,7 +50,10 @@ class CampoDeEleccion extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
+        // Su propio nodo: dentro de una Card (la línea de producto), la Card lo absorbía y el botón ocupaba toda la
+        // tarjeta, con el centro sobre "Cantidad". Voice Access toca ese centro.
         Semantics(
+          container: true,
           button: true,
           enabled: habilitado,
           label: etiqueta,
