@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ControlGestion.API.Data;
+using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
 
@@ -372,6 +375,17 @@ public class ClientesTests(ApiDePrueba api)
 
         Assert.Equal([1, 2], estados.Where(e => e.GetProperty("delSistema").GetBoolean()).Select(e => e.GetProperty("id").GetInt32()));
         Assert.Contains(estados, e => e.GetProperty("nombre").GetString() == "Inactivo" && !e.GetProperty("delSistema").GetBoolean());
+    }
+
+    [Fact]
+    public void Los_estados_sembrados_tienen_el_rojo_el_verde_y_un_color_de_la_paleta()
+    {
+        using var scope = api.Services.CreateScope();
+        var colores = scope.ServiceProvider.GetRequiredService<AppDbContext>().EstadosCliente.ToDictionary(e => e.Id, e => e.Color);
+
+        Assert.Equal(PaletaDeEstados.Activo, colores[EstadosDeCliente.Activo]);
+        Assert.Equal(PaletaDeEstados.Disponible, colores[EstadosDeCliente.DisponibleParaRevisita]);
+        Assert.Equal(PaletaDeEstados.Pizarra, colores[EstadosDeCliente.Inactivo]);
     }
 
     [Fact]

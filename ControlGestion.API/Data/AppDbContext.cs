@@ -352,11 +352,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             new TipoEvento { Id = 5, Nombre = "Otro",                   RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Bajo  }
         );
 
-        // Seed estados de cliente
+        // Estados del cliente (7.4). El nombre es único; el color, uno de PaletaDeEstados.
+        builder.Entity<EstadoCliente>().Property(e => e.Nombre).HasMaxLength(50);
+        builder.Entity<EstadoCliente>().HasIndex(e => e.Nombre).IsUnique();
+        builder.Entity<EstadoCliente>().Property(e => e.Color).HasMaxLength(7);
+        builder.Entity<EstadoCliente>().Property(e => e.Descripcion).HasMaxLength(200);
         builder.Entity<EstadoCliente>().HasData(
-            new EstadoCliente { Id = 1, Nombre = "Activo", Color = "#10b981", Descripcion = "Cliente activo y disponible" },
-            new EstadoCliente { Id = 2, Nombre = "Disponible para Re-visita", Color = "#f59e0b", Descripcion = "Ha pasado el período de re-visita" },
-            new EstadoCliente { Id = 4, Nombre = "Inactivo", Color = "#6b7280", Descripcion = "Cliente inactivo o dado de baja" }
+            new EstadoCliente
+            {
+                Id = EstadosDeCliente.Activo, Nombre = "Activo", Color = PaletaDeEstados.Activo, EsDelSistema = true,
+                Descripcion = "Cliente activo y disponible"
+            },
+            new EstadoCliente
+            {
+                Id = EstadosDeCliente.DisponibleParaRevisita, Nombre = "Disponible para Re-visita", Color = PaletaDeEstados.Disponible,
+                EsDelSistema = true, Descripcion = "Ha pasado el período de re-visita"
+            },
+            new EstadoCliente
+            {
+                Id = EstadosDeCliente.Inactivo, Nombre = "Inactivo", Color = PaletaDeEstados.Pizarra, Descripcion = "Cliente inactivo o dado de baja"
+            }
         );
     }
 }

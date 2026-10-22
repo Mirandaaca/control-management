@@ -195,7 +195,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         cliente.ProximaVisita = ahora.AddDays(await db.ConfiguracionesGenerales.DiasAsync(
             ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto));
         // Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo: la venta no lo cambia.
-        if (EstadosDeCliente.DelSistema.Contains(cliente.EstadoClienteId))
+        if (await db.EstadosCliente.Where(e => e.Id == cliente.EstadoClienteId).Select(e => e.EsDelSistema).FirstAsync())
             cliente.EstadoClienteId = EstadosDeCliente.Activo;
 
         if (hp.TipoVenta == TipoVenta.Credito)

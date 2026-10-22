@@ -24,7 +24,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         {
             // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
             // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
-            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId))
+            consulta = consulta.Where(c => c.EstadoCliente!.EsDelSistema)
                 .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj)));
         }
 
@@ -55,7 +55,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         ?? throw new NoEncontradoException("No se encontró el cliente.");
 
     public Task<List<EstadoClienteDTO>> EstadosAsync() =>
-        db.EstadosCliente.Where(e => e.Activo).OrderBy(e => e.Id).Select(ClienteConsultas.EstadoComoDTO).ToListAsync();
+        db.EstadosCliente.OrderBy(e => e.Id).Select(ClienteConsultas.EstadoComoDTO).ToListAsync();
 
     public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
     {
@@ -96,11 +96,11 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
         if (dto.EstadoClienteId is { } estadoId)
         {
-            if (EstadosDeCliente.DelSistema.Contains(estadoId))
+            var estado = await db.EstadosCliente.Where(e => e.Id == estadoId).Select(e => new { e.EsDelSistema }).FirstOrDefaultAsync()
+                ?? throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
+            if (estado.EsDelSistema)
                 throw new ReglaDeNegocioException("estado_del_sistema",
                     "Activo y Disponible para re-visita los asigna el sistema según las visitas.");
-            if (!await db.EstadosCliente.AnyAsync(e => e.Id == estadoId && e.Activo))
-                throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
             cliente.EstadoClienteId = estadoId;
         }
         else

@@ -403,21 +403,27 @@ namespace ControlGestion.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<string>("Color")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(7)
+                        .HasColumnType("varchar(7)");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("EsDelSistema")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
 
                     b.ToTable("EstadosCliente");
 
@@ -425,25 +431,25 @@ namespace ControlGestion.API.Data.Migrations
                         new
                         {
                             Id = 1,
-                            Activo = true,
-                            Color = "#10b981",
+                            Color = "#DC2626",
                             Descripcion = "Cliente activo y disponible",
+                            EsDelSistema = true,
                             Nombre = "Activo"
                         },
                         new
                         {
                             Id = 2,
-                            Activo = true,
-                            Color = "#f59e0b",
+                            Color = "#15803D",
                             Descripcion = "Ha pasado el período de re-visita",
+                            EsDelSistema = true,
                             Nombre = "Disponible para Re-visita"
                         },
                         new
                         {
                             Id = 4,
-                            Activo = true,
-                            Color = "#6b7280",
+                            Color = "#475569",
                             Descripcion = "Cliente inactivo o dado de baja",
+                            EsDelSistema = false,
                             Nombre = "Inactivo"
                         });
                 });
