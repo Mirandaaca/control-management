@@ -119,7 +119,10 @@ class ErrorDeCampo extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Expanded(
-          child: Text(mensaje, style: const TextStyle(color: _colorDelError, fontSize: 14, height: 20 / 14)),
+          child: Text(
+            mensaje,
+            style: const TextStyle(color: _colorDelError, fontSize: 14, height: 20 / 14),
+          ),
         ),
       ],
     );

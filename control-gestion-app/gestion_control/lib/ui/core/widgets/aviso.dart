@@ -83,7 +83,10 @@ class Aviso extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (titulo != null)
-                    Text(titulo!, style: TextStyle(color: tipo.texto, fontWeight: FontWeight.w600)),
+                    Text(
+                      titulo!,
+                      style: TextStyle(color: tipo.texto, fontWeight: FontWeight.w600),
+                    ),
                   if (texto.isNotEmpty) Text(texto, style: TextStyle(color: tipo.texto)),
                   if (accion != null)
                     TextButton(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -145,3 +146,12 @@ Finder campo(String etiqueta) =>
 /// El error que muestra un campo debajo, o null si no tiene.
 String? errorDelCampo(WidgetTester tester, String etiqueta) =>
     (tester.widget<TextField>(campo(etiqueta)).decoration!.error as ErrorDeCampo?)?.mensaje;
+
+/// Carga Inter, la letra de la app, para una prueba que mide textos: sin ella, cada letra es un cuadrado de 1 em.
+Future<void> cargarInter() async {
+  final inter = FontLoader('Inter');
+  for (final peso in ['Regular', 'Medium', 'SemiBold']) {
+    inter.addFont(rootBundle.load('assets/fuentes/inter/Inter-$peso.ttf'));
+  }
+  await inter.load();
+}
