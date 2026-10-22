@@ -5,7 +5,11 @@ namespace ControlGestion.API.DTOs;
 
 public class LoginDTO
 {
+    // Vacíos responden 400 por campo, no 401: no son credenciales incorrectas, sino datos que faltan.
+    [Required(ErrorMessage = "Escribe tu correo.")]
     public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Escribe tu contraseña.")]
     public string Password { get; set; } = string.Empty;
 
     // Nullable para que [Required] detecte que falta: un enum sin valor tomaría el primero (Panel) sin avisar.

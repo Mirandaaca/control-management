@@ -40,6 +40,18 @@ public class AutenticacionTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Login_sin_correo_ni_contrasena_responde_400_con_el_error_en_cada_campo()
+    {
+        using var cliente = api.CreateClient();
+        var respuesta = await cliente.PostAsJsonAsync("/api/auth/login",
+            new { email = "", password = "  ", origen = Ayudantes.OrigenPanel });
+
+        var errores = (await respuesta.ProblemaAsync(400, "validacion")).GetProperty("errors");
+        Assert.Equal("Escribe tu correo.", errores.GetProperty("email")[0].GetString());
+        Assert.Equal("Escribe tu contraseña.", errores.GetProperty("password")[0].GetString());
+    }
+
+    [Fact]
     public async Task El_registro_anonimo_ya_no_existe()
     {
         var cuerpo = new { email = "anonimo@test.local", password = "abc12345", nombreCompleto = "Anónimo", rol = "Admin" };
