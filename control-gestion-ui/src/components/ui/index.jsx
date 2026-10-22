@@ -131,7 +131,9 @@ const SIN_FILTRO = '__todos';
 export function Selector({ label, value, onChange, opciones, placeholder = 'Elegir…', todos, ayuda, error, id, disabled }) {
   const generado = useId();
   const campoId = id ?? generado;
-  const valor = value === '' ? (todos ? SIN_FILTRO : undefined) : value;
+  // Sin elegir, el valor es '' y no undefined: Radix muestra el placeholder igual, y React no avisa que el Select
+  // pasa de no controlado a controlado al elegir la primera opción.
+  const valor = value === '' && todos ? SIN_FILTRO : (value ?? '');
   return (
     <Campo id={campoId} label={label} ayuda={ayuda} error={error}>
       <Select value={valor} onValueChange={(v) => onChange(v === SIN_FILTRO ? '' : v)} disabled={disabled}>

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using ControlGestion.API.Data;
 using ControlGestion.API.Models;
+using ControlGestion.API.Seguridad;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -21,6 +22,13 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     public const string CorreoAdmin = "admin@control.com";
     public const string CorreoOperador = "operador@test.local";
     public const string RolOperador = "Pruebas: todos los permisos";
+    public const string CorreoPromotorDeZonas = "promotor-zonas@test.local";
+
+    /// <summary>
+    /// El promotor de las zonas que crean las pruebas cuando no eligen otro: una zona siempre tiene un promotor que
+    /// recorre rutas (7.2). Es estático porque toda la corrida comparte una sola ApiDePrueba (ColeccionApi).
+    /// </summary>
+    public static string PromotorDeZonasId { get; private set; } = string.Empty;
     /// <summary>El único origen que CORS permite en las pruebas (Cors:Origenes).</summary>
     public const string OrigenDePrueba = "http://origen-de-prueba.local";
     private const string PrefijoDeBase = "control_test_";
@@ -86,6 +94,20 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         // Arrancar el servidor ejecuta Program.cs: aplica las migraciones, siembra roles y permisos, y crea el admin.
         _ = Server;
         await CrearOperadorAsync();
+        await CrearPromotorDeZonasAsync();
+    }
+
+    private async Task CrearPromotorDeZonasAsync()
+    {
+        using var scope = Services.CreateScope();
+        var usuarios = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var promotor = new ApplicationUser
+        {
+            UserName = CorreoPromotorDeZonas, Email = CorreoPromotorDeZonas, NombreCompleto = "Promotor de zonas de pruebas"
+        };
+        Exigir(await usuarios.CreateAsync(promotor, Aleatorio(24) + "9"));
+        Exigir(await usuarios.AddToRoleAsync(promotor, Roles.Promotor));
+        PromotorDeZonasId = promotor.Id;
     }
 
     /// <summary>

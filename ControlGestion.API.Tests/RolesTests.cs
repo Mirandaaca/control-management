@@ -117,7 +117,8 @@ public class RolesTests(ApiDePrueba api)
     {
         using var admin = await api.AdminAsync();
         using var operador = await api.OperadorAsync();
-        var (rolId, rolNombre) = await admin.CrearRolAsync(Permisos.Cobranzas.ConsultarDeudas);
+        // Recorre rutas para poder ser el promotor de una zona (7.2): así tiene una cartera.
+        var (rolId, rolNombre) = await admin.CrearRolAsync(Permisos.Cobranzas.ConsultarDeudas, Permisos.Territorial.RecorrerRuta);
         var usuario = await api.CrearUsuarioAsync(rolNombre);
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
@@ -134,7 +135,7 @@ public class RolesTests(ApiDePrueba api)
         (await admin.PutAsJsonAsync($"/api/roles/{rolId}", new
         {
             nombre = rolNombre,
-            permisos = new[] { Permisos.Cobranzas.ConsultarDeudas, Permisos.Seguridad.VerCarteraCompleta }
+            permisos = new[] { Permisos.Cobranzas.ConsultarDeudas, Permisos.Territorial.RecorrerRuta, Permisos.Seguridad.VerCarteraCompleta }
         })).EnsureSuccessStatusCode();
         Assert.Contains(ajena, await visibles());
     }

@@ -62,7 +62,7 @@ public class PermisosTests(ApiDePrueba api)
     {
         var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
         var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
-        var zona = new { nombre = "Zona de permisos", codigo = Ayudantes.Unico("Z") };
+        var zona = new { nombre = Ayudantes.Unico("Zona de permisos"), codigo = Ayudantes.Unico("Z"), promotorId = ApiDePrueba.PromotorDeZonasId };
 
         await (await api.ClienteCon(secretaria.Token).PostAsJsonAsync("/api/zonas", zona)).ProblemaAsync(403, "sin_permiso");
         Assert.Equal(HttpStatusCode.Created, (await api.ClienteCon(gerente.Token).PostAsJsonAsync("/api/zonas", zona)).StatusCode);

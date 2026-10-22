@@ -126,6 +126,8 @@ builder.Services.AddScoped<ControlGestion.API.Services.ReporteEventosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ConfiguracionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();
+builder.Services.AddScoped<ControlGestion.API.Services.PuntoReferenciaService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 
 // Los orígenes que pueden llamar a la API desde un navegador: el panel y, en desarrollo, la app como web. appsettings.json

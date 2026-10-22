@@ -80,9 +80,7 @@ public class ClientesTests(ApiDePrueba api)
 
         (await operador.PutAsJsonAsync($"/api/zonas/{zonaId}", new
         {
-            id = zonaId,
             nombre = zona.GetProperty("nombre").GetString(),
-            codigo = zona.GetProperty("codigo").GetString(),
             promotorId = nuevo.Id
         })).EnsureSuccessStatusCode();
 
