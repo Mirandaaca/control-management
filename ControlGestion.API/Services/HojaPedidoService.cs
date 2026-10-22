@@ -115,7 +115,8 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
     public async Task<HojaPedidoDTO> ConfirmarAsync(int id)
     {
         var hp = await Visibles
-            .Include(h => h.Detalles)
+            // En el orden de su detalle: el error de stock marca cada línea por su posición.
+            .Include(h => h.Detalles.OrderBy(d => d.Id))
             .Include(h => h.Cliente)
             .FirstOrDefaultAsync(h => h.Id == id)
             ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");

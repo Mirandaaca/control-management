@@ -170,8 +170,48 @@ public class HojasPedidoInventarioTests(ApiDePrueba api)
         });
         var hojaId = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
 
-        await (await ConfirmarAsync(operador, hojaId)).ProblemaAsync(400, "stock_insuficiente");
+        var problema = await (await ConfirmarAsync(operador, hojaId)).ProblemaAsync(400, "stock_insuficiente");
         Assert.Equal(5m, await StockDe(operador, productoId));
+        // Las dos líneas piden juntas más de lo que hay: se marcan las dos.
+        var errores = problema.GetProperty("errors");
+        Assert.Contains("hay 5 y la venta pide 6", errores.GetProperty("detalles[0].cantidad")[0].GetString());
+        Assert.Contains("hay 5 y la venta pide 6", errores.GetProperty("detalles[1].cantidad")[0].GetString());
+    }
+
+    [Fact]
+    public async Task Sin_stock_cada_linea_que_no_alcanza_dice_que_producto_es_y_cuanto_hay()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var conPoco = await operador.CrearProductoAsync(10m, stockInicial: 2);
+        var conDeSobra = await operador.CrearProductoAsync(10m, stockInicial: 10);
+        var sinStock = await operador.CrearProductoAsync(10m, stockInicial: 0);
+        var respuesta = await operador.PostAsJsonAsync("/api/hojas-pedido", new
+        {
+            clienteId = await operador.CrearClienteAsync(zonaId),
+            latitud = -17.78m, longitud = -63.18m, tipoVenta = 0,
+            detalles = new[]
+            {
+                new { productoId = conPoco, cantidad = 3 },
+                new { productoId = conDeSobra, cantidad = 1 },
+                new { productoId = sinStock, cantidad = 5 }
+            }
+        });
+        var hojaId = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
+
+        var problema = await (await ConfirmarAsync(operador, hojaId)).ProblemaAsync(400, "stock_insuficiente");
+
+        var errores = problema.GetProperty("errors");
+        var descripcionConPoco = (await (await operador.GetAsync($"/api/productos/{conPoco}")).LeerJsonAsync()).GetProperty("descripcion").GetString();
+        Assert.Equal($"No hay stock suficiente de {descripcionConPoco}: hay 2 y la venta pide 3.",
+            errores.GetProperty("detalles[0].cantidad")[0].GetString());
+        Assert.False(errores.TryGetProperty("detalles[1].cantidad", out _));
+        Assert.Contains("hay 0 y la venta pide 5", errores.GetProperty("detalles[2].cantidad")[0].GetString());
+        // El detail nombra los dos productos que faltan, para quien no ve las líneas (el panel).
+        var detalle = problema.GetProperty("detail").GetString();
+        Assert.Contains("hay 2 y la venta pide 3", detalle);
+        Assert.Contains("hay 0 y la venta pide 5", detalle);
+        Assert.Equal(10m, await StockDe(operador, conDeSobra));
     }
 
     [Fact]
