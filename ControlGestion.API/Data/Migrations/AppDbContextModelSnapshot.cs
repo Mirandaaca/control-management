@@ -470,10 +470,6 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<int>("Orden")
                         .HasColumnType("int");
 
-                    b.Property<string>("PermiteTransicion")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.HasKey("Id");
 
                     b.ToTable("EstadosPedido");
@@ -485,8 +481,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#f59e0b",
                             EsEstadoFinal = false,
                             Nombre = "Pendiente",
-                            Orden = 1,
-                            PermiteTransicion = "[2,5]"
+                            Orden = 1
                         },
                         new
                         {
@@ -494,8 +489,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#3b82f6",
                             EsEstadoFinal = false,
                             Nombre = "En Proceso",
-                            Orden = 2,
-                            PermiteTransicion = "[3,5]"
+                            Orden = 2
                         },
                         new
                         {
@@ -503,8 +497,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#8b5cf6",
                             EsEstadoFinal = false,
                             Nombre = "En Ruta",
-                            Orden = 3,
-                            PermiteTransicion = "[4,5]"
+                            Orden = 3
                         },
                         new
                         {
@@ -512,8 +505,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#10b981",
                             EsEstadoFinal = true,
                             Nombre = "Entregado",
-                            Orden = 4,
-                            PermiteTransicion = "[]"
+                            Orden = 4
                         },
                         new
                         {
@@ -521,8 +513,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#ef4444",
                             EsEstadoFinal = true,
                             Nombre = "Anulado",
-                            Orden = 5,
-                            PermiteTransicion = "[]"
+                            Orden = 5
                         });
                 });
 

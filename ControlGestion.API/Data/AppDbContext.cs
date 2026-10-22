@@ -336,11 +336,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         // Seed estados de pedido
         builder.Entity<EstadoPedido>().HasData(
-            new EstadoPedido { Id = 1, Nombre = "Pendiente",     Orden = 1, Color = "#f59e0b", PermiteTransicion = "[2,5]" },
-            new EstadoPedido { Id = 2, Nombre = "En Proceso",    Orden = 2, Color = "#3b82f6", PermiteTransicion = "[3,5]" },
-            new EstadoPedido { Id = 3, Nombre = "En Ruta",       Orden = 3, Color = "#8b5cf6", PermiteTransicion = "[4,5]" },
-            new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 4, Color = "#10b981", PermiteTransicion = "[]", EsEstadoFinal = true },
-            new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 5, Color = "#ef4444", PermiteTransicion = "[]", EsEstadoFinal = true }
+            new EstadoPedido { Id = 1, Nombre = "Pendiente",     Orden = 1, Color = "#f59e0b" },
+            new EstadoPedido { Id = 2, Nombre = "En Proceso",    Orden = 2, Color = "#3b82f6" },
+            new EstadoPedido { Id = 3, Nombre = "En Ruta",       Orden = 3, Color = "#8b5cf6" },
+            new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 4, Color = "#10b981", EsEstadoFinal = true },
+            new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 5, Color = "#ef4444", EsEstadoFinal = true }
         );
 
         // Seed tipos de evento
