@@ -96,8 +96,10 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
         var saldo = Math.Max(0, cobranza.MontoTotal - cobranza.MontoPagado);
         if (saldo <= 0)
             throw new ReglaDeNegocioException("cobranza_sin_saldo", "Esta cobranza ya no tiene saldo pendiente.");
-        if (dto.Monto <= 0 || dto.Monto > saldo)
-            throw new ReglaDeNegocioException("monto_invalido", $"Monto inválido. Saldo pendiente: {saldo:F2}");
+        if (dto.Monto <= 0)
+            throw MontoInvalido("El monto debe ser mayor que cero.");
+        if (dto.Monto > saldo)
+            throw MontoInvalido($"El monto no puede superar el saldo ({FormatoBolivia.Monto(saldo)}).");
 
         var ahora = reloj.GetUtcNow().UtcDateTime;
         var pago = new PagoCobranza
@@ -309,6 +311,10 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
 
         cambiada.Cliente!.SaldoPendiente = deLasOtras + deEsta;
     }
+
+    // Lleva su código y, además, el campo: así el error sale debajo del monto (8.6.12), como el del descuento.
+    private static ReglaDeNegocioException MontoInvalido(string mensaje) =>
+        new("monto_invalido", mensaje, new Dictionary<string, string[]> { ["monto"] = [mensaje] });
 
     private static readonly EstadoCobranza[] EstadosAbiertos =
         [EstadoCobranza.Pendiente, EstadoCobranza.Parcial, EstadoCobranza.Vencida];

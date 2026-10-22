@@ -32,8 +32,8 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
             Detail = detalle,
             Extensions = { ["codigo"] = codigo }
         };
-        if (excepcion is ValidacionException validacion)
-            problema.Extensions["errors"] = validacion.Errores;
+        if (excepcion is ExcepcionDeNegocio { Errores: { } errores })
+            problema.Extensions["errors"] = errores;
 
         http.Response.StatusCode = estado;
         return await problemDetails.TryWriteAsync(new ProblemDetailsContext

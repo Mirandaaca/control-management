@@ -42,6 +42,21 @@ public class PagosTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Un_monto_mayor_que_el_saldo_dice_el_saldo_en_Bs_en_el_campo_del_monto()
+    {
+        var (operador, cobranzaId) = await CobranzaDeAsync(1234.5m);
+        using var _ = operador;
+
+        var problema = await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", Pago(1300m)))
+            .ProblemaAsync(400, "monto_invalido");
+
+        const string mensaje = "El monto no puede superar el saldo (Bs 1.234,50).";
+        Assert.Equal(mensaje, problema.GetProperty("detail").GetString());
+        Assert.Equal(mensaje, problema.GetProperty("errors").GetProperty("monto")[0].GetString());
+        Assert.Equal(0m, (await CobranzaAsync(operador, cobranzaId)).GetProperty("montoPagado").GetDecimal());
+    }
+
+    [Fact]
     public async Task Repetir_un_pago_con_la_misma_clave_devuelve_el_mismo_pago()
     {
         var (operador, cobranzaId) = await CobranzaDeAsync(20m);
