@@ -18,6 +18,6 @@ public class ConfiguracionesController(ConfiguracionService configuracion) : Con
 
     [HttpPut("dias-revisita")]
     [Permiso(Permisos.Parametros.ModificarDiasRevisita)]
-    public async Task<ActionResult<DiasRevisitaDTO>> CambiarDiasRevisita([FromBody] CambiarDiasRevisitaDTO dto) =>
+    public async Task<ActionResult<DiasRevisitaCambiadosDTO>> CambiarDiasRevisita([FromBody] CambiarDiasRevisitaDTO dto) =>
         await configuracion.CambiarDiasRevisitaAsync(dto.Dias);
 }

@@ -24,6 +24,9 @@ public static class HoraBolivia
     /// <summary>El instante UTC en que empieza el día siguiente: se usa como límite exclusivo (&lt;).</summary>
     public static DateTime FinDelDiaUtc(DateOnly dia) => InicioDelDiaUtc(dia.AddDays(1));
 
+    /// <summary>El instante UTC en que termina hoy en Bolivia (empieza mañana).</summary>
+    public static DateTime FinDeHoyUtc(TimeProvider reloj) => FinDelDiaUtc(Hoy(reloj));
+
     /// <summary>
     /// Una fecha y hora elegida por el usuario. Sin zona (lo que manda un campo datetime-local del panel) se entiende
     /// como hora de Bolivia; si trae zona ("Z" o un desfase), se respeta.

@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
@@ -23,9 +24,8 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         {
             // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
             // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
-            var ahora = reloj.GetUtcNow().UtcDateTime;
-            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId)
-                && (c.ProximaVisita == null || c.ProximaVisita <= ahora));
+            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId))
+                .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj)));
         }
 
         var total = await consulta.CountAsync();
@@ -105,8 +105,10 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         }
         else
         {
-            var ahora = reloj.GetUtcNow().UtcDateTime;
-            cliente.EstadoClienteId = cliente.ProximaVisita > ahora ? EstadosDeCliente.Activo : EstadosDeCliente.DisponibleParaRevisita;
+            // La misma regla que la lista "por visitar" y el recálculo de los días de re-visita.
+            var llego = await db.Clientes.Where(c => c.Id == id)
+                .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj))).AnyAsync();
+            cliente.EstadoClienteId = llego ? EstadosDeCliente.DisponibleParaRevisita : EstadosDeCliente.Activo;
         }
 
         await db.SaveChangesAsync();
