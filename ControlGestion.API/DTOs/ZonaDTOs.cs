@@ -15,7 +15,9 @@ public record ModificarZonaDTO
     [MaxLength(100, ErrorMessage = "El nombre no puede superar los 100 caracteres.")]
     public string Nombre { get; init; } = string.Empty;
 
-    public string? PromotorId { get; init; }
+    /// <summary>Obligatorio: un usuario activo que recorre rutas (lo revisa el servicio).</summary>
+    [Required(ErrorMessage = "Elige el promotor de la zona.")]
+    public string PromotorId { get; init; } = string.Empty;
 }
 
 public record RegistrarZonaDTO : ModificarZonaDTO

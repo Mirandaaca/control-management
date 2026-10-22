@@ -1365,6 +1365,7 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("PromotorId")
+                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
@@ -1907,7 +1908,8 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
                         .WithMany()
                         .HasForeignKey("PromotorId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Promotor");
                 });

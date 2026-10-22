@@ -83,11 +83,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 Descripcion = "Días de plazo de una venta a crédito."
             });
 
+        // Una zona siempre tiene promotor (7.2). Los usuarios no se borran, se desactivan: Restrict no estorba.
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
             .WithMany()
             .HasForeignKey(z => z.PromotorId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Cliente
         builder.Entity<Cliente>()

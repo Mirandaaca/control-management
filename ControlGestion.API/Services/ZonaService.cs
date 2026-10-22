@@ -35,8 +35,24 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
         await Proyectar(db.Zonas.Where(z => z.Id == id)).FirstOrDefaultAsync()
         ?? throw new NoEncontradoException("No se encontró la zona.");
 
+    /// <summary>
+    /// El promotor de una zona recorre rutas y está activo (7.2), sin mirar el nombre de su rol: así lo elige también
+    /// PedidoService al asignar pedidos. Las zonas viejas que no cumplen quedan como están hasta que se guardan.
+    /// </summary>
+    private async Task ExigirPromotorValidoAsync(string promotorId)
+    {
+        var valido = await db.Users.Where(u => u.Id == promotorId && u.Activo)
+            .ConPermiso(db, Permisos.Territorial.RecorrerRuta).AnyAsync();
+        if (!valido)
+            throw new ValidacionException(new Dictionary<string, string[]>
+            {
+                ["promotorId"] = ["Elige un promotor activo, que recorra rutas."]
+            });
+    }
+
     public async Task<ZonaDTO> RegistrarAsync(RegistrarZonaDTO dto)
     {
+        await ExigirPromotorValidoAsync(dto.PromotorId);
         var zona = new Zona { Codigo = dto.Codigo.Trim(), Nombre = dto.Nombre.Trim(), PromotorId = dto.PromotorId };
         db.Zonas.Add(zona);
         await db.SaveChangesAsync();
@@ -50,6 +66,7 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
     public async Task<ZonaDTO> ModificarAsync(int id, ModificarZonaDTO dto)
     {
         var zona = await db.Zonas.FindAsync(id) ?? throw new NoEncontradoException("No se encontró la zona.");
+        await ExigirPromotorValidoAsync(dto.PromotorId);
         var cambiaElPromotor = zona.PromotorId != dto.PromotorId;
 
         await using var transaccion = await db.Database.BeginTransactionAsync();

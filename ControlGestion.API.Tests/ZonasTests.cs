@@ -37,4 +37,46 @@ public class ZonasTests(ApiDePrueba api)
         Assert.Equal(1, (await ZonaAsync(operador, ajena)).GetProperty("clientes").GetInt32());
         Assert.Equal(HttpStatusCode.OK, (await comoPromotor.GetAsync($"/api/zonas/{zonaId}")).StatusCode);
     }
+
+    [Fact]
+    public async Task El_promotor_es_obligatorio_recorre_rutas_y_esta_activo()
+    {
+        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
+        var inactivo = await api.CrearUsuarioAsync(Roles.Promotor);
+        var valido = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var admin = await api.AdminAsync();
+        (await admin.PutAsync($"/api/usuarios/{inactivo.Id}/desactivar", null)).EnsureSuccessStatusCode();
+        using var operador = await api.OperadorAsync();
+        object Zona(string? promotorId) => new { nombre = Ayudantes.Unico("Zona"), codigo = Ayudantes.Unico("Z"), promotorId };
+
+        var sinPromotor = await (await operador.PostAsJsonAsync("/api/zonas", Zona(null))).ProblemaAsync(400, "validacion");
+        Assert.True(sinPromotor.GetProperty("errors").TryGetProperty("promotorId", out _));
+        foreach (var invalido in new[] { gerente.Id, inactivo.Id, "no-existe" })
+        {
+            var problema = await (await operador.PostAsJsonAsync("/api/zonas", Zona(invalido))).ProblemaAsync(400, "validacion");
+            Assert.Equal("Elige un promotor activo, que recorra rutas.", problema.GetProperty("errors").GetProperty("promotorId")[0].GetString());
+        }
+
+        var creada = await operador.PostAsJsonAsync("/api/zonas", Zona(valido.Id));
+        Assert.Equal(HttpStatusCode.Created, creada.StatusCode);
+        var id = (await creada.LeerJsonAsync()).GetProperty("id").GetInt32();
+        // Al modificar también: cambiar al gerente se rechaza.
+        await (await operador.PutAsJsonAsync($"/api/zonas/{id}", new { nombre = "Otra", promotorId = gerente.Id })).ProblemaAsync(400, "validacion");
+    }
+
+    [Fact]
+    public async Task Una_zona_cuyo_promotor_se_desactivo_queda_marcada_y_se_corrige_al_elegir_otro()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var nuevo = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync(promotor.Id);
+        using var admin = await api.AdminAsync();
+        (await admin.PutAsync($"/api/usuarios/{promotor.Id}/desactivar", null)).EnsureSuccessStatusCode();
+
+        Assert.False((await ZonaAsync(operador, zonaId)).GetProperty("promotorValido").GetBoolean());
+        var corregida = await (await operador.PutAsJsonAsync($"/api/zonas/{zonaId}", new { nombre = "Zona corregida", promotorId = nuevo.Id }))
+            .LeerJsonAsync();
+        Assert.True(corregida.GetProperty("promotorValido").GetBoolean());
+    }
 }
