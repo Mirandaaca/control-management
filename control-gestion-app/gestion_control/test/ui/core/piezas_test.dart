@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/ui/core/widgets/barra_de_acciones.dart';
 import 'package:gestion_control/ui/core/widgets/campos_numericos.dart';
 import 'package:gestion_control/ui/core/widgets/confirmar.dart';
+import 'package:gestion_control/ui/core/widgets/segmentado.dart';
 
 import '../../ayudantes.dart';
 
@@ -96,6 +97,45 @@ void main() {
       final cancelar = tester.getRect(find.widgetWithText(OutlinedButton, 'Cancelar'));
       final confirmarVenta = tester.getRect(find.widgetWithText(FilledButton, 'Confirmar venta'));
       expect(confirmarVenta.top - cancelar.bottom, 8);
+    });
+  });
+
+  group('Segmentado', () {
+    Future<void> abrir(WidgetTester tester, {required double letra, int valor = 1}) async {
+      await cargarInter();
+      tamanoDeCelular(tester, letra: letra);
+      await tester.pumpWidget(
+        conLaApp(
+          Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Segmentado(
+                opciones: const [(1, 'Por cobrar'), (2, 'Vencidas'), (3, 'Todas')],
+                valor: valor,
+                alCambiar: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('van lado a lado, y la elegida no parte su palabra por el check ("Vencida-s")', (tester) async {
+      await abrir(tester, letra: 1, valor: 2);
+
+      final vencidas = tester.getRect(find.text('Vencidas'));
+      expect(vencidas.top, tester.getTopLeft(find.text('Todas')).dy);
+      expect(vencidas.height, lessThan(2 * 16));
+    });
+
+    testWidgets('con la letra al 200 %, si una palabra no entra, se apilan en vez de partirla', (tester) async {
+      await abrir(tester, letra: 2);
+
+      final porCobrar = tester.getRect(find.text('Por cobrar'));
+      expect(tester.getTopLeft(find.text('Vencidas')).dy, greaterThan(porCobrar.bottom));
+      // En una línea: "cobrar" no se parte.
+      expect(porCobrar.height, lessThan(2 * 16 * 2));
+      expect(tester.takeException(), isNull);
     });
   });
 
