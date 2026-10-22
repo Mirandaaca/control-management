@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Landmark, Map as Mapa, Move, PenLine, Trash2, Undo2 } from 'lucide-react';
+import { Landmark, Map as Mapa, MapPinPlus, Move, PenLine, Pencil, Trash2, Undo2 } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, Marker, Polygon, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import api from '../api/axios';
@@ -8,6 +8,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert, Btn, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
 import DibujoDeLimite from '../components/zonas/DibujoDeLimite';
+import FormularioPunto from '../components/zonas/FormularioPunto';
 import { comoPosiciones, ESTILO_ZONA, ESTILO_ZONA_ELEGIDA, ICONO_PUNTO } from '../components/zonas/marcadores';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
@@ -25,6 +26,12 @@ function Encuadrar({ zonas, puntos, elegida }) {
       : [...zonas.flatMap((z) => (z.limite ? comoPosiciones(z.limite) : [])), ...puntos.map((p) => [p.latitud, p.longitud])];
     if (posiciones.length > 0) mapa.fitBounds(L.latLngBounds(posiciones), { padding: [40, 40], maxZoom: 16 });
   }, [mapa, zonas, puntos, elegida]);
+  return null;
+}
+
+// En el modo "punto", un clic en el mapa marca dónde está el punto de referencia nuevo.
+function AlTocarPunto({ onTocar }) {
+  useMapEvents({ click: (e) => onTocar(Math.round(e.latlng.lat * 1e6) / 1e6, Math.round(e.latlng.lng * 1e6) / 1e6) });
   return null;
 }
 
@@ -67,6 +74,7 @@ const cuantosPuntos = (n) => (n === 1 ? '1 punto' : `${n} puntos`);
 export default function MapaZonas() {
   const { tiene } = useAuth();
   const puedeDibujar = tiene(territorial.dibujarLimites);
+  const puedeRegistrarPuntos = tiene(territorial.registrarPuntoReferencia);
   const [parametros, setParametros] = useSearchParams();
   const [zonas, setZonas] = useState(null);
   const [puntos, setPuntos] = useState([]);
@@ -75,7 +83,8 @@ export default function MapaZonas() {
   const [errorCarga, setErrorCarga] = useState('');
   const [aviso, setAviso] = useState('');
 
-  // El límite que se dibuja ("dibujar") o se edita ("editar"): los vértices como [[lat, lng], …].
+  // El límite que se dibuja ("dibujar") o se edita ("editar"), con los vértices como [[lat, lng], …]; o "punto",
+  // mientras se espera el clic que marca un punto de referencia nuevo.
   const [modo, setModo] = useState(null);
   const [borrador, setBorrador] = useState([]);
   const [errorLimite, setErrorLimite] = useState('');
@@ -83,6 +92,11 @@ export default function MapaZonas() {
   const [confirmarReemplazo, setConfirmarReemplazo] = useState(false);
   const [quitando, setQuitando] = useState(false);
   const [errorQuitar, setErrorQuitar] = useState('');
+
+  const [formularioPunto, setFormularioPunto] = useState(null);
+  const [aEliminarPunto, setAEliminarPunto] = useState(null);
+  const [errorEliminarPunto, setErrorEliminarPunto] = useState('');
+  const [eliminandoPunto, setEliminandoPunto] = useState(false);
 
   const cargar = useCallback(() => Promise.all([api.get('/zonas'), api.get('/puntos-referencia')])
     .then(([z, p]) => { setZonas(z.data); setPuntos(p.data); setErrorCarga(''); })
@@ -147,6 +161,33 @@ export default function MapaZonas() {
     }
   };
 
+  const marcarPunto = (latitud, longitud) => {
+    setModo(null);
+    setFormularioPunto({ latitud, longitud });
+  };
+
+  // Un punto cambia la cuenta de su zona (y de la anterior, si se movió): se vuelve a pedir todo, que son pocas filas.
+  const alGuardarPunto = (punto, esNuevo) => {
+    setFormularioPunto(null);
+    setAviso(esNuevo ? `Se registró ${punto.nombre} en ${punto.zona.nombre}.` : `Se guardó ${punto.nombre}.`);
+    cargar();
+  };
+
+  const eliminarPunto = async () => {
+    setEliminandoPunto(true);
+    setErrorEliminarPunto('');
+    try {
+      await api.delete(`/puntos-referencia/${aEliminarPunto.id}`);
+      setAviso(`Se eliminó ${aEliminarPunto.nombre}.`);
+      setAEliminarPunto(null);
+      cargar();
+    } catch (err) {
+      setErrorEliminarPunto(mensajeDeError(err, 'No se pudo eliminar el punto de referencia.'));
+    } finally {
+      setEliminandoPunto(false);
+    }
+  };
+
   let contenido;
   if (cargando) contenido = <Cargando texto="Cargando el mapa…" />;
   else if (errorCarga) contenido = (
@@ -181,14 +222,22 @@ export default function MapaZonas() {
         </ul>
       </nav>
       <div className="min-w-0">
-        {elegida && puedeDibujar && !modo && (
+        {!modo && ((elegida && puedeDibujar) || puedeRegistrarPuntos) && (
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
-            <h3 className="mr-auto text-sm font-semibold text-slate-900">{elegida.nombre}</h3>
-            <Btn variant="outline" onClick={() => empezar('dibujar')}>
-              <PenLine size={14} aria-hidden="true" />
-              {elegida.limite ? 'Redibujar límite' : 'Dibujar límite'}
-            </Btn>
-            {elegida.limite && (
+            <h3 className="mr-auto text-sm font-semibold text-slate-900">{elegida?.nombre ?? 'Elige una zona para dibujar su límite'}</h3>
+            {puedeRegistrarPuntos && (
+              <Btn variant="outline" onClick={() => { setAviso(''); setModo('punto'); }}>
+                <MapPinPlus size={14} aria-hidden="true" />
+                Agregar punto
+              </Btn>
+            )}
+            {elegida && puedeDibujar && (
+              <Btn variant="outline" onClick={() => empezar('dibujar')}>
+                <PenLine size={14} aria-hidden="true" />
+                {elegida.limite ? 'Redibujar límite' : 'Dibujar límite'}
+              </Btn>
+            )}
+            {elegida?.limite && puedeDibujar && (
               <>
                 <Btn variant="outline" onClick={() => empezar('editar')}>
                   <Move size={14} aria-hidden="true" />
@@ -202,7 +251,13 @@ export default function MapaZonas() {
             )}
           </div>
         )}
-        {modo && (
+        {modo === 'punto' && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-marca-50 px-4 py-3">
+            <p role="status" className="mr-auto text-sm text-marca-800">Toca el mapa donde está el punto de referencia.</p>
+            <Btn variant="outline" onClick={() => setModo(null)}>Cancelar</Btn>
+          </div>
+        )}
+        {(modo === 'dibujar' || modo === 'editar') && (
           <div className="space-y-2 border-b border-slate-200 bg-marca-50 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <p role="status" className="mr-auto text-sm text-marca-800">
@@ -228,7 +283,7 @@ export default function MapaZonas() {
         <div className="relative isolate h-104 sm:h-128" role="group"
           aria-label="Mapa de zonas: cada zona con su límite y sus puntos de referencia">
           <MapContainer center={SANTA_CRUZ} zoom={13} scrollWheelZoom={false}
-            className={`h-full w-full ${modo === 'dibujar' ? 'cursor-crosshair' : ''}`}>
+            className={`h-full w-full ${modo === 'dibujar' || modo === 'punto' ? 'cursor-crosshair' : ''}`}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -236,7 +291,7 @@ export default function MapaZonas() {
             <Encuadrar zonas={zonas} puntos={puntos} elegida={elegida} />
             <RuedaAlEnfocar />
             {/* Mientras se dibuja, el límite guardado de la elegida se esconde y ninguna zona responde al clic. */}
-            {zonas.filter((z) => z.limite && !(modo && z.id === elegidaId)).map((z) => (
+            {zonas.filter((z) => z.limite && !((modo === 'dibujar' || modo === 'editar') && z.id === elegidaId)).map((z) => (
               <Polygon key={z.id} positions={comoPosiciones(z.limite)} pathOptions={z.id === elegidaId ? ESTILO_ZONA_ELEGIDA : ESTILO_ZONA}
                 eventHandlers={{ click: () => { if (!modo) elegir(z.id); } }}>
                 <Tooltip permanent direction="center" className="font-semibold">{z.nombre}</Tooltip>
@@ -250,7 +305,8 @@ export default function MapaZonas() {
                 </Tooltip>
               </Marker>
             ))}
-            {modo && <DibujoDeLimite modo={modo} vertices={borrador} onCambiar={setBorrador} />}
+            {(modo === 'dibujar' || modo === 'editar') && <DibujoDeLimite modo={modo} vertices={borrador} onCambiar={setBorrador} />}
+            {modo === 'punto' && <AlTocarPunto onTocar={marcarPunto} />}
           </MapContainer>
           {elegida && !elegida.limite && !modo && (
             <div className="pointer-events-none absolute inset-x-0 top-3 z-500 flex justify-center px-4">
@@ -267,9 +323,26 @@ export default function MapaZonas() {
             {puntosDeLaElegida.length === 0
               ? <p className="mt-1 text-sm text-slate-600">Esta zona todavía no tiene puntos de referencia.</p>
               : (
-                <ul className="mt-2 space-y-1 text-sm text-slate-800">
+                <ul className="mt-2 divide-y divide-slate-200 text-sm text-slate-800">
                   {puntosDeLaElegida.map((p) => (
-                    <li key={p.id}><span className="font-medium">{p.nombre}</span>{p.descripcion && <span className="text-slate-600"> · {p.descripcion}</span>}</li>
+                    <li key={p.id} className="flex flex-wrap items-center gap-2 py-1.5">
+                      <span className="mr-auto min-w-0">
+                        <span className="font-medium">{p.nombre}</span>
+                        {p.descripcion && <span className="text-slate-600"> · {p.descripcion}</span>}
+                      </span>
+                      {puedeRegistrarPuntos && (
+                        <>
+                          <Btn variant="ghost" onClick={() => setFormularioPunto(p)} aria-label={`Editar ${p.nombre}`}>
+                            <Pencil size={14} aria-hidden="true" />
+                            Editar
+                          </Btn>
+                          <Btn variant="ghost" onClick={() => { setErrorEliminarPunto(''); setAEliminarPunto(p); }} aria-label={`Eliminar ${p.nombre}`}>
+                            <Trash2 size={14} aria-hidden="true" />
+                            Eliminar
+                          </Btn>
+                        </>
+                      )}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -295,6 +368,23 @@ export default function MapaZonas() {
         onCancelar={() => setConfirmarReemplazo(false)}
       >
         <p>El límite que dibujaste reemplaza al que tenía la zona. El anterior no se puede recuperar.</p>
+      </Confirmar>
+
+      {formularioPunto && (
+        <FormularioPunto punto={formularioPunto} zonas={zonas} zonaPorDefecto={elegidaId}
+          onCerrar={() => setFormularioPunto(null)} onGuardado={alGuardarPunto} />
+      )}
+
+      <Confirmar
+        abierto={aEliminarPunto !== null}
+        titulo={`¿Eliminar ${aEliminarPunto?.nombre ?? ''}?`}
+        textoAccion="Eliminar"
+        enviando={eliminandoPunto}
+        error={errorEliminarPunto}
+        onConfirmar={eliminarPunto}
+        onCancelar={() => setAEliminarPunto(null)}
+      >
+        <p>El punto de referencia deja de verse en el mapa. Esto no se puede deshacer.</p>
       </Confirmar>
 
       <Confirmar
