@@ -27,14 +27,42 @@ class EntradaDelMenu {
   final List<String> permisos;
 }
 
-const entradasDelMenu = [
+final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Clientes',
+    descripcion: 'Tu cartera: registrarlos, editarlos y ver dónde están.',
+    icono: Icons.storefront_outlined,
+    ruta: Rutas.clientes,
+    permisos: PermisosDe.clientes,
+  ),
+  EntradaDelMenu(
+    titulo: 'Hojas de pedido',
+    descripcion: 'Tus ventas: registrarlas, confirmarlas y verlas.',
+    icono: Icons.receipt_long_outlined,
+    ruta: Rutas.hojasPedido,
+    permisos: PermisosDe.hojasPedido,
+  ),
+  EntradaDelMenu(
+    titulo: 'Cobranzas',
+    descripcion: 'Lo que deben tus clientes, la mora y los pagos.',
+    icono: Icons.request_quote_outlined,
+    ruta: Rutas.cobranzas,
+    permisos: PermisosDe.cobranzas,
+  ),
+  EntradaDelMenu(
+    titulo: 'Productos',
+    descripcion: 'El catálogo, con el precio y el stock de cada producto.',
+    icono: Icons.category_outlined,
+    ruta: Rutas.productos,
+    permisos: PermisosDe.productos,
+  ),
+  const EntradaDelMenu(
     titulo: 'Mi perfil',
     descripcion: 'Tu nombre y el correo con el que entras.',
     icono: Icons.person_outline,
     ruta: Rutas.perfil,
   ),
-  EntradaDelMenu(
+  const EntradaDelMenu(
     titulo: 'Cambiar contraseña',
     descripcion: 'Para cambiarla necesitas la actual.',
     icono: Icons.key_outlined,
@@ -44,9 +72,10 @@ const entradasDelMenu = [
 
 /// El menú principal: quién entró y las opciones que sus permisos abren.
 class MenuScreen extends ConsumerStatefulWidget {
-  const MenuScreen({super.key, this.entradas = entradasDelMenu});
+  const MenuScreen({super.key, this.entradas});
 
-  final List<EntradaDelMenu> entradas;
+  /// Las del menú: las pruebas pasan otras.
+  final List<EntradaDelMenu>? entradas;
 
   @override
   ConsumerState<MenuScreen> createState() => _MenuScreenState();
@@ -81,7 +110,7 @@ class _MenuScreenState extends ConsumerState<MenuScreen> {
     final estado = ref.watch(sesionProvider);
     if (estado is! ConSesion) return const SizedBox.shrink();
     final sesion = estado.sesion;
-    final visibles = widget.entradas.where((e) => e.permisos.isEmpty || sesion.tiene(e.permisos));
+    final visibles = (widget.entradas ?? entradasDelMenu).where((e) => e.permisos.isEmpty || sesion.tiene(e.permisos));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Control de Gestión')),

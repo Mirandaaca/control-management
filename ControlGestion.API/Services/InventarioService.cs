@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
@@ -71,17 +72,30 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
         var ids = pedidos.Keys.ToList();
         var productos = await db.Productos.Include(p => p.Inventario).Where(p => ids.Contains(p.Id)).ToListAsync();
 
-        foreach (var producto in productos)
-        {
-            // Sin fila de inventario, el producto nunca recibió mercadería: su stock es 0.
-            var stock = producto.Inventario?.StockActual ?? 0m;
-            if (stock < pedidos[producto.Id])
-                throw new ReglaDeNegocioException("stock_insuficiente",
-                    $"No hay stock suficiente de {producto.Descripcion}: hay {stock:0.###} y la HP pide {pedidos[producto.Id]:0.###}.");
-        }
+        // Sin fila de inventario, el producto nunca recibió mercadería: su stock es 0.
+        var faltantes = productos
+            .Where(p => (p.Inventario?.StockActual ?? 0m) < pedidos[p.Id])
+            .ToDictionary(p => p.Id, p => $"No hay stock suficiente de {p.Descripcion}: hay " +
+                $"{FormatoBolivia.Cantidad(p.Inventario?.StockActual ?? 0m)} y la venta pide {FormatoBolivia.Cantidad(pedidos[p.Id])}.");
+        if (faltantes.Count > 0)
+            throw StockInsuficiente(hp.Detalles, faltantes);
 
         foreach (var producto in productos)
             Mover(producto.Inventario!, -pedidos[producto.Id], TipoMovimiento.Salida, MovimientoInventario.ReferenciaHojaPedido, hp.Id);
+    }
+
+    /// <summary>
+    /// Marca cada línea cuyo producto no alcanza, en el orden de las líneas de la HP (el mismo de su detalle), así la app
+    /// y el panel ponen el error en su línea (2.1). El detail nombra todos los productos que faltan.
+    /// </summary>
+    private static ReglaDeNegocioException StockInsuficiente(IEnumerable<DetalleHP> lineas, Dictionary<int, string> faltantes)
+    {
+        var errores = lineas
+            .Select((linea, indice) => (linea.ProductoId, Indice: indice))
+            .Where(l => faltantes.ContainsKey(l.ProductoId))
+            .ToDictionary(l => $"detalles[{l.Indice}].cantidad", l => new[] { faltantes[l.ProductoId] });
+        var mensaje = string.Join(" ", lineas.Select(l => l.ProductoId).Distinct().Where(faltantes.ContainsKey).Select(id => faltantes[id]));
+        return new ReglaDeNegocioException("stock_insuficiente", mensaje, errores);
     }
 
     /// <summary>Al anular una HP confirmada vuelve lo que salió, como devolución en el kardex (2.5). No guarda.</summary>

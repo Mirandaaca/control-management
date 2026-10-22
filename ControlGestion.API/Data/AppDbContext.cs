@@ -119,6 +119,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Cliente>()
             .HasIndex(c => c.Codigo).IsUnique();
         builder.Entity<Cliente>()
+            .HasIndex(c => c.ClaveIdempotencia).IsUnique();
+        builder.Entity<Cliente>()
             .Property(c => c.Latitud).HasPrecision(10, 8);
         builder.Entity<Cliente>()
             .Property(c => c.Longitud).HasPrecision(11, 8);
@@ -178,6 +180,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(h => h.Zona).WithMany().HasForeignKey(h => h.ZonaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<HojaPedido>()
             .HasOne(h => h.AnuladoPor).WithMany().HasForeignKey(h => h.AnuladoPorId).OnDelete(DeleteBehavior.SetNull);
+        builder.Entity<HojaPedido>()
+            .HasIndex(h => h.ClaveIdempotencia).IsUnique();
         builder.Entity<HojaPedido>()
             .HasIndex(h => h.Numero).IsUnique();
         builder.Entity<HojaPedido>()

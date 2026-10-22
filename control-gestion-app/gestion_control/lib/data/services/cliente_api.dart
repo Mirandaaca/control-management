@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'almacen_de_sesion.dart';
+import 'conexion.dart';
 
 /// La única instancia de dio de la app, como `api/axios.js` en el panel. Los repositorios la reciben; las pantallas
 /// nunca la usan directo.
@@ -8,6 +9,7 @@ Dio crearClienteApi({
   required String urlDeLaApi,
   required AlmacenDeSesion almacen,
   required void Function() alTerminarLaSesion,
+  VerificadorDeConexion? conexion,
 }) {
   final dio = Dio(
     BaseOptions(
@@ -18,7 +20,26 @@ Dio crearClienteApi({
     ),
   );
   dio.interceptors.add(InterceptorDeSesion(almacen, alTerminarLaSesion));
+  if (conexion != null) dio.interceptors.add(InterceptorDeConexion(conexion));
   return dio;
+}
+
+/// Cuando una petición se queda sin respuesta, revisa si el celular tiene red y lo anota en la petición: ErrorDeApi
+/// dice entonces "No tienes conexión a internet." en vez de "No se pudo conectar con el servidor.".
+class InterceptorDeConexion extends Interceptor {
+  InterceptorDeConexion(this._conexion);
+
+  static const sinRed = 'sinRed';
+
+  final VerificadorDeConexion _conexion;
+
+  @override
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+    if (err.response == null && err.type != DioExceptionType.cancel && !await _conexion.hayRed()) {
+      err.requestOptions.extra[sinRed] = true;
+    }
+    handler.next(err);
+  }
 }
 
 /// Pone el token en cada petición y, si la API responde 401 fuera del inicio y del cierre de sesión, avisa que la

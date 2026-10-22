@@ -5,6 +5,7 @@ const _desfaseBolivia = Duration(hours: -4);
 final _conZona = RegExp(r'(Z|[+-]\d{2}:?\d{2})$', caseSensitive: false);
 final _dia = DateFormat('dd/MM/yyyy');
 final _diaYHora = DateFormat('dd/MM/yyyy HH:mm');
+final _miles = RegExp(r'\B(?=(\d{3})+(?!\d))');
 
 /// La API guarda en UTC, pero devuelve las fechas leídas de MySQL sin la "Z" final. Sin ella, `DateTime.parse` las
 /// tomaría como hora local del celular.
@@ -18,6 +19,40 @@ DateTime? leerFechaUtc(String? valor) {
 String formatearFecha(String? valor, {bool hora = false}) {
   final utc = leerFechaUtc(valor);
   if (utc == null) return '—';
-  // Sigue marcada como UTC, así DateFormat escribe sus campos tal cual, sin pasarlos a la zona del celular.
-  return (hora ? _diaYHora : _dia).format(utc.add(_desfaseBolivia));
+  return formatearMomento(utc, hora: hora);
 }
+
+/// Un momento en UTC, en la hora de Bolivia.
+String formatearMomento(DateTime utc, {bool hora = false}) =>
+    // Sigue marcada como UTC, así DateFormat escribe sus campos tal cual, sin pasarlos a la zona del celular.
+    (hora ? _diaYHora : _dia).format(utc.toUtc().add(_desfaseBolivia));
+
+/// "Bs 1.234,50": punto de miles, coma decimal y dos decimales, como en Bolivia (docs/diseno.md, "Formato").
+String formatearMonto(num monto) => 'Bs ${_numero(monto, decimales: 2)}';
+
+/// Una cantidad sin ceros de más: "120", "1.200" o "12,5".
+String formatearCantidad(num cantidad) {
+  final texto = _numero(cantidad, decimales: 3);
+  return texto.contains(',') ? texto.replaceFirst(RegExp(r',?0+$'), '') : texto;
+}
+
+/// Una coordenada con sus 6 decimales (unos 10 cm), con coma decimal: "-17,783412".
+String formatearCoordenada(double valor) => valor.toStringAsFixed(6).replaceFirst('.', ',');
+
+String _numero(num valor, {required int decimales}) {
+  final partes = valor.abs().toStringAsFixed(decimales).split('.');
+  final entero = partes[0].replaceAll(_miles, '.');
+  final signo = valor < 0 && partes.any((p) => p.contains(RegExp('[1-9]'))) ? '-' : '';
+  return '$signo$entero${partes.length > 1 ? ',${partes[1]}' : ''}';
+}
+
+/// Un monto o una cantidad escritos por el usuario, con coma o con punto decimal ("140,00", "12.5"). Null si está vacío
+/// o no es un número.
+double? leerNumero(String texto) {
+  final limpio = texto.trim().replaceAll(' ', '');
+  if (limpio.isEmpty) return null;
+  return double.tryParse(limpio.replaceAll(',', '.'));
+}
+
+/// En centavos: así los montos se comparan sin los errores de redondeo de un double (140,00 contra 139,999…).
+int centavos(num monto) => (monto * 100).round();

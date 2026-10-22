@@ -42,4 +42,8 @@ public class HojaPedido
 
     // Una HP a crédito tiene una sola cobranza; es una colección porque la relación de Cobranza ya era de uno a muchos.
     public ICollection<Cobranza> Cobranzas { get; set; } = new List<Cobranza>();
+
+    // La genera la app al registrarla, como en PagoCobranza: si la misma venta llega dos veces (un reintento con mala
+    // señal), se registra una sola vez y el stock se descuenta una vez.
+    public Guid? ClaveIdempotencia { get; set; }
 }

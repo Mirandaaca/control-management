@@ -30,6 +30,16 @@ public class HojasPedidoController(HojaPedidoService hojas) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = registrada.Id }, registrada);
     }
 
+    // "Confirmar venta" sin guardarla antes: registra y confirma en un paso. Dos atributos: hacen falta los dos permisos.
+    [HttpPost("confirmadas")]
+    [Permiso(Permisos.Ventas.RegistrarHp)]
+    [Permiso(Permisos.Ventas.ConfirmarHp)]
+    public async Task<ActionResult<HojaPedidoDTO>> RegistrarConfirmada([FromBody] RegistrarHojaPedidoDTO dto)
+    {
+        var confirmada = await hojas.RegistrarConfirmadaAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = confirmada.Id }, confirmada);
+    }
+
     [HttpPost("{id:int}/confirmar")]
     [Permiso(Permisos.Ventas.ConfirmarHp)]
     public async Task<ActionResult<HojaPedidoDTO>> Confirmar(int id) =>

@@ -135,6 +135,9 @@ namespace ControlGestion.API.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<Guid?>("ClaveIdempotencia")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
@@ -200,6 +203,9 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ClaveIdempotencia")
+                        .IsUnique();
 
                     b.HasIndex("Codigo")
                         .IsUnique();
@@ -715,6 +721,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<string>("AnuladoPorId")
                         .HasColumnType("varchar(255)");
 
+                    b.Property<Guid?>("ClaveIdempotencia")
+                        .HasColumnType("char(36)");
+
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
@@ -776,6 +785,9 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AnuladoPorId");
+
+                    b.HasIndex("ClaveIdempotencia")
+                        .IsUnique();
 
                     b.HasIndex("ClienteId");
 

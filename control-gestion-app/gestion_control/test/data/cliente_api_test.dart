@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/config.dart';
 import 'package:gestion_control/data/services/almacen_de_sesion.dart';
 import 'package:gestion_control/data/services/cliente_api.dart';
+import 'package:gestion_control/data/services/conexion.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 
 /// Responde sin red: cada prueba dice qué devuelve la "API" y ve qué se le pidió.
@@ -31,6 +32,15 @@ class AdaptadorFalso implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
+class ConexionFija implements VerificadorDeConexion {
+  ConexionFija(this.red);
+
+  final bool red;
+
+  @override
+  Future<bool> hayRed() async => red;
+}
+
 ResponseBody problema(int estado, Map<String, dynamic> cuerpo) => ResponseBody.fromString(
   jsonEncode(cuerpo),
   estado,
@@ -43,7 +53,11 @@ void main() {
   late AlmacenDeSesion almacen;
   late int sesionesTerminadas;
 
-  Future<(Dio, AdaptadorFalso)> cliente(ResponseBody Function(RequestOptions) responder, {String? token}) async {
+  Future<(Dio, AdaptadorFalso)> cliente(
+    ResponseBody Function(RequestOptions) responder, {
+    String? token,
+    bool? hayRed,
+  }) async {
     FlutterSecureStorage.setMockInitialValues({'token': ?token});
     almacen = AlmacenDeSesion();
     await almacen.cargar();
@@ -52,6 +66,7 @@ void main() {
       urlDeLaApi: 'http://api.prueba/api',
       almacen: almacen,
       alTerminarLaSesion: () => sesionesTerminadas++,
+      conexion: hayRed == null ? null : ConexionFija(hayRed),
     );
     final adaptador = AdaptadorFalso(responder);
     dio.httpClientAdapter = adaptador;
@@ -116,7 +131,24 @@ void main() {
     final error = await errorDe(() => dio.get('/perfil'));
 
     expect(error.mensaje, 'No se pudo conectar con el servidor.');
+    expect(error.detalle, isNull);
     expect(error.sinConexion, isTrue);
+  });
+
+  test('sin respuesta y sin red en el celular dice que no hay internet', () async {
+    final (dio, _) = await cliente((_) => throw const SocketException('Network is unreachable'), hayRed: false);
+
+    final error = await errorDe(() => dio.get('/perfil'));
+
+    expect(error.mensaje, 'No tienes conexión a internet.');
+    expect(error.detalle, 'Revisa los datos móviles o el wifi y vuelve a intentarlo.');
+    expect(error.sinConexion, isTrue);
+  });
+
+  test('con red en el celular, el servidor que no responde no es "sin internet"', () async {
+    final (dio, _) = await cliente((_) => throw const SocketException('Connection refused'), hayRed: true);
+
+    expect((await errorDe(() => dio.get('/perfil'))).mensaje, 'No se pudo conectar con el servidor.');
   });
 
   group('un 401', () {

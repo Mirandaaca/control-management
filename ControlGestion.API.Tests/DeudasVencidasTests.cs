@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Services;
@@ -48,5 +49,27 @@ public class DeudasVencidasTests(ApiDePrueba api)
         // Una cobranza que no está vencida no tiene mora: el campo va vacío, no en cero.
         var pendiente = await (await cliente.GetAsync($"/api/cobranzas/{alDia}")).LeerJsonAsync();
         Assert.Equal(System.Text.Json.JsonValueKind.Null, pendiente.GetProperty("diasDeMora").ValueKind);
+    }
+
+    [Fact]
+    public async Task Las_por_cobrar_son_las_pendientes_parciales_y_vencidas_de_la_mas_atrasada_a_la_mas_reciente()
+    {
+        var reloj = new RelojFijo(DateTimeOffset.UtcNow);
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var productoId = await operador.CrearProductoAsync(10m);
+        var pendiente = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        var parcial = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        var pagada = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        var vencida = await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{parcial}/pagos", new { monto = 4m, metodoPago = 0 })).EnsureSuccessStatusCode();
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{pagada}/pagos", new { monto = 10m, metodoPago = 0 })).EnsureSuccessStatusCode();
+        await VencerAsync(vencida, HoraBolivia.InicioDelDiaUtc(HoraBolivia.Hoy(reloj).AddDays(-2)), reloj);
+
+        var porCobrar = (await (await operador.GetAsync($"/api/cobranzas?clienteId={clienteId}&porCobrar=true")).LeerJsonAsync())
+            .GetProperty("items").EnumerateArray().Select(c => c.GetProperty("id").GetInt32()).ToList();
+
+        // La vencida, que es la más atrasada, primero; la pagada no se cobra.
+        Assert.Equal([vencida, pendiente, parcial], porCobrar);
     }
 }

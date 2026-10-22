@@ -113,6 +113,21 @@ public class ClientesTests(ApiDePrueba api)
             .Single(c => c.GetProperty("id").GetInt32() == clienteId);
 
         Assert.Equal("Calle de prueba", opcion.GetProperty("direccionTexto").GetString());
+        Assert.False(opcion.GetProperty("inactivo").GetBoolean());
+        Assert.True(opcion.GetProperty("estado").GetProperty("delSistema").GetBoolean());
+    }
+
+    [Fact]
+    public async Task La_lista_trae_la_direccion_de_cada_cliente()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var codigo = (await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync()).GetProperty("codigo").GetString();
+
+        var item = (await (await operador.GetAsync($"/api/clientes?buscar={codigo}")).LeerJsonAsync())
+            .GetProperty("items").EnumerateArray().Single(c => c.GetProperty("id").GetInt32() == clienteId);
+
+        Assert.Equal("Calle de prueba", item.GetProperty("direccionTexto").GetString());
     }
 
     [Fact]
@@ -272,6 +287,11 @@ public class ClientesTests(ApiDePrueba api)
         Assert.Equal("Inactivo", EstadoDe(inactivo));
         Assert.DoesNotContain(id, await IdsAsync(cliente, $"?zonaId={zonaId}&porVisitar=true"));
         Assert.False(await enOpciones());
+        // La app los pide igual, para mostrarlos deshabilitados con su estado (7.3.5, ext. 2.2c).
+        var conInactivos = (await (await cliente.GetAsync("/api/clientes/opciones?incluirInactivos=true")).LeerJsonAsync())
+            .EnumerateArray().Single(c => c.GetProperty("id").GetInt32() == id);
+        Assert.True(conInactivos.GetProperty("inactivo").GetBoolean());
+        Assert.Equal("Inactivo", conInactivos.GetProperty("estado").GetProperty("nombre").GetString());
 
         var deVuelta = await (await cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = (int?)null }))
             .LeerJsonAsync();
