@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/ui/core/widgets/barra_de_acciones.dart';
 import 'package:gestion_control/ui/core/widgets/campos_numericos.dart';
+import 'package:gestion_control/ui/core/widgets/confirmar.dart';
 
 import '../../ayudantes.dart';
 
@@ -58,6 +59,43 @@ void main() {
       final confirmar = tester.getRect(find.widgetWithText(FilledButton, 'Confirmar venta'));
       expect(confirmar.top, greaterThan(guardar.bottom));
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('confirmar', () {
+    Future<void> abrir(WidgetTester tester, String accion) async {
+      await cargarInter();
+      tamanoDeCelular(tester, letra: 1);
+      await tester.pumpWidget(
+        conLaApp(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => confirmar(context, titulo: '¿Seguro?', contenido: const Text('Algo.'), accion: accion),
+              child: const Text('Abrir'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Abrir'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('mide 312 dp, como en el 8.6.12, y dos acciones cortas van lado a lado', (tester) async {
+      await abrir(tester, 'Eliminar');
+
+      final tarjeta = find.descendant(of: find.byType(Dialog), matching: find.byType(Material)).first;
+      expect(tester.getSize(tarjeta).width, 312);
+      final cancelar = tester.getRect(find.widgetWithText(OutlinedButton, 'Cancelar'));
+      final eliminar = tester.getRect(find.widgetWithText(FilledButton, 'Eliminar'));
+      expect(cancelar.top, eliminar.top);
+    });
+
+    testWidgets('si no entran lado a lado, se apilan separadas, con la acción abajo', (tester) async {
+      await abrir(tester, 'Confirmar venta');
+
+      final cancelar = tester.getRect(find.widgetWithText(OutlinedButton, 'Cancelar'));
+      final confirmarVenta = tester.getRect(find.widgetWithText(FilledButton, 'Confirmar venta'));
+      expect(confirmarVenta.top - cancelar.bottom, 8);
     });
   });
 
