@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { CircleAlert, LoaderCircle, Lock, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
+import { Check, CircleAlert, LoaderCircle, Lock, Pencil, Plus, Tags, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import EstadoCliente from '../components/EstadoCliente';
@@ -40,8 +40,10 @@ function ElegirColor({ valor, onCambiar, error }) {
             className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-borde-control bg-white px-3 py-2 text-sm text-slate-800 transition-colors hover:bg-slate-50 has-[:checked]:border-marca-600 has-[:checked]:bg-marca-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-marca-500">
             <input type="radio" name="color" value={c.color} checked={valor === c.color} onChange={() => onCambiar(c.color)}
               aria-invalid={error ? true : undefined} className="sr-only" />
-            <span className="h-5 w-5 shrink-0 rounded-full border border-white shadow-[0_0_0_1px_#7B8798]" style={{ backgroundColor: c.color }}
-              aria-hidden="true" />
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-white shadow-[0_0_0_1px_#7B8798]"
+              style={{ backgroundColor: c.color, color: c.texto }} aria-hidden="true">
+              {valor === c.color && <Check size={12} strokeWidth={3} />}
+            </span>
             <span className="truncate">{c.nombre}</span>
           </label>
         ))}
