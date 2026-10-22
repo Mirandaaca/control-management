@@ -65,6 +65,30 @@ public class ZonasTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task El_codigo_y_el_nombre_no_se_repiten_y_el_codigo_no_cambia()
+    {
+        using var operador = await api.OperadorAsync();
+        var codigo = Ayudantes.Unico("Z");
+        var nombre = Ayudantes.Unico("Zona Única");
+        var creada = await operador.PostAsJsonAsync("/api/zonas", new { nombre, codigo, promotorId = ApiDePrueba.PromotorDeZonasId });
+        var id = (await creada.LeerJsonAsync()).GetProperty("id").GetInt32();
+        var otra = await operador.CrearZonaAsync();
+
+        await (await operador.PostAsJsonAsync("/api/zonas", new { nombre = Ayudantes.Unico("Zona"), codigo, promotorId = ApiDePrueba.PromotorDeZonasId }))
+            .ProblemaAsync(409, "zona_codigo_repetido");
+        // Sin importar mayúsculas ni tildes, como el resto de la base.
+        await (await operador.PostAsJsonAsync("/api/zonas", new { nombre = nombre.ToUpperInvariant().Replace("Ú", "U"), codigo = Ayudantes.Unico("Z"),
+            promotorId = ApiDePrueba.PromotorDeZonasId })).ProblemaAsync(409, "zona_nombre_repetido");
+        await (await operador.PutAsJsonAsync($"/api/zonas/{otra}", new { nombre, promotorId = ApiDePrueba.PromotorDeZonasId }))
+            .ProblemaAsync(409, "zona_nombre_repetido");
+
+        // El PUT no recibe el código: aunque llegue otro, no cambia.
+        var modificada = await (await operador.PutAsJsonAsync($"/api/zonas/{id}", new { nombre, codigo = "OTRO", promotorId = ApiDePrueba.PromotorDeZonasId }))
+            .LeerJsonAsync();
+        Assert.Equal(codigo, modificada.GetProperty("codigo").GetString());
+    }
+
+    [Fact]
     public async Task Una_zona_cuyo_promotor_se_desactivo_queda_marcada_y_se_corrige_al_elegir_otro()
     {
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);

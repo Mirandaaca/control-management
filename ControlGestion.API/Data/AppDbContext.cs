@@ -83,7 +83,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 Descripcion = "Días de plazo de una venta a crédito."
             });
 
-        // Una zona siempre tiene promotor (7.2). Los usuarios no se borran, se desactivan: Restrict no estorba.
+        // Zona (7.2): el código y el nombre son únicos.
+        builder.Entity<Zona>().Property(z => z.Codigo).HasMaxLength(20);
+        builder.Entity<Zona>().HasIndex(z => z.Codigo).IsUnique();
+        builder.Entity<Zona>().Property(z => z.Nombre).HasMaxLength(100);
+        builder.Entity<Zona>().HasIndex(z => z.Nombre).IsUnique();
+        // Una zona siempre tiene promotor. Los usuarios no se borran, se desactivan: Restrict no estorba.
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
             .WithMany()

@@ -50,10 +50,23 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
             });
     }
 
+    // La intercalación de la base no distingue mayúsculas ni tildes: "zona norte" choca con "Zona Norte". Los índices
+    // únicos frenan además dos registros a la vez.
+    private async Task ExigirNombreLibreAsync(string nombre, int? idPropio)
+    {
+        if (await db.Zonas.AnyAsync(z => z.Nombre == nombre && z.Id != idPropio))
+            throw new ConflictoException("zona_nombre_repetido", $"Ya existe la zona \"{nombre}\".");
+    }
+
     public async Task<ZonaDTO> RegistrarAsync(RegistrarZonaDTO dto)
     {
+        var codigo = dto.Codigo.Trim();
+        var nombre = dto.Nombre.Trim();
+        if (await db.Zonas.AnyAsync(z => z.Codigo == codigo))
+            throw new ConflictoException("zona_codigo_repetido", $"Ya existe una zona con el código {codigo}.");
+        await ExigirNombreLibreAsync(nombre, idPropio: null);
         await ExigirPromotorValidoAsync(dto.PromotorId);
-        var zona = new Zona { Codigo = dto.Codigo.Trim(), Nombre = dto.Nombre.Trim(), PromotorId = dto.PromotorId };
+        var zona = new Zona { Codigo = codigo, Nombre = nombre, PromotorId = dto.PromotorId };
         db.Zonas.Add(zona);
         await db.SaveChangesAsync();
         return await ObtenerAsync(zona.Id);
@@ -66,11 +79,13 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
     public async Task<ZonaDTO> ModificarAsync(int id, ModificarZonaDTO dto)
     {
         var zona = await db.Zonas.FindAsync(id) ?? throw new NoEncontradoException("No se encontró la zona.");
+        var nombre = dto.Nombre.Trim();
+        await ExigirNombreLibreAsync(nombre, id);
         await ExigirPromotorValidoAsync(dto.PromotorId);
         var cambiaElPromotor = zona.PromotorId != dto.PromotorId;
 
         await using var transaccion = await db.Database.BeginTransactionAsync();
-        zona.Nombre = dto.Nombre.Trim();
+        zona.Nombre = nombre;
         zona.PromotorId = dto.PromotorId;
         await db.SaveChangesAsync();
         if (cambiaElPromotor)
