@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+const _colorDelError = Color(0xFFB91C1C);
+const _colorDeLaEtiqueta = Color(0xFF334155);
 
 /// Un campo de texto con su etiqueta encima, como en el panel. Dentro del campo, la etiqueta de Material va en una sola
 /// línea y con la letra del celular al 200 % se corta ("Correo electróni…"); encima, pasa de línea. MergeSemantics une
@@ -17,6 +21,12 @@ class CampoDeTexto extends StatelessWidget {
     this.onSubmitted,
     this.oculto = false,
     this.textCapitalization = TextCapitalization.none,
+    this.focusNode,
+    this.inputFormatters,
+    this.onChanged,
+    this.textAlign = TextAlign.start,
+    this.lineas = 1,
+    this.debajo,
   });
 
   final TextEditingController controller;
@@ -34,37 +44,84 @@ class CampoDeTexto extends StatelessWidget {
   /// Para una contraseña: el texto no se ve, ni se corrige ni se sugiere.
   final bool oculto;
   final TextCapitalization textCapitalization;
+  final FocusNode? focusNode;
+  final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
+
+  /// Los montos y las cantidades van a la derecha (docs/diseno.md, "Formularios").
+  final TextAlign textAlign;
+
+  /// Más de una línea, como la dirección: el campo crece hasta ese alto.
+  final int lineas;
+
+  /// Algo que va debajo del campo, como el aviso del celular repetido.
+  final Widget? debajo;
 
   @override
   Widget build(BuildContext context) {
     final sinCorrector = oculto || keyboardType == TextInputType.emailAddress;
-    return MergeSemantics(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(etiqueta, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: const Color(0xFF334155))),
-          const SizedBox(height: 4),
-          TextField(
-            controller: controller,
-            obscureText: oculto,
-            autocorrect: !sinCorrector,
-            enableSuggestions: !sinCorrector,
-            keyboardType: keyboardType,
-            autofillHints: autofillHints,
-            textInputAction: textInputAction,
-            textCapitalization: textCapitalization,
-            onSubmitted: onSubmitted,
-            decoration: InputDecoration(
-              hintText: ejemplo,
-              hintMaxLines: 3,
-              helperText: ayuda,
-              helperMaxLines: 4,
-              errorText: error,
-              errorMaxLines: 4,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MergeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(etiqueta, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: _colorDeLaEtiqueta)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: controller,
+                focusNode: focusNode,
+                obscureText: oculto,
+                autocorrect: !sinCorrector,
+                enableSuggestions: !sinCorrector,
+                keyboardType: keyboardType ?? (lineas > 1 ? TextInputType.multiline : null),
+                autofillHints: autofillHints,
+                textInputAction: lineas > 1 ? TextInputAction.newline : textInputAction,
+                textCapitalization: textCapitalization,
+                inputFormatters: inputFormatters,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                textAlign: textAlign,
+                minLines: lineas > 1 ? 2 : null,
+                maxLines: lineas,
+                decoration: InputDecoration(
+                  hintText: ejemplo,
+                  hintMaxLines: 3,
+                  helperText: ayuda,
+                  helperMaxLines: 4,
+                  error: error == null ? null : ErrorDeCampo(error!),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        ?debajo,
+      ],
+    );
+  }
+}
+
+/// El error debajo de un campo: el mensaje en rojo-700 con el ícono `circle-alert` (docs/diseno.md, "Formularios").
+class ErrorDeCampo extends StatelessWidget {
+  const ErrorDeCampo(this.mensaje, {super.key});
+
+  final String mensaje;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 1),
+          child: Icon(Icons.error_outline, size: 18, color: _colorDelError),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(mensaje, style: const TextStyle(color: _colorDelError, fontSize: 14, height: 20 / 14)),
+        ),
+      ],
     );
   }
 }

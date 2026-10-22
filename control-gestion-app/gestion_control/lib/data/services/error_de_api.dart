@@ -3,7 +3,14 @@ import 'package:dio/dio.dart';
 /// Un error de la API traducido para el usuario, como `mensajeDeError` y `erroresPorCampo` del panel. La API responde
 /// todo error con ProblemDetails: `{ title, detail, codigo, traceId, errors }`.
 class ErrorDeApi implements Exception {
-  const ErrorDeApi({required this.mensaje, this.codigo, this.estado, this.campos = const {}, this.sinConexion = false});
+  const ErrorDeApi({
+    required this.mensaje,
+    this.codigo,
+    this.estado,
+    this.campos = const {},
+    this.sinConexion = false,
+    this.detalle,
+  });
 
   factory ErrorDeApi.desde(Object error, {String porDefecto = 'Ocurrió un error.'}) {
     if (error is ErrorDeApi) return error;
@@ -32,6 +39,9 @@ class ErrorDeApi implements Exception {
 
   /// El texto para el usuario.
   final String mensaje;
+
+  /// Qué hacer, cuando el mensaje solo no alcanza: con él, el mensaje va como título del aviso (8.6.12).
+  final String? detalle;
 
   /// El código estable de la API, en snake_case (por ejemplo, `correo_duplicado`).
   final String? codigo;

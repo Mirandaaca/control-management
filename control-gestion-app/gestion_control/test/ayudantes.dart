@@ -141,3 +141,7 @@ void tamanoDeCelular(WidgetTester tester, {double letra = 1, double alto = 800})
 /// El TextField de un campo, buscado por la etiqueta que va encima de él.
 Finder campo(String etiqueta) =>
     find.descendant(of: find.widgetWithText(CampoDeTexto, etiqueta), matching: find.byType(TextField));
+
+/// El error que muestra un campo debajo, o null si no tiene.
+String? errorDelCampo(WidgetTester tester, String etiqueta) =>
+    (tester.widget<TextField>(campo(etiqueta)).decoration!.error as ErrorDeCampo?)?.mensaje;
