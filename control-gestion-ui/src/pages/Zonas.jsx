@@ -21,6 +21,7 @@ const { parametros } = PERMISOS;
 const CAMPO_DEL_ERROR = { zona_codigo_repetido: 'codigo', zona_nombre_repetido: 'nombre' };
 
 const clientes = (n) => (n === 1 ? '1 cliente' : `${n} clientes`);
+const cuantasZonas = (n) => (n === 1 ? '1 zona' : `${n} zonas`);
 // Lo que se elimina con la zona: " con su límite y sus 2 puntos de referencia", o nada.
 function loQueSeVaConElla(zona) {
   const n = zona?.puntosDeReferencia ?? 0;
@@ -30,7 +31,7 @@ function loQueSeVaConElla(zona) {
 }
 
 // Como el botón fantasma de una fila (Btn variant="ghost"), pero navega.
-const enlaceDeFila = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2';
+const enlaceDeFila = 'inline-flex h-8 shrink-0 items-center whitespace-nowrap justify-center gap-1.5 rounded-lg px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2';
 
 /**
  * Zonas de venta (7.2). Cada zona tiene un promotor, que es el de todos sus clientes: tiene que estar activo y
@@ -166,7 +167,7 @@ export default function Zonas() {
         estado={estado}
         barra={!cargando && !errorCarga && zonas.length > 0 && (
           <BarraDeFiltros
-            resultado={busqueda ? `${visibles.length} de ${zonas.length} zonas` : `${zonas.length} zonas`}
+            resultado={busqueda ? `${visibles.length} de ${cuantasZonas(zonas.length)}` : cuantasZonas(zonas.length)}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >
@@ -178,7 +179,7 @@ export default function Zonas() {
           <Tr key={z.id}>
             <Td>
               <span className="block font-medium">{z.nombre}</span>
-              <span translate="no" className="block font-mono text-xs text-slate-600">{z.codigo}</span>
+              <span translate="no" className="block whitespace-nowrap font-mono text-xs text-slate-600">{z.codigo}</span>
             </Td>
             <Td>
               <span className="block">{z.promotor?.nombreCompleto ?? 'Sin promotor'}</span>

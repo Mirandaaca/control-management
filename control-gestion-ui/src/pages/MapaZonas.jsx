@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Landmark, Map as Mapa, MapPinPlus, Move, PenLine, Pencil, Trash2, Undo2 } from 'lucide-react';
 import L from 'leaflet';
-import { MapContainer, Marker, Polygon, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, Pane, Polygon, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
@@ -16,6 +16,7 @@ import { PANTALLAS, PERMISOS } from '../context/permisos';
 // Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay nada dibujado.
 const SANTA_CRUZ = [-17.7833, -63.1821];
 const { territorial } = PERMISOS;
+const CAPA_NOMBRES = 'nombresDeZonas';
 
 // Encuadra la zona elegida si tiene límite; si no, todo lo que hay dibujado.
 function Encuadrar({ zonas, puntos, elegida }) {
@@ -290,13 +291,18 @@ export default function MapaZonas() {
             />
             <Encuadrar zonas={zonas} puntos={puntos} elegida={elegida} />
             <RuedaAlEnfocar />
-            {/* Mientras se dibuja, el límite guardado de la elegida se esconde y ninguna zona responde al clic. */}
-            {zonas.filter((z) => z.limite && !((modo === 'dibujar' || modo === 'editar') && z.id === elegidaId)).map((z) => (
-              <Polygon key={z.id} positions={comoPosiciones(z.limite)} pathOptions={z.id === elegidaId ? ESTILO_ZONA_ELEGIDA : ESTILO_ZONA}
-                eventHandlers={{ click: () => { if (!modo) elegir(z.id); } }}>
-                <Tooltip permanent direction="center" className="font-semibold">{z.nombre}</Tooltip>
-              </Polygon>
-            ))}
+            {/* El nombre de cada zona va en su propia capa, debajo de los puntos (600): si no, tapa al que está en el
+                centro de la zona. La capa se crea antes que sus hijos, así existe cuando se abre cada nombre. */}
+            <Pane name={CAPA_NOMBRES} style={{ zIndex: 450 }}>
+              {/* Mientras se dibuja, el límite guardado de la elegida se esconde y ninguna zona responde al clic. */}
+              {zonas.filter((z) => z.limite && !((modo === 'dibujar' || modo === 'editar') && z.id === elegidaId)).map((z) => (
+                <Polygon key={z.id} pane="overlayPane" positions={comoPosiciones(z.limite)}
+                  pathOptions={z.id === elegidaId ? ESTILO_ZONA_ELEGIDA : ESTILO_ZONA}
+                  eventHandlers={{ click: () => { if (!modo) elegir(z.id); } }}>
+                  <Tooltip pane={CAPA_NOMBRES} permanent direction="center" className="font-semibold">{z.nombre}</Tooltip>
+                </Polygon>
+              ))}
+            </Pane>
             {puntos.map((p) => (
               <Marker key={p.id} position={[p.latitud, p.longitud]} icon={ICONO_PUNTO} title={`${p.nombre} (${p.zona.nombre})`}>
                 <Tooltip>
@@ -309,7 +315,8 @@ export default function MapaZonas() {
             {modo === 'punto' && <AlTocarPunto onTocar={marcarPunto} />}
           </MapContainer>
           {elegida && !elegida.limite && !modo && (
-            <div className="pointer-events-none absolute inset-x-0 top-3 z-500 flex justify-center px-4">
+            // px-14: a los costados del aviso queda lugar para los botones del zoom, que no se tapan en el celular.
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-500 flex justify-center px-14">
               <p role="status" className="rounded-lg bg-white px-4 py-2 text-sm text-slate-800 shadow-flotante">
                 {elegida.nombre} todavía no tiene límite.
               </p>
