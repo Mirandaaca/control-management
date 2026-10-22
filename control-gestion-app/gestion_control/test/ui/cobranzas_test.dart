@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cobranza.dart';
@@ -251,6 +254,19 @@ void main() {
       await tester.tap(find.byTooltip('Cerrar'));
       await tester.pumpAndSettle();
       expect(find.text('Comprobante'), findsNothing);
+    });
+
+    testWidgets('si el archivo no es una imagen, lo dice en vez de quedar en blanco', (tester) async {
+      cobranzas.bytesDelComprobante = Uint8List.fromList(utf8.encode('no es una foto'));
+      await abrir(tester, inicio: '/cobranzas/12');
+
+      await tester.tap(find.text('Ver comprobante'));
+      await tester.pumpAndSettle();
+      // La decodificación de la imagen corre fuera del reloj falso de la prueba.
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No se pudo mostrar la foto.'), findsOneWidget);
     });
 
     testWidgets('con la letra al 200 % cumple las guías', (tester) async {

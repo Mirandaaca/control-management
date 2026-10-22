@@ -286,9 +286,27 @@ Future<void> verComprobante(BuildContext context, int evidenciaId) => showDialog
       ),
       body: Consumer(
         builder: (context, ref, _) => switch (ref.watch(fotoDeComprobanteProvider(evidenciaId))) {
+          // Ocupa la pantalla: una foto chica, como una captura subida desde el panel, también se ve.
           AsyncData(:final value) => InteractiveViewer(
-            child: Center(
-              child: Semantics(image: true, label: 'Foto del comprobante', child: Image.memory(value)),
+            child: SizedBox.expand(
+              child: Semantics(
+                image: true,
+                label: 'Foto del comprobante',
+                child: Image.memory(
+                  value,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Aviso(
+                        'El archivo del comprobante está dañado o no es una imagen.',
+                        titulo: 'No se pudo mostrar la foto.',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           AsyncError(:final error) => ErrorConReintento.de(

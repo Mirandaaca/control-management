@@ -629,6 +629,7 @@ class CobranzasRepositoryFalso implements CobranzasRepository {
   Future<PagoRegistrado> Function(EnvioDePagoPrueba envio) alRegistrarPago = (envio) async =>
       PagoRegistrado(id: 2, estado: EstadoCobranza.pagada, saldo: 140 - envio.datos.monto);
   Future<Cobranza> Function(int pagoId, FotoTomada foto)? alSubir;
+  Uint8List bytesDelComprobante = fotoDePrueba.bytes;
 
   final listados = <({FiltroDeCobranzas filtro, int? clienteId, String buscar})>[];
   final pagos = <EnvioDePagoPrueba>[];
@@ -665,7 +666,7 @@ class CobranzasRepositoryFalso implements CobranzasRepository {
   }
 
   @override
-  Future<Uint8List> comprobante(int evidenciaId) async => fotoDePrueba.bytes;
+  Future<Uint8List> comprobante(int evidenciaId) async => bytesDelComprobante;
 }
 
 /// Un PNG de 1 × 1, para que Image.memory tenga algo que dibujar.
