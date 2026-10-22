@@ -356,7 +356,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<EstadoCliente>().HasData(
             new EstadoCliente { Id = 1, Nombre = "Activo", Color = "#10b981", Descripcion = "Cliente activo y disponible" },
             new EstadoCliente { Id = 2, Nombre = "Disponible para Re-visita", Color = "#f59e0b", Descripcion = "Ha pasado el período de re-visita" },
-            new EstadoCliente { Id = 3, Nombre = "Con Deuda Vencida", Color = "#ef4444", Descripcion = "Tiene cobranzas vencidas pendientes" },
             new EstadoCliente { Id = 4, Nombre = "Inactivo", Color = "#6b7280", Descripcion = "Cliente inactivo o dado de baja" }
         );
     }

@@ -440,14 +440,6 @@ namespace ControlGestion.API.Data.Migrations
                         },
                         new
                         {
-                            Id = 3,
-                            Activo = true,
-                            Color = "#ef4444",
-                            Descripcion = "Tiene cobranzas vencidas pendientes",
-                            Nombre = "Con Deuda Vencida"
-                        },
-                        new
-                        {
                             Id = 4,
                             Activo = true,
                             Color = "#6b7280",

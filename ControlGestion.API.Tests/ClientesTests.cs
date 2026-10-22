@@ -374,4 +374,15 @@ public class ClientesTests(ApiDePrueba api)
         Assert.Equal([1, 2], estados.Where(e => e.GetProperty("delSistema").GetBoolean()).Select(e => e.GetProperty("id").GetInt32()));
         Assert.Contains(estados, e => e.GetProperty("nombre").GetString() == "Inactivo" && !e.GetProperty("delSistema").GetBoolean());
     }
+
+    [Fact]
+    public async Task El_estado_Con_Deuda_Vencida_ya_no_existe_ni_se_asigna()
+    {
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        var estados = (await (await operador.GetAsync("/api/clientes/estados")).LeerJsonAsync()).EnumerateArray();
+        Assert.DoesNotContain(estados, e => e.GetProperty("id").GetInt32() == 3 || e.GetProperty("nombre").GetString() == "Con Deuda Vencida");
+        await (await operador.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = 3 })).ProblemaAsync(400, "estado_no_existe");
+    }
 }
