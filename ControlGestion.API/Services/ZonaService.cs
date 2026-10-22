@@ -94,10 +94,32 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
         return await ObtenerAsync(id);
     }
 
+    /// <summary>
+    /// Una zona con clientes, HP, pedidos o rutas no se elimina (7.2, tesis 7.3.28): el aviso dice qué la usa. Si algo
+    /// se le asigna mientras tanto, la FK lo frena igual (409 tiene_registros_asociados).
+    /// </summary>
     public async Task EliminarAsync(int id)
     {
         var zona = await db.Zonas.FindAsync(id) ?? throw new NoEncontradoException("No se encontró la zona.");
+        string[] usos =
+        [
+            Cuantos(await db.Clientes.CountAsync(c => c.ZonaId == id), "cliente", "clientes"),
+            Cuantos(await db.HojasPedido.CountAsync(h => h.ZonaId == id), "hoja de pedido", "hojas de pedido"),
+            Cuantos(await db.Pedidos.CountAsync(p => p.ZonaId == id), "pedido", "pedidos"),
+            Cuantos(await db.Rutas.CountAsync(r => r.ZonaId == id), "ruta", "rutas")
+        ];
+        var enUso = usos.Where(u => u.Length > 0).ToList();
+        if (enUso.Count > 0)
+            throw new ConflictoException("zona_en_uso", $"La zona tiene {Enumerar(enUso)}: no se puede eliminar.");
+
         db.Zonas.Remove(zona);
         await db.SaveChangesAsync();
     }
+
+    private static string Cuantos(int cantidad, string singular, string plural) =>
+        cantidad switch { 0 => "", 1 => $"1 {singular}", _ => $"{cantidad} {plural}" };
+
+    // "5 clientes, 26 hojas de pedido y 2 rutas".
+    private static string Enumerar(List<string> partes) =>
+        partes.Count == 1 ? partes[0] : $"{string.Join(", ", partes[..^1])} y {partes[^1]}";
 }

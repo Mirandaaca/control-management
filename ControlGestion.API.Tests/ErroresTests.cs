@@ -1,5 +1,11 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using ControlGestion.API.Data;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Tests.Infraestructura;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
 
@@ -50,13 +56,29 @@ public class ErroresTests(ApiDePrueba api)
     }
 
     [Fact]
-    public async Task Borrar_una_zona_con_clientes_responde_409_y_no_500()
+    public async Task Un_registro_con_datos_asociados_que_llega_a_la_FK_responde_409_y_no_500()
     {
         using var operador = await api.OperadorAsync();
         var zonaId = await operador.CrearZonaAsync();
         await operador.CrearClienteAsync(zonaId);
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        await (await operador.DeleteAsync($"/api/zonas/{zonaId}")).ProblemaAsync(409, "tiene_registros_asociados");
+        // Ningún endpoint llega ya a esta FK: zonas, estados del cliente y roles revisan el uso antes de borrar. Se
+        // provoca el error 1451 de verdad, borrando la zona sin pasar por su servicio, y se pasa por el manejador.
+        db.Zonas.Remove(await db.Zonas.SingleAsync(z => z.Id == zonaId));
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        http.Response.Body = new MemoryStream();
+
+        var manejador = ActivatorUtilities.CreateInstance<ManejadorDeExcepciones>(scope.ServiceProvider);
+        Assert.True(await manejador.TryHandleAsync(http, error, CancellationToken.None));
+
+        Assert.Equal(409, http.Response.StatusCode);
+        http.Response.Body.Position = 0;
+        var problema = (await JsonDocument.ParseAsync(http.Response.Body)).RootElement;
+        Assert.Equal("tiene_registros_asociados", problema.GetProperty("codigo").GetString());
+        Assert.Equal("No se puede borrar porque tiene registros asociados.", problema.GetProperty("detail").GetString());
     }
 
     [Fact]

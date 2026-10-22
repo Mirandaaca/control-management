@@ -89,6 +89,30 @@ public class ZonasTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Una_zona_en_uso_no_se_elimina_y_el_aviso_dice_que_la_usa()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        await operador.CrearClienteAsync(zonaId);
+        await operador.CrearHojaPedidoAsync(clienteId, await operador.CrearProductoAsync(10m), 1);
+
+        var problema = await (await operador.DeleteAsync($"/api/zonas/{zonaId}")).ProblemaAsync(409, "zona_en_uso");
+        Assert.Equal("La zona tiene 2 clientes y 1 hoja de pedido: no se puede eliminar.", problema.GetProperty("detail").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await operador.GetAsync($"/api/zonas/{zonaId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Una_zona_libre_se_elimina()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+
+        Assert.Equal(HttpStatusCode.NoContent, (await operador.DeleteAsync($"/api/zonas/{zonaId}")).StatusCode);
+        await (await operador.GetAsync($"/api/zonas/{zonaId}")).ProblemaAsync(404, "no_encontrado");
+    }
+
+    [Fact]
     public async Task Una_zona_cuyo_promotor_se_desactivo_queda_marcada_y_se_corrige_al_elegir_otro()
     {
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
