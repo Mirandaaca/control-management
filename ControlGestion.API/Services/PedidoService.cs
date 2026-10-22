@@ -110,6 +110,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             .ToDictionaryAsync(p => p.Id);
         if (productos.Count != idsDeProductos.Count)
             throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
+        RevisionDeLineas.RevisarDescuentos(dto.Detalles.Select(d => (d.Descuento, productos[d.ProductoId].Precio)));
 
         pedido.Detalles.Clear();
         foreach (var item in dto.Detalles)
