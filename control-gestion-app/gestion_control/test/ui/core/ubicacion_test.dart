@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/core/ubicacion/captura_de_ubicacion.dart';
+import 'package:gestion_control/ui/core/ubicacion/mapa_de_ubicacion.dart';
 import 'package:gestion_control/ui/core/ubicacion/tarjeta_de_ubicacion.dart';
 
 import '../../ayudantes.dart';
@@ -191,6 +192,24 @@ void main() {
     await tester.pump();
     expect(find.text('Activar GPS'), findsOneWidget);
     await cumpleLasGuias(tester);
+    semantica.dispose();
+  });
+
+  testWidgets('el mapa muestra el punto con su atribución, y el lector lee dónde está', (tester) async {
+    final semantica = tester.ensureSemantics();
+    tamanoDeCelular(tester);
+    await tester.pumpWidget(
+      conLaApp(
+        const Scaffold(body: MapaDeUbicacion(latitud: -17.771845, longitud: -63.17629)),
+        overrides: [mosaicosDelMapaProvider.overrideWithValue(false)],
+      ),
+    );
+
+    expect(find.text('© OpenStreetMap'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Mapa con la ubicación: latitud -17,771845, longitud -63,176290'),
+      findsOneWidget,
+    );
     semantica.dispose();
   });
 }
