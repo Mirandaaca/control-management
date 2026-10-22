@@ -38,10 +38,16 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         return new Pagina<ClienteListaDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
-    /// <summary>Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos.</summary>
-    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar) =>
-        Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
-            .Buscar(buscar).OrderBy(c => c.NombreCompleto).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+    /// <summary>
+    /// Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos, por nombre. Con
+    /// límite, solo los primeros: el selector con búsqueda pide de a pocos mientras se escribe.
+    /// </summary>
+    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar, int? limite = null)
+    {
+        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
+            .Buscar(buscar).OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id);
+        return (limite is { } n ? consulta.Take(n) : consulta).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+    }
 
     public Task<List<ClienteMapaDTO>> MapaAsync(int? zonaId)
     {

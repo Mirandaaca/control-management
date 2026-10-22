@@ -389,6 +389,29 @@ public class ClientesTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Las_opciones_aceptan_un_limite_y_vienen_ordenadas_por_nombre()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var prefijo = Ayudantes.Unico("PAR");
+        foreach (var letra in new[] { "C", "A", "B" })
+            (await operador.PostAsJsonAsync("/api/clientes", new
+            {
+                nombreCompleto = $"{prefijo} {letra}", telefono = $"7{Random.Shared.Next(1000000, 9999999)}",
+                direccionTexto = "Calle", latitud = -17.76m, longitud = -63.18m, zonaId
+            })).EnsureSuccessStatusCode();
+
+        async Task<List<string>> NombresAsync(string consulta) =>
+            (await (await operador.GetAsync($"/api/clientes/opciones?buscar={prefijo}{consulta}")).LeerJsonAsync())
+                .EnumerateArray().Select(c => c.GetProperty("nombreCompleto").GetString()!).ToList();
+
+        Assert.Equal([$"{prefijo} A", $"{prefijo} B"], await NombresAsync("&limite=2"));
+        Assert.Equal(3, (await NombresAsync("")).Count);
+        var problema = await (await operador.GetAsync("/api/clientes/opciones?limite=0")).ProblemaAsync(400, "validacion");
+        Assert.True(problema.GetProperty("errors").TryGetProperty("limite", out _));
+    }
+
+    [Fact]
     public async Task El_estado_Con_Deuda_Vencida_ya_no_existe_ni_se_asigna()
     {
         using var operador = await api.OperadorAsync();
