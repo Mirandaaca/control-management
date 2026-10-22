@@ -46,6 +46,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Sesion> Sesiones { get; set; }
 
+    public DbSet<PuntoReferencia> PuntosReferencia { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -83,11 +85,27 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 Descripcion = "Días de plazo de una venta a crédito."
             });
 
+        // Zona (7.2): el código y el nombre son únicos.
+        builder.Entity<Zona>().Property(z => z.Codigo).HasMaxLength(20);
+        builder.Entity<Zona>().HasIndex(z => z.Codigo).IsUnique();
+        builder.Entity<Zona>().Property(z => z.Nombre).HasMaxLength(100);
+        builder.Entity<Zona>().HasIndex(z => z.Nombre).IsUnique();
+        builder.Entity<Zona>().Property(z => z.Limite).HasColumnType("json");
+
+        // Puntos de referencia (5.5): son información de su zona y se eliminan con ella.
+        builder.Entity<PuntoReferencia>()
+            .HasOne(p => p.Zona).WithMany().HasForeignKey(p => p.ZonaId).OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<PuntoReferencia>().Property(p => p.Nombre).HasMaxLength(100);
+        builder.Entity<PuntoReferencia>().Property(p => p.Descripcion).HasMaxLength(300);
+        builder.Entity<PuntoReferencia>().Property(p => p.Latitud).HasPrecision(10, 8);
+        builder.Entity<PuntoReferencia>().Property(p => p.Longitud).HasPrecision(11, 8);
+        // Una zona siempre tiene promotor. Los usuarios no se borran, se desactivan: Restrict no estorba.
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
             .WithMany()
             .HasForeignKey(z => z.PromotorId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Cliente
         builder.Entity<Cliente>()

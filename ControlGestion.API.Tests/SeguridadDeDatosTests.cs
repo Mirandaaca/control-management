@@ -12,10 +12,10 @@ public class SeguridadDeDatosTests(ApiDePrueba api)
     [Fact]
     public async Task Ningun_usuario_anidado_expone_los_campos_internos_de_Identity()
     {
-        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
         using var operador = await api.OperadorAsync();
-        var zonaId = await operador.CrearZonaAsync(gerente.Id);
+        // Una zona más, con el promotor de zonas de la corrida: /api/zonas trae a los dos anidados.
+        await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
         using var vendedor = api.ClienteCon(promotor.Token);

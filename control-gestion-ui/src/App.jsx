@@ -10,6 +10,7 @@ import Productos from './pages/Productos';
 import Reportes from './pages/Reportes';
 import ConfiguracionGeneral from './pages/ConfiguracionGeneral';
 import EstadosCliente from './pages/EstadosCliente';
+import MapaZonas from './pages/MapaZonas';
 import Clientes from './pages/Clientes';
 import HojasPedido from './pages/HojasPedido';
 import Inventario from './pages/Inventario';
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/usuarios" element={<PrivateRoute permisos={PANTALLAS.usuarios}><Usuarios /></PrivateRoute>} />
           <Route path="/roles" element={<PrivateRoute permisos={PANTALLAS.roles}><Roles /></PrivateRoute>} />
           <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
+          <Route path="/zonas/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaZonas}><MapaZonas /></PrivateRoute>} />
           <Route path="/zonas" element={<PrivateRoute permisos={PANTALLAS.zonas}><Zonas /></PrivateRoute>} />
           <Route path="/productos" element={<PrivateRoute permisos={PANTALLAS.productos}><Productos /></PrivateRoute>} />
           <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />

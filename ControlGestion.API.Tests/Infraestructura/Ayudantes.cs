@@ -89,11 +89,12 @@ public static class Ayudantes
         return problema;
     }
 
+    /// <summary>Crea una zona con ese promotor; sin él, con el promotor de zonas de la corrida (ApiDePrueba.PromotorDeZonasId).</summary>
     public static async Task<int> CrearZonaAsync(this HttpClient admin, string? promotorId = null)
     {
         var codigo = Unico("Z");
         var respuesta = await admin.PostAsJsonAsync("/api/zonas",
-            new { nombre = $"Zona {codigo}", codigo, promotorId });
+            new { nombre = $"Zona {codigo}", codigo, promotorId = promotorId ?? ApiDePrueba.PromotorDeZonasId });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }

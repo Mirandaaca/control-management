@@ -3,8 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ControlGestion.API.Configuracion;
+using ControlGestion.API.Data;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
 
@@ -198,6 +201,10 @@ public class PedidosTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        // Una zona siempre tiene promotor (7.2): un cliente sin promotor solo queda de los datos viejos.
+        using (var scope = api.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().Clientes.Where(c => c.Id == clienteId)
+                .ExecuteUpdateAsync(s => s.SetProperty(c => c.PromotorId, (string?)null));
 
         var pedido = await (await RegistrarAsync(operador, clienteId, Linea(await operador.CrearProductoAsync(10m)))).LeerJsonAsync();
 
