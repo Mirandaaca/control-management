@@ -302,7 +302,10 @@ class _FormularioClienteScreenState extends ConsumerState<FormularioClienteScree
           textCapitalization: mayusculas,
           autofillHints: pistas,
           focusNode: foco ?? lugar.foco,
-          onChanged: alCambiar,
+          onChanged: (texto) {
+            _viewModel.cambioElCampo(clave);
+            alCambiar?.call(texto);
+          },
           lineas: lineas,
           error: estado.campos[clave],
           debajo: debajo,

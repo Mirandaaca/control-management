@@ -146,7 +146,7 @@ class _Contenido extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: TextButton(
               onPressed: () => context.push(Rutas.cobranza(hoja.cobranza!.id)),
-              child: Text('Ver la deuda ${hoja.cobranza!.numero}'),
+              child: const Text('Ver la deuda'),
             ),
           ),
         ],

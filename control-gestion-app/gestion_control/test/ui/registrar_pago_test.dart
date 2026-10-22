@@ -90,6 +90,11 @@ void main() {
     await registrar(tester);
     expect(errorDelCampo(tester, 'Monto (Bs)'), 'El monto debe ser mayor que cero.');
     expect(cobranzas.pagos, isEmpty);
+
+    // Al corregirlo, el error viejo se va: no queda junto al monto nuevo.
+    await tester.enterText(campo('Monto (Bs)'), '140,00');
+    await tester.pump();
+    expect(errorDelCampo(tester, 'Monto (Bs)'), isNull);
   });
 
   testWidgets('con QR, el número de referencia es obligatorio', (tester) async {

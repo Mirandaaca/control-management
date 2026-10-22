@@ -275,6 +275,12 @@ void main() {
       expect(errorDelCampo(tester, 'Dirección'), 'La dirección es obligatoria.');
       expect(find.text('Elige la zona.'), findsOneWidget);
       expect(clientes.registros, isEmpty);
+
+      // Al escribir el nombre, su error se va; los demás siguen.
+      await tester.enterText(campo('Nombre completo'), 'Silvia Torrico Méndez');
+      await tester.pump();
+      expect(errorDelCampo(tester, 'Nombre completo'), isNull);
+      expect(errorDelCampo(tester, 'Celular'), 'El celular es obligatorio.');
     });
 
     testWidgets('con varias zonas, sugiere la que contiene el punto, con el texto del panel', (tester) async {

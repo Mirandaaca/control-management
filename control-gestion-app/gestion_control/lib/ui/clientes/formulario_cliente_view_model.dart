@@ -175,6 +175,11 @@ class FormularioClienteViewModel extends Notifier<EstadoFormularioCliente> {
     }
   }
 
+  /// Al corregir un campo, su error ya no vale: se quita, así no queda un aviso viejo junto al valor nuevo.
+  void cambioElCampo(String clave) {
+    if (state.campos.containsKey(clave)) state = state.copiar(campos: {...state.campos}..remove(clave));
+  }
+
   void cambioElCelular(String telefono) {
     if (state.avisoCelular != null && telefono.trim() != state.avisoCelular!.telefono) {
       state = state.copiar(avisoCelular: null);

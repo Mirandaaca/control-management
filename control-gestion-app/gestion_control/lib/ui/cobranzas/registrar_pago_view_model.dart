@@ -96,6 +96,11 @@ class RegistrarPagoViewModel extends Notifier<EstadoDelPago> {
     }
   }
 
+  /// Al corregir un campo, su error ya no vale: se quita, así no queda un aviso viejo junto al valor nuevo.
+  void cambioElCampo(String campo) {
+    if (state.campos.containsKey(campo)) state = state.copiar(campos: {...state.campos}..remove(campo));
+  }
+
   void elegirMetodo(MetodoPago metodo) =>
       state = state.copiar(metodo: metodo, campos: {...state.campos}..remove('referencia'));
 

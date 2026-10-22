@@ -107,6 +107,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
                 textAlign: TextAlign.end,
                 focusNode: _lugarDelMonto.foco,
                 error: estado.campos['monto'],
+                onChanged: (_) => _viewModel.cambioElCampo('monto'),
               ),
             ),
             const SizedBox(height: 12),
@@ -127,6 +128,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
                   ayuda: 'Está en el comprobante del banco: sirve para encontrar el pago.',
                   focusNode: _lugarDeLaReferencia.foco,
                   error: estado.campos['referencia'],
+                  onChanged: (_) => _viewModel.cambioElCampo('referencia'),
                 ),
               ),
             ],
@@ -137,6 +139,7 @@ class _RegistrarPagoScreenState extends ConsumerState<RegistrarPagoScreen> {
               lineas: 3,
               textCapitalization: TextCapitalization.sentences,
               error: estado.campos['observaciones'],
+              onChanged: (_) => _viewModel.cambioElCampo('observaciones'),
             ),
             const SizedBox(height: 16),
             _Comprobante(
