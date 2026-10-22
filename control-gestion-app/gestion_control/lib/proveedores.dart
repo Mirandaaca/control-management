@@ -5,6 +5,7 @@ import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/sesion_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
 import 'data/services/cliente_api.dart';
+import 'data/services/conexion.dart';
 import 'ui/sesion/sesion_notifier.dart';
 
 // Dónde se arma cada pieza de la app. Las pruebas reemplazan las que necesitan con overrides de Riverpod.
@@ -14,12 +15,15 @@ final urlDeLaApiProvider = Provider<String>((ref) => throw UnimplementedError('F
 
 final almacenDeSesionProvider = Provider<AlmacenDeSesion>((ref) => AlmacenDeSesion());
 
+final verificadorDeConexionProvider = Provider<VerificadorDeConexion>((ref) => VerificadorConConnectivity());
+
 final clienteApiProvider = Provider<Dio>(
   (ref) => crearClienteApi(
     urlDeLaApi: ref.watch(urlDeLaApiProvider),
     almacen: ref.watch(almacenDeSesionProvider),
     // La sesión se busca recién cuando llega el 401: así el cliente no depende de ella al crearse.
     alTerminarLaSesion: () => ref.read(sesionProvider.notifier).terminada(),
+    conexion: ref.watch(verificadorDeConexionProvider),
   ),
 );
 

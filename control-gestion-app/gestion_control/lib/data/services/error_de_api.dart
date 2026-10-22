@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 
+import 'cliente_api.dart';
+
 /// Un error de la API traducido para el usuario, como `mensajeDeError` y `erroresPorCampo` del panel. La API responde
 /// todo error con ProblemDetails: `{ title, detail, codigo, traceId, errors }`.
 class ErrorDeApi implements Exception {
@@ -18,7 +20,9 @@ class ErrorDeApi implements Exception {
 
     final respuesta = error.response;
     if (respuesta == null) {
-      return const ErrorDeApi(mensaje: 'No se pudo conectar con el servidor.', sinConexion: true);
+      return error.requestOptions.extra[InterceptorDeConexion.sinRed] == true
+          ? sinInternet
+          : const ErrorDeApi(mensaje: 'No se pudo conectar con el servidor.', sinConexion: true);
     }
 
     final datos = respuesta.data;
@@ -37,6 +41,13 @@ class ErrorDeApi implements Exception {
     );
   }
 
+  /// El celular no tiene red (8.6.12). Como todo error sin respuesta, la pantalla ofrece "Reintentar".
+  static const sinInternet = ErrorDeApi(
+    mensaje: 'No tienes conexión a internet.',
+    detalle: 'Revisa los datos móviles o el wifi y vuelve a intentarlo.',
+    sinConexion: true,
+  );
+
   /// El texto para el usuario.
   final String mensaje;
 
@@ -51,7 +62,8 @@ class ErrorDeApi implements Exception {
   /// Los errores de validación, por campo y con las claves en camelCase: van junto a su campo.
   final Map<String, String> campos;
 
-  /// La API no respondió: la pantalla ofrece "Reintentar".
+  /// La API no respondió: la pantalla ofrece "Reintentar". Tampoco se sabe si llegó a guardar lo enviado, así que un
+  /// reintento repite la misma clave de idempotencia.
   final bool sinConexion;
 
   /// Los errores por campo, más los de reglas de negocio que pertenecen a un campo (por ejemplo, `correo_duplicado` va
