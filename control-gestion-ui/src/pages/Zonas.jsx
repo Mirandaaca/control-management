@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { LoaderCircle, Map as Mapa, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Layers, LoaderCircle, Map as Mapa, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
@@ -10,7 +11,7 @@ import {
   Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
-import { PERMISOS } from '../context/permisos';
+import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
 
@@ -20,6 +21,16 @@ const { parametros } = PERMISOS;
 const CAMPO_DEL_ERROR = { zona_codigo_repetido: 'codigo', zona_nombre_repetido: 'nombre' };
 
 const clientes = (n) => (n === 1 ? '1 cliente' : `${n} clientes`);
+// Lo que se elimina con la zona: " con su límite y sus 2 puntos de referencia", o nada.
+function loQueSeVaConElla(zona) {
+  const n = zona?.puntosDeReferencia ?? 0;
+  const partes = [zona?.limite && 'su límite', n > 0 && (n === 1 ? 'su punto de referencia' : `sus ${n} puntos de referencia`)];
+  const quedan = partes.filter(Boolean);
+  return quedan.length > 0 ? ` con ${quedan.join(' y ')}` : '';
+}
+
+// Como el botón fantasma de una fila (Btn variant="ghost"), pero navega.
+const enlaceDeFila = 'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2';
 
 /**
  * Zonas de venta (7.2). Cada zona tiene un promotor, que es el de todos sus clientes: tiene que estar activo y
@@ -31,6 +42,7 @@ export default function Zonas() {
   const puedeRegistrar = tiene(parametros.registrarZona);
   const puedeModificar = tiene(parametros.modificarZona);
   const puedeEliminar = tiene(parametros.eliminarZona);
+  const veElMapa = tiene(...PANTALLAS.mapaZonas);
 
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -148,7 +160,8 @@ export default function Zonas() {
       )}
 
       <Table
-        headers={['Zona', 'Promotor', { texto: 'Clientes', derecha: true }, { texto: 'Acciones', oculto: true }]}
+        headers={['Zona', 'Promotor', { texto: 'Clientes', derecha: true }, 'Límite', { texto: 'Puntos', derecha: true },
+          { texto: 'Acciones', oculto: true }]}
         empty="Ninguna zona coincide con la búsqueda."
         estado={estado}
         barra={!cargando && !errorCarga && zonas.length > 0 && (
@@ -174,8 +187,16 @@ export default function Zonas() {
               )}
             </Td>
             <Td className="text-right tabular-nums">{z.clientes}</Td>
+            <Td className="whitespace-nowrap">{z.limite ? 'Dibujado' : <span className="text-slate-600">Sin límite</span>}</Td>
+            <Td className="text-right tabular-nums">{z.puntosDeReferencia}</Td>
             <Td>
               <div className="flex items-center justify-end gap-1">
+                {veElMapa && (
+                  <Link to={`/zonas/mapa?zona=${z.id}`} className={enlaceDeFila} aria-label={`Ver la zona ${z.nombre} en el mapa`}>
+                    <Layers size={14} aria-hidden="true" />
+                    Ver en el mapa
+                  </Link>
+                )}
                 {puedeModificar && (
                   <Btn variant="ghost" onClick={() => abrirEditor(z)} aria-label={`Editar la zona ${z.nombre}`}>
                     <Pencil size={14} aria-hidden="true" />
@@ -238,7 +259,8 @@ export default function Zonas() {
         onCancelar={() => setAEliminar(null)}
       >
         <p>
-          La zona se borra. Si tiene clientes, ventas, pedidos o rutas, no se puede eliminar y el aviso dice qué la usa.
+          La zona se borra{loQueSeVaConElla(aEliminar)}.
+          Si tiene clientes, ventas, pedidos o rutas, no se puede eliminar y el aviso dice qué la usa.
           {aEliminar?.clientes > 0 && ` Tiene ${clientes(aEliminar.clientes)}.`}
         </p>
       </Confirmar>
