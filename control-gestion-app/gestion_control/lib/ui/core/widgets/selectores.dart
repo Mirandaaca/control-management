@@ -16,6 +16,7 @@ class CampoDeEleccion extends StatelessWidget {
     this.error,
     this.ayuda,
     this.focusNode,
+    this.icono,
   });
 
   final String etiqueta;
@@ -32,6 +33,9 @@ class CampoDeEleccion extends StatelessWidget {
 
   /// Para darle el foco cuando es el primer error del formulario.
   final FocusNode? focusNode;
+
+  /// Otro ícono en lugar de ▼ o ⇅, como el calendario de una fecha.
+  final IconData? icono;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +71,10 @@ class CampoDeEleccion extends StatelessWidget {
                 helperText: ayuda,
                 helperMaxLines: 4,
                 error: error == null ? null : ErrorDeCampo(error!),
-                suffixIcon: Icon(buscando ? Icons.unfold_more : Icons.arrow_drop_down, color: textoSecundario),
+                suffixIcon: Icon(
+                  icono ?? (buscando ? Icons.unfold_more : Icons.arrow_drop_down),
+                  color: textoSecundario,
+                ),
               ),
               child: valor == null ? null : Text(valor!),
             ),

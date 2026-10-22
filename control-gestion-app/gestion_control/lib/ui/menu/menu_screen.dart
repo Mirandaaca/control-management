@@ -36,6 +36,13 @@ final entradasDelMenu = [
     permisos: PermisosDe.clientes,
   ),
   EntradaDelMenu(
+    titulo: 'Hojas de pedido',
+    descripcion: 'Tus ventas: registrarlas, confirmarlas y verlas.',
+    icono: Icons.receipt_long_outlined,
+    ruta: Rutas.hojasPedido,
+    permisos: PermisosDe.hojasPedido,
+  ),
+  EntradaDelMenu(
     titulo: 'Productos',
     descripcion: 'El catálogo, con el precio y el stock de cada producto.',
     icono: Icons.category_outlined,

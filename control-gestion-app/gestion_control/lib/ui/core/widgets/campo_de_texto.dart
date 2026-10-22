@@ -27,6 +27,7 @@ class CampoDeTexto extends StatelessWidget {
     this.textAlign = TextAlign.start,
     this.lineas = 1,
     this.debajo,
+    this.autofocus = false,
   });
 
   final TextEditingController controller;
@@ -57,6 +58,9 @@ class CampoDeTexto extends StatelessWidget {
   /// Algo que va debajo del campo, como el aviso del celular repetido.
   final Widget? debajo;
 
+  /// Con el foco al abrir la pantalla, como el campo de una búsqueda.
+  final bool autofocus;
+
   @override
   Widget build(BuildContext context) {
     final sinCorrector = oculto || keyboardType == TextInputType.emailAddress;
@@ -72,6 +76,7 @@ class CampoDeTexto extends StatelessWidget {
               TextField(
                 controller: controller,
                 focusNode: focusNode,
+                autofocus: autofocus,
                 obscureText: oculto,
                 autocorrect: !sinCorrector,
                 enableSuggestions: !sinCorrector,

@@ -4,9 +4,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/permisos.dart';
 import '../../proveedores.dart';
+import '../../data/models/cliente.dart';
+import '../../data/models/producto.dart';
 import '../clientes/cliente_screen.dart';
 import '../clientes/clientes_screen.dart';
 import '../clientes/formulario_cliente_screen.dart';
+import '../elegir/elegir_cliente_screen.dart';
+import '../elegir/elegir_producto_screen.dart';
+import '../hojas_pedido/hoja_pedido_screen.dart';
+import '../hojas_pedido/hojas_pedido_screen.dart';
+import '../hojas_pedido/nueva_hoja_screen.dart';
 import '../menu/menu_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
@@ -27,6 +34,11 @@ abstract final class Rutas {
   static const nuevoCliente = '/clientes/nuevo';
   static String cliente(int id) => '/clientes/$id';
   static String editarCliente(int id) => '/clientes/$id/editar';
+  static const hojasPedido = '/hojas-pedido';
+  static const nuevaHoja = '/hojas-pedido/nueva';
+  static String hojaPedido(int id) => '/hojas-pedido/$id';
+  static const elegirCliente = '/elegir-cliente';
+  static const elegirProducto = '/elegir-producto';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -42,6 +54,9 @@ abstract final class PermisosDe {
     Permisos.ventas.asignarEstadoCliente,
     Permisos.ventas.verUbicacionCliente,
   ];
+
+  // Los de `PANTALLAS.hojasPedido` del panel, que son los de GET /hojas-pedido.
+  static final hojasPedido = [Permisos.ventas.consultarHp, Permisos.ventas.anularHp];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -95,6 +110,32 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'productos',
             builder: (context, state) => ConPermiso(permisos: PermisosDe.productos, child: const ProductosScreen()),
+          ),
+          GoRoute(
+            path: 'hojas-pedido',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.hojasPedido, child: const HojasPedidoScreen()),
+            routes: [
+              GoRoute(
+                path: 'nueva',
+                builder: (context, state) => ConPermiso(
+                  permisos: [Permisos.ventas.registrarHp],
+                  child: NuevaHojaScreen(cliente: state.extra as ClienteOpcion?),
+                ),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.hojasPedido,
+                  child: HojaPedidoScreen(id: int.parse(state.pathParameters['id']!), abrir: state.extra as AbrirHoja?),
+                ),
+              ),
+            ],
+          ),
+          // Las búsquedas de una venta: vuelven con lo elegido.
+          GoRoute(path: 'elegir-cliente', builder: (context, state) => const ElegirClienteScreen()),
+          GoRoute(
+            path: 'elegir-producto',
+            builder: (context, state) => ElegirProductoScreen(productos: state.extra as List<Producto>? ?? const []),
           ),
           GoRoute(
             path: 'clientes',

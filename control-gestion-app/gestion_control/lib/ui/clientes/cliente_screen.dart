@@ -46,6 +46,8 @@ class _ClienteScreenState extends ConsumerState<ClienteScreen> {
     final estado = ref.watch(clienteProvider(widget.id));
     final sesion = ref.watch(sesionProvider);
     final puedeEditar = sesion is ConSesion && sesion.sesion.tiene([Permisos.ventas.editarCliente]);
+    final puedeVender = sesion is ConSesion && sesion.sesion.tiene([Permisos.ventas.registrarHp]);
+    final cliente = estado.cliente;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Cliente')),
@@ -84,9 +86,18 @@ class _ClienteScreenState extends ConsumerState<ClienteScreen> {
         ),
         _ => const Cargando('Cargando el cliente…'),
       },
-      bottomNavigationBar: estado.cliente != null && puedeEditar
-          ? BarraDeAcciones(principal: Accion('Editar', _editar))
-          : null,
+      // Una venta abierta desde el cliente lo trae elegido.
+      bottomNavigationBar: switch ((cliente, puedeVender, puedeEditar)) {
+        (final c?, true, true) => BarraDeAcciones(
+          secundaria: Accion('Editar', _editar),
+          principal: Accion('Nueva hoja de pedido', () => context.push(Rutas.nuevaHoja, extra: c.comoOpcion)),
+        ),
+        (final c?, true, false) => BarraDeAcciones(
+          principal: Accion('Nueva hoja de pedido', () => context.push(Rutas.nuevaHoja, extra: c.comoOpcion)),
+        ),
+        (_?, false, true) => BarraDeAcciones(principal: Accion('Editar', _editar)),
+        _ => null,
+      },
     );
   }
 }

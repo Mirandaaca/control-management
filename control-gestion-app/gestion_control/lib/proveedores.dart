@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/repositories/clientes_repository.dart';
+import 'data/repositories/hojas_pedido_repository.dart';
 import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
 import 'data/repositories/sesion_repository.dart';
@@ -50,3 +51,7 @@ final clientesRepositoryProvider = Provider<ClientesRepository>(
 );
 
 final zonasRepositoryProvider = Provider<ZonasRepository>((ref) => ZonasRepository(ref.watch(clienteApiProvider)));
+
+final hojasPedidoRepositoryProvider = Provider<HojasPedidoRepository>(
+  (ref) => HojasPedidoRepository(ref.watch(clienteApiProvider)),
+);

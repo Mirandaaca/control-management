@@ -8,12 +8,14 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
+import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/data/models/perfil.dart';
 import 'package:gestion_control/data/models/producto.dart';
 import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
+import 'package:gestion_control/data/repositories/hojas_pedido_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
@@ -431,3 +433,117 @@ Sesion promotorCon(List<String> permisos) => Sesion(
   rol: 'Promotor',
   permisos: permisos.toSet(),
 );
+
+const rosaOpcion = ClienteOpcion(
+  id: 42,
+  codigo: 'CLI-00042',
+  nombreCompleto: 'Rosa Quispe Mamani',
+  direccion: 'Calle 4 N.º 120, frente al Mercado Norte',
+  estado: estadoActivo,
+  inactivo: false,
+);
+
+/// La HP-2026-00018 de datos-ejemplo.md: 4 arroz con Bs 1,00 de descuento c/u y 6 detergente, menos Bs 7,00 sobre el
+/// total: 148 + 99 − 7 = Bs 240,00, a crédito.
+HojaPedido hojaDePrueba({
+  int id = 18,
+  String numero = 'HP-2026-00018',
+  EstadoHP estado = EstadoHP.confirmada,
+  TipoVenta tipo = TipoVenta.credito,
+  String promotorId = 'u1',
+}) => HojaPedido(
+  id: id,
+  numero: numero,
+  estado: estado,
+  tipoVenta: tipo,
+  subTotal: 247,
+  descuento: 7,
+  total: 240,
+  fechaRegistro: '2026-10-08T13:30:00',
+  latitud: -17.783412,
+  longitud: -63.182106,
+  precisionGps: 8,
+  cliente: const Referencia(id: '42', nombre: 'Rosa Quispe Mamani'),
+  promotorId: promotorId,
+  cobranza: estado == EstadoHP.confirmada && tipo == TipoVenta.credito
+      ? const CobranzaDeHoja(id: 12, numero: 'COB-2026-00012')
+      : null,
+  lineas: const [
+    LineaDeHoja(
+      productoId: 1,
+      sku: 'ARZ-5KG',
+      descripcion: 'Arroz grano largo 5 kg',
+      cantidad: 4,
+      precioUnitario: 38,
+      descuento: 1,
+      subtotal: 148,
+    ),
+    LineaDeHoja(
+      productoId: 2,
+      sku: 'DET-1KG',
+      descripcion: 'Detergente en polvo 1 kg',
+      cantidad: 6,
+      precioUnitario: 16.5,
+      descuento: 0,
+      subtotal: 99,
+    ),
+  ],
+);
+
+HojaPedidoResumen resumenDe(HojaPedido hoja) => HojaPedidoResumen(
+  id: hoja.id,
+  numero: hoja.numero,
+  estado: hoja.estado,
+  tipoVenta: hoja.tipoVenta,
+  total: hoja.total,
+  fechaRegistro: hoja.fechaRegistro,
+  cliente: hoja.cliente,
+  promotorId: hoja.promotorId,
+);
+
+/// Lo que se le envió al repositorio de hojas de pedido.
+typedef EnvioDeHojaPrueba = ({DatosDeHoja datos, Posicion ubicacion, String clave});
+
+class HojasPedidoRepositoryFalso implements HojasPedidoRepository {
+  Future<Pagina<HojaPedidoResumen>> Function(String buscar, EstadoHP? estado, String? dia, int pagina) alListar =
+      (_, _, _, _) async => Pagina(items: [resumenDe(hojaDePrueba())], total: 1, numero: 1, tamano: 25);
+  Future<HojaPedido> Function(int id) alObtener = (_) async => hojaDePrueba();
+  Future<HojaPedido> Function(EnvioDeHojaPrueba envio) alGuardar = (_) async =>
+      hojaDePrueba(id: 19, numero: 'HP-2026-00019', estado: EstadoHP.borrador);
+  Future<HojaPedido> Function(EnvioDeHojaPrueba envio) alConfirmarNueva = (_) async => hojaDePrueba();
+  Future<HojaPedido> Function(int id) alConfirmar = (_) async => hojaDePrueba();
+
+  final listados = <({String buscar, EstadoHP? estado, String? dia})>[];
+  final guardadas = <EnvioDeHojaPrueba>[];
+  final confirmadasNuevas = <EnvioDeHojaPrueba>[];
+  final confirmadas = <int>[];
+
+  @override
+  Future<Pagina<HojaPedidoResumen>> listar({String buscar = '', EstadoHP? estado, String? dia, int pagina = 1}) {
+    listados.add((buscar: buscar, estado: estado, dia: dia));
+    return alListar(buscar, estado, dia, pagina);
+  }
+
+  @override
+  Future<HojaPedido> obtener(int id) => alObtener(id);
+
+  @override
+  Future<HojaPedido> guardar(DatosDeHoja datos, Posicion ubicacion, {required String clave}) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: clave);
+    guardadas.add(envio);
+    return alGuardar(envio);
+  }
+
+  @override
+  Future<HojaPedido> confirmarNueva(DatosDeHoja datos, Posicion ubicacion, {required String clave}) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: clave);
+    confirmadasNuevas.add(envio);
+    return alConfirmarNueva(envio);
+  }
+
+  @override
+  Future<HojaPedido> confirmar(int id) {
+    confirmadas.add(id);
+    return alConfirmar(id);
+  }
+}
