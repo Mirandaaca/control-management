@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/permisos.dart';
 import '../../proveedores.dart';
 import '../menu/menu_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
+import '../productos/productos_screen.dart';
 import '../sesion/arranque_screen.dart';
 import '../sesion/inicio_de_sesion_screen.dart';
 import '../sesion/sesion_notifier.dart';
@@ -17,6 +19,14 @@ abstract final class Rutas {
   static const menu = '/';
   static const perfil = '/perfil';
   static const contrasena = '/contrasena';
+  static const productos = '/productos';
+}
+
+/// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
+/// se muestra una entrada que después dice "Sin acceso". Con uno basta.
+abstract final class PermisosDe {
+  // Los mismos de GET /productos/opciones: quien vende también ve el catálogo.
+  static final productos = [Permisos.ventas.consultarProductos, Permisos.ventas.registrarHp];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -66,6 +76,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'contrasena',
             builder: (context, state) => const ConPermiso(child: CambiarContrasenaScreen()),
+          ),
+          GoRoute(
+            path: 'productos',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.productos, child: const ProductosScreen()),
           ),
         ],
       ),

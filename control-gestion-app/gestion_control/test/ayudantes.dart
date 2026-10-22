@@ -7,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/perfil.dart';
+import 'package:gestion_control/data/models/producto.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
+import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
@@ -204,4 +206,41 @@ Future<void> cumpleLasGuias(WidgetTester tester) async {
   await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
   await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
   await expectLater(tester, meetsGuideline(textContrastGuideline));
+}
+
+/// Los productos de datos-ejemplo.md, con su stock del 08/10/2026, y uno sin stock.
+const arroz = Producto(
+  id: 1,
+  sku: 'ARZ-5KG',
+  descripcion: 'Arroz grano largo 5 kg',
+  categoria: 'Arroz',
+  precio: 38,
+  stock: 120,
+);
+const detergente = Producto(
+  id: 2,
+  sku: 'DET-1KG',
+  descripcion: 'Detergente en polvo 1 kg',
+  categoria: 'Limpieza',
+  precio: 16.5,
+  stock: 85,
+);
+const jabon = Producto(
+  id: 3,
+  sku: 'JAB-BAR',
+  descripcion: 'Jabón en barra',
+  categoria: 'Limpieza',
+  precio: 6,
+  stock: 0,
+);
+
+class ProductosRepositoryFalso implements ProductosRepository {
+  Future<List<Producto>> Function() alListar = () async => const [arroz, detergente, jabon];
+  var listados = 0;
+
+  @override
+  Future<List<Producto>> listar() {
+    listados++;
+    return alListar();
+  }
 }

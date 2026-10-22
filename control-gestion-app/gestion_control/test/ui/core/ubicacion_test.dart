@@ -206,10 +206,7 @@ void main() {
     );
 
     expect(find.text('© OpenStreetMap'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel('Mapa con la ubicación: latitud -17,771845, longitud -63,176290'),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel('Mapa con la ubicación: latitud -17,771845, longitud -63,176290'), findsOneWidget);
     semantica.dispose();
   });
 }
