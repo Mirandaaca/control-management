@@ -118,6 +118,19 @@ public class ClientesTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task La_lista_trae_la_direccion_de_cada_cliente()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var codigo = (await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync()).GetProperty("codigo").GetString();
+
+        var item = (await (await operador.GetAsync($"/api/clientes?buscar={codigo}")).LeerJsonAsync())
+            .GetProperty("items").EnumerateArray().Single(c => c.GetProperty("id").GetInt32() == clienteId);
+
+        Assert.Equal("Calle de prueba", item.GetProperty("direccionTexto").GetString());
+    }
+
+    [Fact]
     public async Task Un_promotor_ve_solo_los_clientes_de_su_cartera()
     {
         var promotorA = await api.CrearUsuarioAsync(Roles.Promotor);

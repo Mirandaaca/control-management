@@ -83,11 +83,13 @@ public record FiltrosClienteDTO
 /// <summary>DelSistema: Activo y Disponible para re-visita, que asigna el sistema según las visitas (5.2).</summary>
 public record EstadoClienteDTO(int Id, string Nombre, string Color, string? Descripcion, bool DelSistema);
 
+/// <summary>Un cliente de la lista. La dirección ayuda a reconocerlo en la calle (la app la muestra en cada cliente).</summary>
 public record ClienteListaDTO(
     int Id,
     string Codigo,
     string NombreCompleto,
     string Telefono,
+    string DireccionTexto,
     ZonaResumenDTO Zona,
     EstadoClienteDTO Estado,
     UsuarioResumenDTO? Promotor,

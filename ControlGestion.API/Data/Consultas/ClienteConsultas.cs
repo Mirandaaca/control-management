@@ -47,6 +47,7 @@ public static class ClienteConsultas
         c.Codigo,
         c.NombreCompleto,
         c.Telefono,
+        c.DireccionTexto,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
             c.EstadoCliente.EsDelSistema),
