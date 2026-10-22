@@ -4,11 +4,12 @@ namespace ControlGestion.API.DTOs;
 
 /// <summary>
 /// Una zona de venta (7.2). PromotorValido: el promotor está activo y recorre rutas; si no, la zona se marca para que
-/// el gerente general la reasigne. Clientes: los de la zona que el usuario puede ver (su cartera, o todos). Limite: los
-/// vértices de su polígono (5.5), o null si todavía no se dibujó.
+/// el gerente general la reasigne. Clientes: los de la zona que el usuario puede ver (su cartera, o todos).
+/// PuntosDeReferencia: cuántos tiene (se eliminan con ella). Limite: los vértices de su polígono (5.5), o null si
+/// todavía no se dibujó.
 /// </summary>
 public record ZonaDTO(int Id, string Codigo, string Nombre, UsuarioResumenDTO? Promotor, bool PromotorValido, int Clientes,
-    IReadOnlyList<VerticeDTO>? Limite);
+    int PuntosDeReferencia, IReadOnlyList<VerticeDTO>? Limite);
 
 /// <summary>Un vértice del límite de una zona.</summary>
 public record VerticeDTO

@@ -32,6 +32,7 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
             z.Promotor != null && z.Promotor.Activo && db.UserRoles.Any(ur => ur.UserId == z.PromotorId
                 && db.RolesPermisos.Any(rp => rp.RolId == ur.RoleId && rp.Permiso!.Clave == recorrerRuta)),
             clientesVisibles.Count(c => c.ZonaId == z.Id),
+            db.PuntosReferencia.Count(p => p.ZonaId == z.Id),
             null), z.Limite));
     }
 

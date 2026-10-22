@@ -1117,6 +1117,41 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("Productos");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.PuntoReferencia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<decimal>("Latitud")
+                        .HasPrecision(10, 8)
+                        .HasColumnType("decimal(10,8)");
+
+                    b.Property<decimal>("Longitud")
+                        .HasPrecision(11, 8)
+                        .HasColumnType("decimal(11,8)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("ZonaId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ZonaId");
+
+                    b.ToTable("PuntosReferencia");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.RolPermiso", b =>
                 {
                     b.Property<string>("RolId")
@@ -1842,6 +1877,17 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("RegistradoPor");
 
                     b.Navigation("Repartidor");
+
+                    b.Navigation("Zona");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.PuntoReferencia", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.Zona", "Zona")
+                        .WithMany()
+                        .HasForeignKey("ZonaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Zona");
                 });
