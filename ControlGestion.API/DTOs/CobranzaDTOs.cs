@@ -99,7 +99,9 @@ public record CobranzaResumenDTO(
     UsuarioResumenDTO Promotor,
     HojaPedidoResumenDTO? HojaPedido,
     /// <summary>Los pagos válidos: sin contar los anulados.</summary>
-    int CantidadPagos);
+    int CantidadPagos,
+    /// <summary>Días de calendario de Bolivia desde el vencimiento. Solo en una cobranza Vencida; en las demás, null.</summary>
+    int? DiasDeMora);
 
 public record PagoDTO(
     int Id,
@@ -128,4 +130,6 @@ public record CobranzaDetalleDTO(
     ClienteResumenDTO Cliente,
     UsuarioResumenDTO Promotor,
     HojaPedidoResumenDTO? HojaPedido,
-    IReadOnlyList<PagoDTO> Pagos);
+    IReadOnlyList<PagoDTO> Pagos,
+    /// <summary>Días de calendario de Bolivia desde el vencimiento. Solo en una cobranza Vencida; en las demás, null.</summary>
+    int? DiasDeMora);
