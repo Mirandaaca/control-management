@@ -139,8 +139,7 @@ void main() {
       await tester.tap(find.text('Guardar cambios'));
       await tester.pump();
 
-      final decoracion = tester.widget<TextField>(campo('Correo')).decoration!;
-      expect(decoracion.errorText, 'Ya existe un usuario con ese correo.');
+      expect(errorDelCampo(tester, 'Correo'), 'Ya existe un usuario con ese correo.');
     });
 
     testWidgets('al guardar, avisa y trae la sesión de nuevo para el nombre del menú', (tester) async {
@@ -177,8 +176,7 @@ void main() {
       await tester.pump();
     }
 
-    String? errorDe(WidgetTester tester, String etiqueta) =>
-        tester.widget<TextField>(campo(etiqueta)).decoration!.errorText;
+    String? errorDe(WidgetTester tester, String etiqueta) => errorDelCampo(tester, etiqueta);
 
     testWidgets('si las dos nuevas no coinciden, lo dice sin enviar nada', (tester) async {
       await abrir(tester, const CambiarContrasenaScreen());

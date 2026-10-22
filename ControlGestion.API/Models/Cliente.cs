@@ -34,4 +34,8 @@ public class Cliente
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
     public string? CreadoPorId { get; set; }
     public ApplicationUser? CreadoPor { get; set; }
+
+    // La genera la app al registrarlo, como en PagoCobranza: si el mismo cliente llega dos veces (un reintento con mala
+    // señal), se registra una sola vez.
+    public Guid? ClaveIdempotencia { get; set; }
 }

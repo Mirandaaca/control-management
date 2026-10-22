@@ -20,8 +20,9 @@ public class ClientesController(ClienteService clientes) : ControllerBase
     // Con más de 2.000 clientes, el selector con búsqueda del panel pide los primeros 50 que coinciden con lo que se escribe.
     [HttpGet("opciones")]
     public async Task<ActionResult<List<ClienteOpcionDTO>>> GetOpciones([FromQuery] string? buscar,
-        [FromQuery, Range(1, 100, ErrorMessage = "El límite va de 1 a 100.")] int? limite) =>
-        await clientes.OpcionesAsync(buscar, limite);
+        [FromQuery, Range(1, 100, ErrorMessage = "El límite va de 1 a 100.")] int? limite,
+        [FromQuery] bool incluirInactivos = false) =>
+        await clientes.OpcionesAsync(buscar, limite, incluirInactivos);
 
     [HttpGet("mapa")]
     [Permiso(Permisos.Ventas.VerUbicacionCliente, Permisos.Territorial.VerMapaClientes)]

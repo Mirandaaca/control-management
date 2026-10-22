@@ -42,6 +42,9 @@ public record GuardarClienteDTO : IValidatableObject
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }
 
+    /// <summary>Solo al registrar: la misma clave devuelve el cliente ya registrado, sin crear otro.</summary>
+    public Guid? ClaveIdempotencia { get; init; }
+
 
     // 0,0 es lo que guardaba el formulario viejo con los campos vacíos: un punto en el océano, no una ubicación real.
     public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
@@ -80,11 +83,13 @@ public record FiltrosClienteDTO
 /// <summary>DelSistema: Activo y Disponible para re-visita, que asigna el sistema según las visitas (5.2).</summary>
 public record EstadoClienteDTO(int Id, string Nombre, string Color, string? Descripcion, bool DelSistema);
 
+/// <summary>Un cliente de la lista. La dirección ayuda a reconocerlo en la calle (la app la muestra en cada cliente).</summary>
 public record ClienteListaDTO(
     int Id,
     string Codigo,
     string NombreCompleto,
     string Telefono,
+    string DireccionTexto,
     ZonaResumenDTO Zona,
     EstadoClienteDTO Estado,
     UsuarioResumenDTO? Promotor,
@@ -111,9 +116,12 @@ public record ClienteDTO(
     DateTime? ProximaVisita,
     DateTime FechaCreacion);
 
-/// <summary>Lo justo para elegir un cliente en un formulario (HP, pedido, evento, ruta).</summary>
-/// <summary>Para los selectores. La dirección se propone como dirección de entrega de un pedido.</summary>
-public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto);
+/// <summary>
+/// Lo justo para elegir un cliente en un formulario (HP, pedido, evento, ruta). La dirección se propone como dirección
+/// de entrega de un pedido. Inactivo: no se le registran HP (7.3.5, ext. 2.2c), así el selector lo muestra deshabilitado.
+/// </summary>
+public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto,
+    EstadoClienteDTO Estado, bool Inactivo);
 
 public record ClienteMapaDTO(
     int Id,

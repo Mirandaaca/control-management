@@ -41,6 +41,10 @@ public record FiltrosCobranzaDTO : IValidatableObject
 
     public int? ClienteId { get; init; }
     public EstadoCobranza? Estado { get; init; }
+
+    /// <summary>Solo las que reciben pagos (pendientes, parciales y vencidas), de la más atrasada a la más reciente.</summary>
+    public bool PorCobrar { get; init; }
+
     public string? PromotorId { get; init; }
     public DateOnly? Desde { get; init; }
     public DateOnly? Hasta { get; init; }

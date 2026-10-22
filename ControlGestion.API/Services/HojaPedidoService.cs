@@ -47,13 +47,80 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         await Visibles.Where(h => h.Id == id).Select(HojaPedidoConsultas.ComoDetalle).FirstOrDefaultAsync()
         ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
 
+    /// <summary>"Guardar" (7.3.5, ext. 3a): la HP queda en borrador y se confirma después.</summary>
     public async Task<HojaPedidoDTO> RegistrarAsync(RegistrarHojaPedidoDTO dto)
+    {
+        if (await YaRegistradaAsync(dto.ClaveIdempotencia) is { } repetida)
+            return repetida;
+
+        try
+        {
+            var hp = await ArmarAsync(dto);
+            db.HojasPedido.Add(hp);
+            await db.SaveChangesAsync();
+            return await ObtenerAsync(hp.Id);
+        }
+        catch (DbUpdateException) when (dto.ClaveIdempotencia != null)
+        {
+            // Dos envíos de la misma venta a la vez: el índice único frena al segundo, que devuelve la HP del primero.
+            db.ChangeTracker.Clear();
+            if (await YaRegistradaAsync(dto.ClaveIdempotencia) is { } ganadora) return ganadora;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// "Confirmar venta" en un formulario nuevo: registra la HP y la confirma en una sola transacción. Si el stock no
+    /// alcanza, no queda nada, ni el borrador ni su número: el promotor corrige la línea y vuelve a confirmar.
+    /// </summary>
+    public async Task<HojaPedidoDTO> RegistrarConfirmadaAsync(RegistrarHojaPedidoDTO dto)
+    {
+        // Si la respuesta de "Guardar" se perdió y el promotor tocó "Confirmar venta" con la misma clave, se confirma
+        // ese borrador: no nace otra HP.
+        if (await YaRegistradaAsync(dto.ClaveIdempotencia) is { } repetida)
+            return repetida.EstadoHP == EstadoHP.Borrador ? await ConfirmarAsync(repetida.Id) : repetida;
+
+        try
+        {
+            // La transacción incluye los números de la HP y de la cobranza, que el numerador pide con su propia sentencia.
+            await using var tx = await db.Database.BeginTransactionAsync();
+            var hp = await ArmarAsync(dto);
+            db.HojasPedido.Add(hp);
+            // El kardex y la deuda usan el id de la HP: hay que guardarla antes de cerrar la venta.
+            await db.SaveChangesAsync();
+            await CerrarVentaAsync(hp);
+            await GuardarAsync("El stock o el cliente cambiaron mientras confirmabas. Vuelve a intentarlo.");
+            await tx.CommitAsync();
+            return await ObtenerAsync(hp.Id);
+        }
+        catch (DbUpdateException) when (dto.ClaveIdempotencia != null)
+        {
+            // Dos envíos de la misma venta a la vez: el índice único frena al segundo, que devuelve la HP del primero.
+            db.ChangeTracker.Clear();
+            if (await YaRegistradaAsync(dto.ClaveIdempotencia) is { } ganadora) return ganadora;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// La HP que ya se registró con esa clave, o null si la clave es nueva. La clave se guarda solo con una HP guardada:
+    /// una venta rechazada (sin stock, con un dato inválido) no la gasta.
+    /// </summary>
+    private async Task<HojaPedidoDTO?> YaRegistradaAsync(Guid? clave)
+    {
+        if (clave == null) return null;
+        var id = await db.HojasPedido.Where(h => h.ClaveIdempotencia == clave).Select(h => (int?)h.Id).FirstOrDefaultAsync();
+        if (id == null) return null;
+        return await Visibles.Where(h => h.Id == id).Select(HojaPedidoConsultas.ComoDetalle).FirstOrDefaultAsync()
+            ?? throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otra hoja de pedido.");
+    }
+
+    /// <summary>La HP de un formulario, revisada y con su número, sin guardar. Trae a su cliente para cerrar la venta.</summary>
+    private async Task<HojaPedido> ArmarAsync(RegistrarHojaPedidoDTO dto)
     {
         // Un cliente de otra cartera responde lo mismo que uno que no existe: no se le confirma que existe.
         var cliente = await db.Clientes.VisiblesPara(usuario)
-            .Where(c => c.Id == dto.ClienteId)
-            .Select(c => new { c.Id, c.ZonaId, c.EstadoClienteId })
-            .FirstOrDefaultAsync()
+            .FirstOrDefaultAsync(c => c.Id == dto.ClienteId)
             ?? throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
         if (cliente.EstadoClienteId == EstadosDeCliente.Inactivo)
             throw new ReglaDeNegocioException("cliente_inactivo",
@@ -72,6 +139,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         {
             Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.HojaPedido),
             ClienteId = cliente.Id,
+            Cliente = cliente,
             PromotorId = usuario.Id,
             // La venta cuenta en la zona del cliente: así los reportes por zona no dependen de lo que se eligió.
             ZonaId = cliente.ZonaId,
@@ -81,7 +149,8 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
             PrecisionGPS = dto.PrecisionGPS,
             TipoVenta = dto.TipoVenta,
             Descuento = dto.Descuento,
-            EstadoHP = EstadoHP.Borrador
+            EstadoHP = EstadoHP.Borrador,
+            ClaveIdempotencia = dto.ClaveIdempotencia
         };
 
         foreach (var item in dto.Detalles)
@@ -102,10 +171,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         if (hp.Total <= 0)
             throw new ReglaDeNegocioException("total_invalido",
                 $"El total de la HP debe ser mayor a cero. Subtotal: {hp.SubTotal:F2}, Descuento: {hp.Descuento:F2}, Total: {hp.Total:F2}");
-
-        db.HojasPedido.Add(hp);
-        await db.SaveChangesAsync();
-        return await ObtenerAsync(hp.Id);
+        return hp;
     }
 
     /// <summary>
@@ -115,7 +181,8 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
     public async Task<HojaPedidoDTO> ConfirmarAsync(int id)
     {
         var hp = await Visibles
-            .Include(h => h.Detalles)
+            // En el orden de su detalle: el error de stock marca cada línea por su posición.
+            .Include(h => h.Detalles.OrderBy(d => d.Id))
             .Include(h => h.Cliente)
             .FirstOrDefaultAsync(h => h.Id == id)
             ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");

@@ -47,6 +47,7 @@ public static class ClienteConsultas
         c.Codigo,
         c.NombreCompleto,
         c.Telefono,
+        c.DireccionTexto,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
             c.EstadoCliente.EsDelSistema),
@@ -76,7 +77,10 @@ public static class ClienteConsultas
         c.FechaCreacion);
 
     public static readonly Expression<Func<Cliente, ClienteOpcionDTO>> ComoOpcion =
-        c => new ClienteOpcionDTO(c.Id, c.Codigo, c.NombreCompleto, c.ZonaId, c.DireccionTexto);
+        c => new ClienteOpcionDTO(c.Id, c.Codigo, c.NombreCompleto, c.ZonaId, c.DireccionTexto,
+            new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
+                c.EstadoCliente.EsDelSistema),
+            c.EstadoClienteId == EstadosDeCliente.Inactivo);
 
     public static readonly Expression<Func<Cliente, ClienteMapaDTO>> ComoMapa = c => new ClienteMapaDTO(
         c.Id,

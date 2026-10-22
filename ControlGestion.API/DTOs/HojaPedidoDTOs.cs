@@ -46,6 +46,9 @@ public record RegistrarHojaPedidoDTO : IValidatableObject
     [MinLength(1, ErrorMessage = "Agrega al menos un producto.")]
     public List<DetalleHojaPedidoEntradaDTO> Detalles { get; init; } = [];
 
+    /// <summary>La misma clave devuelve la HP ya registrada, sin crear otra ni descontar el stock otra vez.</summary>
+    public Guid? ClaveIdempotencia { get; init; }
+
     // 0,0 es lo que llega cuando nadie tomó la ubicación: un punto en el océano, no una venta real.
     public IEnumerable<ValidationResult> Validate(ValidationContext contexto)
     {
