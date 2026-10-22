@@ -105,7 +105,7 @@ export const PANTALLAS = {
   rutas: [territorial.planificarRuta, territorial.seguirRuta, territorial.recorrerRuta],
   zonas: [parametros.registrarZona, parametros.modificarZona, parametros.eliminarZona],
   productos: [parametros.registrarProducto, parametros.modificarProducto, parametros.eliminarProducto],
-  configuraciones: [parametros.modificarDiasRevisita],
+  configuracionGeneral: [parametros.modificarDiasRevisita],
   usuarios: [seguridad.crearUsuario, seguridad.editarUsuario, seguridad.activarUsuario],
   roles: [seguridad.crearRol, seguridad.editarRol, seguridad.eliminarRol],
   reportes: [reportes.ventasPorPromotor, reportes.ventasPorZona, cobranzas.generarReporte, reportes.inventario,

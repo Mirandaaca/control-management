@@ -40,7 +40,7 @@ const modulos = [
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
     { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
     { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
-    { to: '/configuraciones', label: 'Configuraciones', icon: Settings, permisos: PANTALLAS.configuraciones },
+    { to: '/configuracion-general', label: 'Configuración general', icon: Settings, permisos: PANTALLAS.configuracionGeneral },
   ] },
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [
     { to: '/usuarios', label: 'Usuarios', icon: Users, permisos: PANTALLAS.usuarios },
