@@ -86,7 +86,7 @@ export default function Clientes() {
   const [guardandoEstado, setGuardandoEstado] = useState(false);
 
   // Un promotor sin cartera completa solo registra o mueve clientes a sus zonas: la API rechaza las demás.
-  const zonasElegibles = veCarteraCompleta ? zonas : zonas.filter((z) => z.promotorId === yo?.id);
+  const zonasElegibles = veCarteraCompleta ? zonas : zonas.filter((z) => z.promotor?.id === yo?.id);
 
   useEffect(() => {
     Promise.all([api.get('/zonas'), api.get('/clientes/estados')])

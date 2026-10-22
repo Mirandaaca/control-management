@@ -41,7 +41,7 @@ export default function Zonas() {
     }
   };
 
-  const handleEdit = (z) => { setEditId(z.id); setForm({ nombre: z.nombre, codigo: z.codigo, promotorId: z.promotorId ?? '' }); };
+  const handleEdit = (z) => { setEditId(z.id); setForm({ nombre: z.nombre, codigo: z.codigo, promotorId: z.promotor?.id ?? '' }); };
   const handleCancel = () => { setEditId(null); setForm(EMPTY); };
   const handleDelete = async (id) => {
     if (!confirm('¿Eliminar esta zona?')) return;
