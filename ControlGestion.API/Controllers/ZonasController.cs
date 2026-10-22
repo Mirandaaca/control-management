@@ -40,4 +40,17 @@ public class ZonasController(ZonaService zonas) : ControllerBase
         await zonas.EliminarAsync(id);
         return NoContent();
     }
+
+    [HttpPut("{id:int}/limite")]
+    [Permiso(Permisos.Territorial.DibujarLimites)]
+    public async Task<ActionResult<ZonaDTO>> GuardarLimite(int id, [FromBody] GuardarLimiteDTO dto) =>
+        await zonas.GuardarLimiteAsync(id, dto);
+
+    [HttpDelete("{id:int}/limite")]
+    [Permiso(Permisos.Territorial.DibujarLimites)]
+    public async Task<IActionResult> QuitarLimite(int id)
+    {
+        await zonas.QuitarLimiteAsync(id);
+        return NoContent();
+    }
 }

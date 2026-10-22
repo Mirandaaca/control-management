@@ -1361,6 +1361,9 @@ namespace ControlGestion.API.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("Limite")
+                        .HasColumnType("json");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(100)

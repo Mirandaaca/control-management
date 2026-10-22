@@ -88,6 +88,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Zona>().HasIndex(z => z.Codigo).IsUnique();
         builder.Entity<Zona>().Property(z => z.Nombre).HasMaxLength(100);
         builder.Entity<Zona>().HasIndex(z => z.Nombre).IsUnique();
+        builder.Entity<Zona>().Property(z => z.Limite).HasColumnType("json");
         // Una zona siempre tiene promotor. Los usuarios no se borran, se desactivan: Restrict no estorba.
         builder.Entity<Zona>()
             .HasOne(z => z.Promotor)
