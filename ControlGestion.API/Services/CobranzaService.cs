@@ -16,14 +16,27 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
     {
         var consulta = Filtrar(filtros);
         var total = await consulta.CountAsync();
-        var items = await consulta
-            .OrderByDescending(c => c.FechaEmision).ThenByDescending(c => c.Id)
+        // Las deudas vencidas van de la más atrasada a la más reciente (3.2); las demás, de la última emitida a la primera.
+        var ordenada = filtros.Estado == EstadoCobranza.Vencida
+            ? consulta.OrderBy(c => c.FechaVencimiento).ThenBy(c => c.Id)
+            : consulta.OrderByDescending(c => c.FechaEmision).ThenByDescending(c => c.Id);
+        var items = await ordenada
             .Skip((filtros.Pagina - 1) * filtros.Tamano)
             .Take(filtros.Tamano)
             .Select(CobranzaConsultas.ComoResumen)
             .ToListAsync();
-        return new Pagina<CobranzaResumenDTO>(items, total, filtros.Pagina, filtros.Tamano);
+        var conMora = items.Select(c => c with { DiasDeMora = DiasDeMora(c.Estado, c.FechaVencimiento) }).ToList();
+        return new Pagina<CobranzaResumenDTO>(conMora, total, filtros.Pagina, filtros.Tamano);
     }
+
+    /// <summary>
+    /// Días de calendario de Bolivia desde el día del vencimiento, como "diasDesdeHoy" del panel: una deuda que venció
+    /// ayer a las 23:30 lleva 1 día de mora. Solo una Vencida tiene mora.
+    /// </summary>
+    private int? DiasDeMora(EstadoCobranza estado, DateTime vencimientoUtc) =>
+        estado == EstadoCobranza.Vencida
+            ? HoraBolivia.Hoy(reloj).DayNumber - HoraBolivia.DiaDe(vencimientoUtc).DayNumber
+            : null;
 
     /// <summary>Los indicadores de la pantalla (3.2), con los mismos filtros que la lista.</summary>
     public async Task<ResumenCobranzasDTO> ResumenAsync(FiltrosCobranzaDTO filtros)
@@ -55,12 +68,15 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
         return consulta;
     }
 
-    public async Task<CobranzaDetalleDTO> ObtenerAsync(int id) =>
-        await db.Cobranzas.VisiblesPara(usuario)
+    public async Task<CobranzaDetalleDTO> ObtenerAsync(int id)
+    {
+        var detalle = await db.Cobranzas.VisiblesPara(usuario)
             .Where(c => c.Id == id)
             .Select(CobranzaConsultas.ComoDetalle)
             .FirstOrDefaultAsync()
-        ?? throw new NoEncontradoException("No se encontró la cobranza.");
+            ?? throw new NoEncontradoException("No se encontró la cobranza.");
+        return detalle with { DiasDeMora = DiasDeMora(detalle.Estado, detalle.FechaVencimiento) };
+    }
 
     public async Task<PagoRegistradoDTO> RegistrarPagoAsync(int id, RegistrarPagoDTO dto)
     {
@@ -141,6 +157,9 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
         if (cobranza.Estado == EstadoCobranza.Anulada)
             throw new ReglaDeNegocioException("cobranza_anulada", "La cobranza está anulada: su venta se anuló.");
+        // Marcarla otra vez pisaría el motivo de quien la marcó primero.
+        if (cobranza.Estado == EstadoCobranza.Incobrable)
+            throw new ReglaDeNegocioException("cobranza_ya_incobrable", "La cobranza ya está marcada como incobrable.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;

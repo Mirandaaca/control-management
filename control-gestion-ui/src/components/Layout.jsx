@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Boxes, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Inbox, LogOut, Map as Mapa, MapPin, MapPinned, Menu, Package, PanelLeftClose,
-  PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, TriangleAlert, UserRound,
+  PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
@@ -40,7 +40,8 @@ const modulos = [
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
     { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
     { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
-    { to: '/configuraciones', label: 'Configuraciones', icon: Settings, permisos: PANTALLAS.configuraciones },
+    { to: '/estados-cliente', label: 'Estados del cliente', icon: Tags, permisos: PANTALLAS.estadosCliente },
+    { to: '/configuracion-general', label: 'Configuración general', icon: Settings, permisos: PANTALLAS.configuracionGeneral },
   ] },
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [
     { to: '/usuarios', label: 'Usuarios', icon: Users, permisos: PANTALLAS.usuarios },

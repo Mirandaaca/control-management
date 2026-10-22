@@ -12,7 +12,10 @@ public static class HoraBolivia
     public static DateTime DesdeUtc(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zona);
 
-    public static DateOnly Hoy(TimeProvider reloj) => DateOnly.FromDateTime(DesdeUtc(reloj.GetUtcNow().UtcDateTime));
+    public static DateOnly Hoy(TimeProvider reloj) => DiaDe(reloj.GetUtcNow().UtcDateTime);
+
+    /// <summary>El día de Bolivia al que pertenece un instante guardado en UTC.</summary>
+    public static DateOnly DiaDe(DateTime utc) => DateOnly.FromDateTime(DesdeUtc(utc));
 
     /// <summary>El instante UTC en que empieza ese día en Bolivia.</summary>
     public static DateTime InicioDelDiaUtc(DateOnly dia) =>
@@ -20,6 +23,9 @@ public static class HoraBolivia
 
     /// <summary>El instante UTC en que empieza el día siguiente: se usa como límite exclusivo (&lt;).</summary>
     public static DateTime FinDelDiaUtc(DateOnly dia) => InicioDelDiaUtc(dia.AddDays(1));
+
+    /// <summary>El instante UTC en que termina hoy en Bolivia (empieza mañana).</summary>
+    public static DateTime FinDeHoyUtc(TimeProvider reloj) => FinDelDiaUtc(Hoy(reloj));
 
     /// <summary>
     /// Una fecha y hora elegida por el usuario. Sin zona (lo que manda un campo datetime-local del panel) se entiende

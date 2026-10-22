@@ -25,18 +25,22 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
             logger.LogError(excepcion, "Error no controlado en {Metodo} {Ruta} ({TraceId}).",
                 http.Request.Method, http.Request.Path, traceId);
 
+        var problema = new ProblemDetails
+        {
+            Status = estado,
+            Title = titulo,
+            Detail = detalle,
+            Extensions = { ["codigo"] = codigo }
+        };
+        if (excepcion is ValidacionException validacion)
+            problema.Extensions["errors"] = validacion.Errores;
+
         http.Response.StatusCode = estado;
         return await problemDetails.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = http,
             Exception = excepcion,
-            ProblemDetails = new ProblemDetails
-            {
-                Status = estado,
-                Title = titulo,
-                Detail = detalle,
-                Extensions = { ["codigo"] = codigo }
-            }
+            ProblemDetails = problema
         });
     }
 

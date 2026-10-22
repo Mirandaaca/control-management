@@ -1,11 +1,25 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
+import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { useAuth } from '../context/auth';
-import { mensajeDeError } from '../api/errores';
+import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import { Alert } from '../components/ui';
+import { mostrarPrimerProblema } from '../utils/foco';
 
-const campo = 'w-full h-11 px-3 border border-borde-control rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500';
+const campo = (error) => `w-full h-11 px-3 border rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500 ${
+  error ? 'border-red-600' : 'border-borde-control'
+}`;
+
+function ErrorDelCampo({ id, children }) {
+  if (!children) return null;
+  return (
+    <p id={id} className="mt-1 flex items-start gap-1 text-sm text-red-700">
+      <CircleAlert size={14} className="shrink-0 mt-0.5" aria-hidden="true" />
+      {children}
+    </p>
+  );
+}
 
 // Polígonos de zonas de venta, como los límites que se dibujan en la 5.5.
 const zonas = [
@@ -67,18 +81,27 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [verContrasena, setVerContrasena] = useState(false);
   const [error, setError] = useState('');
+  const [errores, setErrores] = useState({});
   const [loading, setLoading] = useState(false);
+  const formRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setErrores({});
     setSesionTerminada(false);
     setLoading(true);
     try {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(mensajeDeError(err, 'No se pudo iniciar sesión.'));
+      // Un dato que falta va debajo de su campo; las credenciales incorrectas y los demás errores, en el aviso.
+      flushSync(() => {
+        const campos = erroresPorCampo(err);
+        setErrores(campos);
+        if (Object.keys(campos).length === 0) setError(mensajeDeError(err, 'No se pudo iniciar sesión.'));
+      });
+      mostrarPrimerProblema(formRef.current);
     } finally {
       setLoading(false);
     }
@@ -112,7 +135,7 @@ export default function Login() {
 
           {sesionTerminada && <Alert type="warning" className="mb-4">Tu sesión terminó: vuelve a entrar.</Alert>}
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
                 Correo electrónico
@@ -125,9 +148,12 @@ export default function Login() {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="nombre@empresa.com"
-                className={campo}
+                className={campo(errores.email)}
+                aria-invalid={errores.email ? true : undefined}
+                aria-describedby={errores.email ? 'email-error' : undefined}
                 required
               />
+              <ErrorDelCampo id="email-error">{errores.email}</ErrorDelCampo>
             </div>
 
             <div>
@@ -141,7 +167,9 @@ export default function Login() {
                   autoComplete="current-password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className={`${campo} pr-11`}
+                  className={`${campo(errores.password)} pr-11`}
+                  aria-invalid={errores.password ? true : undefined}
+                  aria-describedby={errores.password ? 'password-error' : undefined}
                   required
                 />
                 <button
@@ -153,6 +181,7 @@ export default function Login() {
                   {verContrasena ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                 </button>
               </div>
+              <ErrorDelCampo id="password-error">{errores.password}</ErrorDelCampo>
             </div>
 
             {error && <Alert type="error">{error}</Alert>}

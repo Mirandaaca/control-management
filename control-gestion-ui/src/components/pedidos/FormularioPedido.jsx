@@ -4,7 +4,8 @@ import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import LineasDeProductos from '../LineasDeProductos';
-import { Alert, AreaDeTexto, Btn, Input, Modal, Selector } from '../ui';
+import { Alert, AreaDeTexto, Btn, Combobox, Input, Modal } from '../ui';
+import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../../hooks/useOpcionesDeClientes';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { aCampoFechaHora, ahoraEnBolivia, formatearMonto } from '../../utils/formato';
 import { totalDe } from '../../utils/lineas';
@@ -43,7 +44,7 @@ function datosIniciales(pedido) {
 export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
   const esNuevo = !pedido;
   const [datos, setDatos] = useState(() => datosIniciales(pedido));
-  const [clientes, setClientes] = useState([]);
+  const clientes = useOpcionesDeClientes();
   const [productos, setProductos] = useState([]);
   const [errores, setErrores] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
@@ -53,10 +54,10 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
   const direccionPropuesta = useRef('');
 
   useEffect(() => {
-    Promise.all([esNuevo ? api.get('/clientes/opciones') : Promise.resolve({ data: [] }), api.get('/productos/opciones')])
-      .then(([c, p]) => { setClientes(c.data); setProductos(p.data); })
-      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los clientes y los productos.')));
-  }, [esNuevo]);
+    api.get('/productos/opciones')
+      .then(({ data }) => setProductos(data))
+      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los productos.')));
+  }, []);
 
   // El error de un campo se borra en cuanto se cambia.
   const quitarError = (campo) =>
@@ -67,8 +68,8 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
     quitarError(campo);
   };
 
-  const elegirCliente = (clienteId) => {
-    const direccion = clientes.find((c) => String(c.id) === clienteId)?.direccionTexto ?? '';
+  const elegirCliente = (clienteId, opcion) => {
+    const direccion = opcion?.cliente.direccionTexto ?? '';
     setDatos((d) => {
       const propuesta = d.direccionEntrega === '' || d.direccionEntrega === direccionPropuesta.current;
       return { ...d, clienteId, direccionEntrega: propuesta ? direccion : d.direccionEntrega };
@@ -143,9 +144,10 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
         {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
         <div className="grid gap-4 md:grid-cols-2">
           {esNuevo ? (
-            <Selector label="Cliente" placeholder="Elige el cliente" value={datos.clienteId} error={errores.clienteId}
-              opciones={clientes.map((c) => ({ valor: String(c.id), texto: `${c.nombreCompleto} · ${c.codigo}` }))}
-              onChange={elegirCliente} />
+            <Combobox label="Cliente" placeholder="Elige el cliente" placeholderBusqueda="Nombre, código o celular…"
+              value={datos.clienteId} error={errores.clienteId}
+              opciones={clientes.opciones} onBuscar={clientes.buscar} cargando={clientes.cargando} errorBusqueda={clientes.error}
+              limite={LIMITE_DE_CLIENTES} onChange={elegirCliente} />
           ) : (
             <Input label="Cliente" value={pedido.cliente.nombreCompleto} disabled readOnly />
           )}

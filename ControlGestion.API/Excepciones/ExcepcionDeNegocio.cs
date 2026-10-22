@@ -17,6 +17,17 @@ public class NoEncontradoException(string mensaje)
 public class ReglaDeNegocioException(string codigo, string mensaje)
     : ExcepcionDeNegocio(StatusCodes.Status400BadRequest, codigo, "Regla de negocio", mensaje);
 
+/// <summary>
+/// Datos inválidos que solo el servicio puede revisar, porque dependen de la base (el precio de un producto). Responde
+/// igual que un error de DataAnnotations: 400 "validacion", con el mensaje de cada campo en "errors".
+/// </summary>
+public class ValidacionException(IReadOnlyDictionary<string, string[]> errores)
+    : ExcepcionDeNegocio(StatusCodes.Status400BadRequest, "validacion", "Datos inválidos", "Revisa los datos marcados.")
+{
+    /// <summary>Campo → mensajes. El campo va como en el JSON del cliente: "detalles[1].descuento".</summary>
+    public IReadOnlyDictionary<string, string[]> Errores { get; } = errores;
+}
+
 public class ConflictoException(string codigo, string mensaje)
     : ExcepcionDeNegocio(StatusCodes.Status409Conflict, codigo, "Conflicto", mensaje);
 

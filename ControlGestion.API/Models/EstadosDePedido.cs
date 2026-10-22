@@ -14,7 +14,7 @@ public static class EstadosDePedido
 
     /// <summary>
     /// Los estados solo avanzan (1.2): Pendiente → En proceso → En ruta. Desde En ruta lo que sigue es la entrega, y
-    /// "Anulado" tiene su propia operación: por eso las transiciones están aquí y no en EstadoPedido.PermiteTransicion.
+    /// "Anulado" tiene su propia operación. Las transiciones viven solo aquí, no en la base.
     /// </summary>
     public static int? Siguiente(int estado) => estado switch
     {

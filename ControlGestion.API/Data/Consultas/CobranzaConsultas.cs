@@ -37,7 +37,9 @@ public static class CobranzaConsultas
         new ClienteResumenDTO(c.Cliente!.Id, c.Cliente.NombreCompleto),
         new UsuarioResumenDTO(c.Promotor!.Id, c.Promotor.NombreCompleto),
         c.HojaPedido == null ? null : new HojaPedidoResumenDTO(c.HojaPedido.Id, c.HojaPedido.Numero),
-        c.Pagos.Count(p => !p.Anulado));
+        c.Pagos.Count(p => !p.Anulado),
+        // Depende del día de hoy en Bolivia: lo completa CobranzaService.
+        null);
 
     public static readonly Expression<Func<Cobranza, CobranzaDetalleDTO>> ComoDetalle = c => new CobranzaDetalleDTO(
         c.Id,
@@ -58,5 +60,6 @@ public static class CobranzaConsultas
             .Select(p => new PagoDTO(p.Id, p.Monto, p.MetodoPago, p.FechaPago, p.Referencia, p.Observaciones,
                 new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto), p.Anulado, p.MotivoAnulacion,
                 p.EvidenciaId))
-            .ToList());
+            .ToList(),
+        null);
 }

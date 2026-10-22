@@ -43,6 +43,9 @@ function EstadoCobranza({ estado }) {
   return <Badge color={color}>{texto}</Badge>;
 }
 
+// La API solo los manda en una cobranza vencida: días de calendario de Bolivia desde el vencimiento.
+const textoDeMora = (dias) => (dias === 1 ? '1 día de mora' : `${dias} días de mora`);
+
 function Dato({ titulo, children }) {
   return (
     <div className="min-w-0">
@@ -321,7 +324,10 @@ export default function Cobranzas() {
             <Td className={`text-right tabular-nums whitespace-nowrap ${abierta(c) ? 'font-semibold' : 'text-slate-600'}`}>
               {formatearMonto(c.saldoPendiente)}
             </Td>
-            <Td className="whitespace-nowrap tabular-nums">{formatearFecha(c.fechaVencimiento)}</Td>
+            <Td className="whitespace-nowrap tabular-nums">
+              {formatearFecha(c.fechaVencimiento)}
+              {c.diasDeMora != null && <span className="block text-xs font-medium text-red-700">{textoDeMora(c.diasDeMora)}</span>}
+            </Td>
             <Td><EstadoCobranza estado={c.estado} /></Td>
             <Td>
               <div className="flex items-center justify-end gap-1">
@@ -379,7 +385,10 @@ export default function Cobranzas() {
                   : <span className="font-semibold tabular-nums">{formatearMonto(detalle.saldoPendiente)}</span>}
               </Dato>
               <Dato titulo="Emitida el">{formatearFecha(detalle.fechaEmision)}</Dato>
-              <Dato titulo="Vence el">{formatearFecha(detalle.fechaVencimiento)}</Dato>
+              <Dato titulo="Vence el">
+                {formatearFecha(detalle.fechaVencimiento)}
+                {detalle.diasDeMora != null && <span className="block text-red-700">{textoDeMora(detalle.diasDeMora)}</span>}
+              </Dato>
               <Dato titulo="Pagada el">{detalle.fechaPagoCompleto ? formatearFecha(detalle.fechaPagoCompleto) : '—'}</Dato>
               <Dato titulo="Promotor">{detalle.promotor.nombreCompleto}</Dato>
               <Dato titulo="Hoja de pedido">{detalle.hojaPedido?.numero}</Dato>

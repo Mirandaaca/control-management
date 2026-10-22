@@ -65,6 +65,8 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
             .ToDictionaryAsync(p => p.Id);
         if (productos.Count != idsDeProductos.Count)
             throw new ReglaDeNegocioException("producto_no_disponible", "Uno o más productos no existen o están inactivos.");
+        // Antes de pedir el número: una HP rechazada no gasta un número.
+        RevisionDeLineas.RevisarDescuentos(dto.Detalles.Select(d => (d.Descuento, productos[d.ProductoId].Precio)));
 
         var hp = new HojaPedido
         {
@@ -193,7 +195,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         cliente.ProximaVisita = ahora.AddDays(await db.ConfiguracionesGenerales.DiasAsync(
             ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto));
         // Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo: la venta no lo cambia.
-        if (EstadosDeCliente.DelSistema.Contains(cliente.EstadoClienteId))
+        if (await db.EstadosCliente.Where(e => e.Id == cliente.EstadoClienteId).Select(e => e.EsDelSistema).FirstAsync())
             cliente.EstadoClienteId = EstadosDeCliente.Activo;
 
         if (hp.TipoVenta == TipoVenta.Credito)
