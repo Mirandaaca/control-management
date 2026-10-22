@@ -40,12 +40,13 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
     /// <summary>
     /// Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos, por nombre. Con
-    /// límite, solo los primeros: el selector con búsqueda pide de a pocos mientras se escribe.
+    /// límite, solo los primeros: el selector con búsqueda pide de a pocos mientras se escribe. La app pide también los
+    /// inactivos, para mostrarlos deshabilitados con su estado (7.3.5, ext. 2.2c) en vez de que parezca que no existen.
     /// </summary>
-    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar, int? limite = null)
+    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar, int? limite = null, bool incluirInactivos = false)
     {
-        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
-            .Buscar(buscar).OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id);
+        var visibles = incluirInactivos ? Visibles : Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo);
+        var consulta = visibles.Buscar(buscar).OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id);
         return (limite is { } n ? consulta.Take(n) : consulta).Select(ClienteConsultas.ComoOpcion).ToListAsync();
     }
 

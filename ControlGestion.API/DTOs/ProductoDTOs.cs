@@ -52,4 +52,4 @@ public record ProductoDTO(
     bool Activo);
 
 /// <summary>Lo justo para elegir un producto en una HP o un pedido: sin el precio de compra.</summary>
-public record ProductoOpcionDTO(int Id, string Sku, string Descripcion, decimal Precio, decimal StockActual);
+public record ProductoOpcionDTO(int Id, string Sku, string Descripcion, string? Categoria, decimal Precio, decimal StockActual);

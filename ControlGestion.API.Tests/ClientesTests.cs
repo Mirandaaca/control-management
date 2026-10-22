@@ -113,6 +113,8 @@ public class ClientesTests(ApiDePrueba api)
             .Single(c => c.GetProperty("id").GetInt32() == clienteId);
 
         Assert.Equal("Calle de prueba", opcion.GetProperty("direccionTexto").GetString());
+        Assert.False(opcion.GetProperty("inactivo").GetBoolean());
+        Assert.True(opcion.GetProperty("estado").GetProperty("delSistema").GetBoolean());
     }
 
     [Fact]
@@ -272,6 +274,11 @@ public class ClientesTests(ApiDePrueba api)
         Assert.Equal("Inactivo", EstadoDe(inactivo));
         Assert.DoesNotContain(id, await IdsAsync(cliente, $"?zonaId={zonaId}&porVisitar=true"));
         Assert.False(await enOpciones());
+        // La app los pide igual, para mostrarlos deshabilitados con su estado (7.3.5, ext. 2.2c).
+        var conInactivos = (await (await cliente.GetAsync("/api/clientes/opciones?incluirInactivos=true")).LeerJsonAsync())
+            .EnumerateArray().Single(c => c.GetProperty("id").GetInt32() == id);
+        Assert.True(conInactivos.GetProperty("inactivo").GetBoolean());
+        Assert.Equal("Inactivo", conInactivos.GetProperty("estado").GetProperty("nombre").GetString());
 
         var deVuelta = await (await cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = (int?)null }))
             .LeerJsonAsync();

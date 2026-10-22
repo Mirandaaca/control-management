@@ -30,6 +30,7 @@ public static class ProductoConsultas
         p.Id,
         p.SKU,
         p.Descripcion,
+        p.Categoria,
         p.Precio,
         p.Inventario == null ? 0m : p.Inventario.StockActual);
 }

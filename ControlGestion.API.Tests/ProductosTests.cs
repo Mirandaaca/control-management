@@ -84,6 +84,8 @@ public class ProductosTests(ApiDePrueba api)
 
         var opcion = Assert.Single(opciones, o => o.GetProperty("id").GetInt32() == productoId);
         Assert.Equal(8m, opcion.GetProperty("stockActual").GetDecimal());
+        // El catálogo de la app filtra por categoría (7.3.7, paso 2).
+        Assert.Equal("Pruebas", opcion.GetProperty("categoria").GetString());
         Assert.False(opcion.TryGetProperty("precioCompra", out _));
         Assert.Equal(HttpStatusCode.Forbidden, (await cliente.GetAsync("/api/productos")).StatusCode);
     }

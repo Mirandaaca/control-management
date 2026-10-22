@@ -111,9 +111,12 @@ public record ClienteDTO(
     DateTime? ProximaVisita,
     DateTime FechaCreacion);
 
-/// <summary>Lo justo para elegir un cliente en un formulario (HP, pedido, evento, ruta).</summary>
-/// <summary>Para los selectores. La dirección se propone como dirección de entrega de un pedido.</summary>
-public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto);
+/// <summary>
+/// Lo justo para elegir un cliente en un formulario (HP, pedido, evento, ruta). La dirección se propone como dirección
+/// de entrega de un pedido. Inactivo: no se le registran HP (7.3.5, ext. 2.2c), así el selector lo muestra deshabilitado.
+/// </summary>
+public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto,
+    EstadoClienteDTO Estado, bool Inactivo);
 
 public record ClienteMapaDTO(
     int Id,
