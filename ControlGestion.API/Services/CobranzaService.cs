@@ -157,6 +157,9 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
             throw new ReglaDeNegocioException("cobranza_pagada", "No se puede marcar como incobrable una cobranza pagada.");
         if (cobranza.Estado == EstadoCobranza.Anulada)
             throw new ReglaDeNegocioException("cobranza_anulada", "La cobranza está anulada: su venta se anuló.");
+        // Marcarla otra vez pisaría el motivo de quien la marcó primero.
+        if (cobranza.Estado == EstadoCobranza.Incobrable)
+            throw new ReglaDeNegocioException("cobranza_ya_incobrable", "La cobranza ya está marcada como incobrable.");
 
         cobranza.Estado = EstadoCobranza.Incobrable;
         cobranza.Observaciones = observacion;
