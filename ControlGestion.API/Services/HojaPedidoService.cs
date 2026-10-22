@@ -47,13 +47,39 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         await Visibles.Where(h => h.Id == id).Select(HojaPedidoConsultas.ComoDetalle).FirstOrDefaultAsync()
         ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
 
+    /// <summary>"Guardar" (7.3.5, ext. 3a): la HP queda en borrador y se confirma después.</summary>
     public async Task<HojaPedidoDTO> RegistrarAsync(RegistrarHojaPedidoDTO dto)
+    {
+        var hp = await ArmarAsync(dto);
+        db.HojasPedido.Add(hp);
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(hp.Id);
+    }
+
+    /// <summary>
+    /// "Confirmar venta" en un formulario nuevo: registra la HP y la confirma en una sola transacción. Si el stock no
+    /// alcanza, no queda nada, ni el borrador ni su número: el promotor corrige la línea y vuelve a confirmar.
+    /// </summary>
+    public async Task<HojaPedidoDTO> RegistrarConfirmadaAsync(RegistrarHojaPedidoDTO dto)
+    {
+        // La transacción incluye los números de la HP y de la cobranza, que el numerador pide con su propia sentencia.
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var hp = await ArmarAsync(dto);
+        db.HojasPedido.Add(hp);
+        // El kardex y la deuda usan el id de la HP: hay que guardarla antes de cerrar la venta.
+        await db.SaveChangesAsync();
+        await CerrarVentaAsync(hp);
+        await GuardarAsync("El stock o el cliente cambiaron mientras confirmabas. Vuelve a intentarlo.");
+        await tx.CommitAsync();
+        return await ObtenerAsync(hp.Id);
+    }
+
+    /// <summary>La HP de un formulario, revisada y con su número, sin guardar. Trae a su cliente para cerrar la venta.</summary>
+    private async Task<HojaPedido> ArmarAsync(RegistrarHojaPedidoDTO dto)
     {
         // Un cliente de otra cartera responde lo mismo que uno que no existe: no se le confirma que existe.
         var cliente = await db.Clientes.VisiblesPara(usuario)
-            .Where(c => c.Id == dto.ClienteId)
-            .Select(c => new { c.Id, c.ZonaId, c.EstadoClienteId })
-            .FirstOrDefaultAsync()
+            .FirstOrDefaultAsync(c => c.Id == dto.ClienteId)
             ?? throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
         if (cliente.EstadoClienteId == EstadosDeCliente.Inactivo)
             throw new ReglaDeNegocioException("cliente_inactivo",
@@ -72,6 +98,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         {
             Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.HojaPedido),
             ClienteId = cliente.Id,
+            Cliente = cliente,
             PromotorId = usuario.Id,
             // La venta cuenta en la zona del cliente: así los reportes por zona no dependen de lo que se eligió.
             ZonaId = cliente.ZonaId,
@@ -102,10 +129,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         if (hp.Total <= 0)
             throw new ReglaDeNegocioException("total_invalido",
                 $"El total de la HP debe ser mayor a cero. Subtotal: {hp.SubTotal:F2}, Descuento: {hp.Descuento:F2}, Total: {hp.Total:F2}");
-
-        db.HojasPedido.Add(hp);
-        await db.SaveChangesAsync();
-        return await ObtenerAsync(hp.Id);
+        return hp;
     }
 
     /// <summary>
