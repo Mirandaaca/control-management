@@ -126,20 +126,48 @@ void main() {
     expect(gps.ajustesDeLaApp, 1);
   });
 
-  testWidgets('con solo la ubicación aproximada, la lectura es poco precisa y ofrece pedir la precisa', (tester) async {
+  testWidgets('con solo la ubicación aproximada lo dice apenas empieza, y ofrece pedir la precisa', (tester) async {
+    gps.permisoActual = PermisoDeUbicacion.soloAproximada;
+    await abrir(tester);
+
+    expect(find.text('La app solo tiene tu ubicación aproximada.'), findsOneWidget);
+    expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
+    gps.alPedir = PermisoDeUbicacion.concedido;
+    await tester.tap(find.text('Dar permiso'));
+    await tester.pump();
+    expect(gps.pedidosDePermiso, 1);
+    expect(find.text('La app solo tiene tu ubicación aproximada.'), findsNothing);
+  });
+
+  testWidgets('con la aproximada, la primera lectura queda, poco precisa, sin esperar los 30 s', (tester) async {
     gps.permisoActual = PermisoDeUbicacion.soloAproximada;
     await abrir(tester);
 
     gps.leer(-17.78, -63.18, 8);
     await tester.pump();
-    expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
-    await tester.pump(esperaDelGps);
 
     expect(find.text('La app solo tiene tu ubicación aproximada.'), findsOneWidget);
     expect(find.text('Ubicación poco precisa · ±8 m'), findsOneWidget);
+    expect(find.text('Buscando la señal del GPS…'), findsNothing);
+  });
+
+  testWidgets('con la aproximada y sin lecturas, pide la precisa: no dice que no hay señal', (tester) async {
+    gps.permisoActual = PermisoDeUbicacion.soloAproximada;
+    await abrir(tester);
+
+    await tester.pump(esperaDelGps);
+
+    expect(find.text('No hay señal del GPS.'), findsNothing);
+    expect(find.text('La app solo tiene tu ubicación aproximada.'), findsOneWidget);
+    expect(
+      find.text('Dale permiso a la ubicación precisa para registrar la venta: sin ubicación, la venta no se guarda.'),
+      findsOneWidget,
+    );
+    expect(await captura(tester).paraGuardar(), isNull);
     gps.alPedir = PermisoDeUbicacion.concedido;
     await tester.tap(find.text('Dar permiso'));
-    expect(gps.pedidosDePermiso, 1);
+    await tester.pump();
+    expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
   });
 
   testWidgets('un error inesperado al empezar no deja la tarjeta buscando: ofrece reintentar', (tester) async {

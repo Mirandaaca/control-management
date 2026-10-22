@@ -37,9 +37,12 @@ class UbicacionSinIniciar extends EstadoDeUbicacion {
 
 /// Buscando la señal. [mejor] es la mejor lectura hasta ahora, que todavía no llega a [precisionBuena].
 class UbicacionBuscando extends EstadoDeUbicacion {
-  const UbicacionBuscando([this.mejor]);
+  const UbicacionBuscando({this.mejor, this.soloAproximada = false});
 
   final Posicion? mejor;
+
+  /// Busca con la ubicación aproximada: la tarjeta ya puede pedir la precisa, sin esperar la lectura.
+  final bool soloAproximada;
 
   @override
   Posicion? get posicion => mejor;
@@ -88,6 +91,12 @@ class UbicacionSinPermiso extends EstadoDeUbicacion {
 /// Se acabó el tiempo de espera sin ninguna lectura.
 class SinSenalDelGps extends EstadoDeUbicacion {
   const SinSenalDelGps();
+}
+
+/// Con solo la ubicación aproximada, se acabó el tiempo sin ninguna lectura: Android la entrega de a ratos (en el TECNO,
+/// ninguna en 30 s). No es la señal: falta el permiso de la precisa.
+class SinUbicacionPrecisa extends EstadoDeUbicacion {
+  const SinUbicacionPrecisa();
 }
 
 /// La ubicación de un formulario (la venta o el cliente). Cada formulario tiene la suya: si desde una venta se registra
@@ -141,22 +150,27 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
     }
 
     _soloAproximada = permiso == PermisoDeUbicacion.soloAproximada;
+    if (_soloAproximada) state = const UbicacionBuscando(soloAproximada: true);
     _tope = Timer(esperaDelGps, () {
       final mejor = state.posicion;
-      _terminar(mejor == null ? const SinSenalDelGps() : UbicacionCapturada(mejor, soloAproximada: _soloAproximada));
+      _terminar(switch (mejor) {
+        null when _soloAproximada => const SinUbicacionPrecisa(),
+        null => const SinSenalDelGps(),
+        _ => UbicacionCapturada(mejor),
+      });
     });
     _lecturas = servicio.lecturas().listen(_leer, onError: _fallar);
   }
 
   void _leer(Posicion lectura) {
+    // Esperar no mejora la aproximada: la primera lectura es la que hay, y cuenta como poco precisa.
+    if (_soloAproximada) return _terminar(UbicacionCapturada(lectura, soloAproximada: true));
     final mejor = state.posicion;
     final nueva = mejor == null || (lectura.precision ?? double.infinity) < (mejor.precision ?? double.infinity)
         ? lectura
         : mejor;
-    if (!_soloAproximada && (nueva.precision ?? double.infinity) <= precisionBuena) {
-      return _terminar(UbicacionCapturada(nueva));
-    }
-    state = UbicacionBuscando(nueva);
+    if ((nueva.precision ?? double.infinity) <= precisionBuena) return _terminar(UbicacionCapturada(nueva));
+    state = UbicacionBuscando(mejor: nueva);
     _avisarAQuienEspera();
   }
 
@@ -215,8 +229,8 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
   /// Al volver de los ajustes del celular: si faltaba el GPS, el permiso o la ubicación precisa, vuelve a buscar.
   void alVolverALaApp() {
     final faltabaAlgo = switch (state) {
-      GpsDesactivado() || UbicacionSinPermiso() => true,
-      UbicacionCapturada(soloAproximada: true) => true,
+      GpsDesactivado() || UbicacionSinPermiso() || SinUbicacionPrecisa() => true,
+      UbicacionBuscando(soloAproximada: true) || UbicacionCapturada(soloAproximada: true) => true,
       _ => false,
     };
     if (faltabaAlgo) capturar();
