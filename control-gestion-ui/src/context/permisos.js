@@ -106,6 +106,7 @@ export const PANTALLAS = {
   zonas: [parametros.registrarZona, parametros.modificarZona, parametros.eliminarZona],
   productos: [parametros.registrarProducto, parametros.modificarProducto, parametros.eliminarProducto],
   configuracionGeneral: [parametros.modificarDiasRevisita],
+  estadosCliente: [parametros.registrarEstadoCliente, parametros.modificarEstadoCliente, parametros.eliminarEstadoCliente],
   usuarios: [seguridad.crearUsuario, seguridad.editarUsuario, seguridad.activarUsuario],
   roles: [seguridad.crearRol, seguridad.editarRol, seguridad.eliminarRol],
   reportes: [reportes.ventasPorPromotor, reportes.ventasPorZona, cobranzas.generarReporte, reportes.inventario,

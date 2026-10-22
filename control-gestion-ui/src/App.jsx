@@ -9,6 +9,7 @@ import Zonas from './pages/Zonas';
 import Productos from './pages/Productos';
 import Reportes from './pages/Reportes';
 import ConfiguracionGeneral from './pages/ConfiguracionGeneral';
+import EstadosCliente from './pages/EstadosCliente';
 import Clientes from './pages/Clientes';
 import HojasPedido from './pages/HojasPedido';
 import Inventario from './pages/Inventario';
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />
           <Route path="/reportes/pedidos" element={<PrivateRoute permisos={PANTALLAS.reportePedidos}><ReportePedidos /></PrivateRoute>} />
           <Route path="/reportes/eventos" element={<PrivateRoute permisos={PANTALLAS.reporteEventos}><ReporteEventos /></PrivateRoute>} />
+          <Route path="/estados-cliente" element={<PrivateRoute permisos={PANTALLAS.estadosCliente}><EstadosCliente /></PrivateRoute>} />
           <Route path="/configuracion-general" element={<PrivateRoute permisos={PANTALLAS.configuracionGeneral}><ConfiguracionGeneral /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
