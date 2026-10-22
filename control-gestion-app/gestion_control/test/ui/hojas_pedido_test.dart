@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
@@ -335,6 +336,14 @@ void main() {
       expect(confirmar.top, greaterThan(guardar.bottom));
       await cumpleLasGuias(tester);
       semantica.dispose();
+    });
+
+    testWidgets('con la letra al 200 %, el título entra en la barra, más chico, en vez de cortarse', (tester) async {
+      await abrirFormulario(tester, letra: 2, alto: 800);
+
+      final titulo = tester.renderObject<RenderParagraph>(find.text('Nueva hoja de pedido'));
+      expect(titulo.didExceedMaxLines, isFalse);
+      expect(tester.getRect(find.text('Nueva hoja de pedido')).right, lessThanOrEqualTo(360));
     });
   });
 

@@ -19,6 +19,7 @@ import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/segmentado.dart';
 import '../core/widgets/selectores.dart';
+import '../core/widgets/titulo_de_barra.dart';
 import 'nueva_hoja_view_model.dart';
 import 'venta.dart';
 
@@ -138,7 +139,7 @@ class _NuevaHojaScreenState extends ConsumerState<NuevaHojaScreen> {
     final estado = ref.watch(nuevaHojaProvider);
     // Desde el primer cuadro, aunque los productos todavía carguen: si nadie la mira, la búsqueda del GPS se descarta.
     ref.watch(capturaDeUbicacionProvider(QueSeRegistra.venta));
-    const titulo = Text('Nueva hoja de pedido');
+    const titulo = TituloDeBarra('Nueva hoja de pedido');
     if (estado.productos == null) {
       return Scaffold(
         appBar: AppBar(title: titulo),
