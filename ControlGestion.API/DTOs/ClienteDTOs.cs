@@ -42,6 +42,9 @@ public record GuardarClienteDTO : IValidatableObject
     [Range(1, int.MaxValue, ErrorMessage = "Elige la zona.")]
     public int ZonaId { get; init; }
 
+    /// <summary>Solo al registrar: la misma clave devuelve el cliente ya registrado, sin crear otro.</summary>
+    public Guid? ClaveIdempotencia { get; init; }
+
 
     // 0,0 es lo que guardaba el formulario viejo con los campos vacíos: un punto en el océano, no una ubicación real.
     public IEnumerable<ValidationResult> Validate(ValidationContext contexto)

@@ -66,6 +66,10 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
     public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
     {
+        // Antes del aviso del celular: el reintento de un cliente ya registrado repite su propio celular.
+        if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } repetido)
+            return repetido;
+
         var promotorDeLaZona = await PromotorDeLaZonaAsync(dto.ZonaId);
         await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: null);
         var cliente = new Cliente
@@ -74,12 +78,36 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
             // Un cliente sin visitas está disponible para re-visita (5.2).
             EstadoClienteId = EstadosDeCliente.DisponibleParaRevisita,
             CreadoPorId = usuario.Id,
-            FechaCreacion = reloj.GetUtcNow().UtcDateTime
+            FechaCreacion = reloj.GetUtcNow().UtcDateTime,
+            ClaveIdempotencia = dto.ClaveIdempotencia
         };
         Copiar(dto, cliente, promotorDeLaZona);
         db.Clientes.Add(cliente);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (dto.ClaveIdempotencia != null)
+        {
+            // Dos envíos del mismo cliente a la vez: el índice único frena al segundo, que devuelve el del primero.
+            db.ChangeTracker.Clear();
+            if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } ganador) return ganador;
+            throw;
+        }
         return await ObtenerAsync(cliente.Id);
+    }
+
+    /// <summary>
+    /// El cliente que ya se registró con esa clave, o null si la clave es nueva. La clave se guarda solo con un cliente
+    /// guardado: un registro rechazado (un dato inválido, el celular repetido sin confirmar) no la gasta.
+    /// </summary>
+    private async Task<ClienteDTO?> YaRegistradoAsync(Guid? clave)
+    {
+        if (clave == null) return null;
+        var id = await db.Clientes.Where(c => c.ClaveIdempotencia == clave).Select(c => (int?)c.Id).FirstOrDefaultAsync();
+        if (id == null) return null;
+        return await Visibles.Where(c => c.Id == id).Select(ClienteConsultas.ComoDetalle).FirstOrDefaultAsync()
+            ?? throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otro cliente.");
     }
 
     public async Task<ClienteDTO> EditarAsync(int id, GuardarClienteDTO dto)
