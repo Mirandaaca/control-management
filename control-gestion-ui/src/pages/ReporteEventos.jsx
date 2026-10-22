@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CircleCheck, Clock, Download, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { CalendarX, CircleCheck, Clock, Download, LoaderCircle, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
 import { descargar } from '../api/descargas';
-import { mensajeDeError } from '../api/errores';
+import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoEvento from '../components/eventos/EstadoEvento';
@@ -28,6 +28,7 @@ export default function ReporteEventos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
+  const [erroresFiltro, setErroresFiltro] = useState({});
   const [errorAccion, setErrorAccion] = useState('');
   const [errorFiltros, setErrorFiltros] = useState('');
   const [exportando, setExportando] = useState(false);
@@ -53,9 +54,14 @@ export default function ReporteEventos() {
     hasta: filtros.hasta || undefined,
   }), [filtros]);
 
+  // Si la API rechaza los filtros, el reporte anterior no queda a la vista: ya no corresponde a lo que se pidió.
   const cargar = useCallback(() => api.get('/eventos/reporte', { params: parametros(numeroPagina) })
-    .then(({ data }) => { setReporte(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo generar el reporte de incidencias.')))
+    .then(({ data }) => { setReporte(data); setErrorCarga(''); setErroresFiltro({}); })
+    .catch((err) => {
+      setReporte(null);
+      setErroresFiltro(erroresPorCampo(err));
+      setErrorCarga(mensajeDeError(err, 'No se pudo generar el reporte de incidencias.'));
+    })
     .finally(() => { setCargando(false); setReintentando(false); }),
   [parametros, numeroPagina]);
 
@@ -81,7 +87,10 @@ export default function ReporteEventos() {
 
   let estado = null;
   if (cargando) estado = <Cargando texto="Generando el reporte…" />;
-  else if (errorCarga && !reporte) estado = (
+  else if (Object.keys(erroresFiltro).length > 0) estado = (
+    <EstadoVacio titulo="Revisa los filtros" icono={CalendarX}>El error está marcado en su campo.</EstadoVacio>
+  );
+  else if (errorCarga) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (sinEventos && !hayFiltros) estado = (
@@ -105,7 +114,6 @@ export default function ReporteEventos() {
 
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
-      {errorCarga && reporte && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {sinEventos && hayFiltros && (
         <Alert type="info" className="mb-4">Ningún evento coincide con los filtros: no hay nada que exportar.</Alert>
       )}
@@ -135,8 +143,8 @@ export default function ReporteEventos() {
         headers={['Número', 'Fecha', 'Tipo', 'Cliente', 'Zona', 'Registró', { texto: 'Fotos', derecha: true }, 'Estado']}
         empty="Ningún evento coincide con los filtros."
         estado={estado}
-        barra={!cargando && reporte && (pagina.total > 0 || hayFiltros) && (
-          <BarraDeFiltros resultado={cuantos(pagina.total)} hayFiltros={hayFiltros}
+        barra={!cargando && (hayFiltros || pagina?.total > 0) && (
+          <BarraDeFiltros resultado={pagina ? cuantos(pagina.total) : ''} hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
             <div className="w-full sm:w-48">
               <Selector label="Tipo" todos="Todos" value={filtros.tipo}
@@ -159,10 +167,12 @@ export default function ReporteEventos() {
                 onChange={(promotor) => filtrar({ promotor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
+                onChange={(e) => filtrar({ desde: e.target.value })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+                onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

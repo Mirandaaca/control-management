@@ -27,8 +27,20 @@ public static class ClienteConsultas
             || (c.RazonSocial != null && c.RazonSocial.Contains(t)) || (c.NIT != null && c.NIT.Contains(t)));
     }
 
+    /// <summary>
+    /// La regla de "la próxima visita llegó" (5.2, 5.3), por día de Bolivia y no por hora: un cliente que toca visitar hoy
+    /// a las 18:00 ya está disponible y por visitar desde la mañana. Un cliente sin visitas también. Recibe el fin de hoy
+    /// en UTC (HoraBolivia.FinDeHoyUtc). <see cref="ProximaVisitaPendiente"/> es exactamente lo contrario.
+    /// </summary>
+    public static Expression<Func<Cliente, bool>> ProximaVisitaLlego(DateTime finDeHoyUtc) =>
+        c => c.ProximaVisita == null || c.ProximaVisita < finDeHoyUtc;
+
+    /// <summary>La próxima visita es de mañana en adelante: el cliente sigue activo.</summary>
+    public static Expression<Func<Cliente, bool>> ProximaVisitaPendiente(DateTime finDeHoyUtc) =>
+        c => c.ProximaVisita >= finDeHoyUtc;
+
     public static readonly Expression<Func<EstadoCliente, EstadoClienteDTO>> EstadoComoDTO =
-        e => new EstadoClienteDTO(e.Id, e.Nombre, e.Color, e.Descripcion, EstadosDeCliente.DelSistema.Contains(e.Id));
+        e => new EstadoClienteDTO(e.Id, e.Nombre, e.Color, e.Descripcion, e.EsDelSistema);
 
     public static readonly Expression<Func<Cliente, ClienteListaDTO>> ComoLista = c => new ClienteListaDTO(
         c.Id,
@@ -37,7 +49,7 @@ public static class ClienteConsultas
         c.Telefono,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
-            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)),
+            c.EstadoCliente.EsDelSistema),
         c.Promotor == null ? null : new UsuarioResumenDTO(c.Promotor.Id, c.Promotor.NombreCompleto),
         c.SaldoPendiente,
         c.UltimaVisita,
@@ -56,7 +68,7 @@ public static class ClienteConsultas
         c.Longitud,
         new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
-            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)),
+            c.EstadoCliente.EsDelSistema),
         c.Promotor == null ? null : new UsuarioResumenDTO(c.Promotor.Id, c.Promotor.NombreCompleto),
         c.SaldoPendiente,
         c.UltimaVisita,
@@ -76,5 +88,5 @@ public static class ClienteConsultas
         c.DireccionTexto,
         c.ProximaVisita,
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
-            EstadosDeCliente.DelSistema.Contains(c.EstadoCliente.Id)));
+            c.EstadoCliente.EsDelSistema));
 }

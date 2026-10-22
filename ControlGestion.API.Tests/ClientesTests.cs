@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ControlGestion.API.Data;
+using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
 
@@ -346,8 +349,7 @@ public class ClientesTests(ApiDePrueba api)
         var zonaId = await operador.CrearZonaAsync();
         var productoId = await operador.CrearProductoAsync(10m);
         var clienteId = await operador.CrearClienteAsync(zonaId);
-        (await operador.PutAsJsonAsync("/api/configuraciones/DiasRevisita", new { clave = "DiasRevisita", valor = "7" }))
-            .EnsureSuccessStatusCode();
+        (await operador.PutAsJsonAsync("/api/configuraciones/dias-revisita", new { dias = 7 })).EnsureSuccessStatusCode();
         try
         {
             // HP a crédito para un cliente sin límite de crédito: la validación credito_insuficiente ya no existe.
@@ -361,7 +363,7 @@ public class ClientesTests(ApiDePrueba api)
         finally
         {
             // Vuelve al valor sembrado: las demás pruebas cuentan con él.
-            await operador.PutAsJsonAsync("/api/configuraciones/DiasRevisita", new { clave = "DiasRevisita", valor = "15" });
+            await operador.PutAsJsonAsync("/api/configuraciones/dias-revisita", new { dias = 15 });
         }
     }
 
@@ -373,5 +375,50 @@ public class ClientesTests(ApiDePrueba api)
 
         Assert.Equal([1, 2], estados.Where(e => e.GetProperty("delSistema").GetBoolean()).Select(e => e.GetProperty("id").GetInt32()));
         Assert.Contains(estados, e => e.GetProperty("nombre").GetString() == "Inactivo" && !e.GetProperty("delSistema").GetBoolean());
+    }
+
+    [Fact]
+    public void Los_estados_sembrados_tienen_el_rojo_el_verde_y_un_color_de_la_paleta()
+    {
+        using var scope = api.Services.CreateScope();
+        var colores = scope.ServiceProvider.GetRequiredService<AppDbContext>().EstadosCliente.ToDictionary(e => e.Id, e => e.Color);
+
+        Assert.Equal(PaletaDeEstados.Activo, colores[EstadosDeCliente.Activo]);
+        Assert.Equal(PaletaDeEstados.Disponible, colores[EstadosDeCliente.DisponibleParaRevisita]);
+        Assert.Equal(PaletaDeEstados.Pizarra, colores[EstadosDeCliente.Inactivo]);
+    }
+
+    [Fact]
+    public async Task Las_opciones_aceptan_un_limite_y_vienen_ordenadas_por_nombre()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync();
+        var prefijo = Ayudantes.Unico("PAR");
+        foreach (var letra in new[] { "C", "A", "B" })
+            (await operador.PostAsJsonAsync("/api/clientes", new
+            {
+                nombreCompleto = $"{prefijo} {letra}", telefono = $"7{Random.Shared.Next(1000000, 9999999)}",
+                direccionTexto = "Calle", latitud = -17.76m, longitud = -63.18m, zonaId
+            })).EnsureSuccessStatusCode();
+
+        async Task<List<string>> NombresAsync(string consulta) =>
+            (await (await operador.GetAsync($"/api/clientes/opciones?buscar={prefijo}{consulta}")).LeerJsonAsync())
+                .EnumerateArray().Select(c => c.GetProperty("nombreCompleto").GetString()!).ToList();
+
+        Assert.Equal([$"{prefijo} A", $"{prefijo} B"], await NombresAsync("&limite=2"));
+        Assert.Equal(3, (await NombresAsync("")).Count);
+        var problema = await (await operador.GetAsync("/api/clientes/opciones?limite=0")).ProblemaAsync(400, "validacion");
+        Assert.True(problema.GetProperty("errors").TryGetProperty("limite", out _));
+    }
+
+    [Fact]
+    public async Task El_estado_Con_Deuda_Vencida_ya_no_existe_ni_se_asigna()
+    {
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+
+        var estados = (await (await operador.GetAsync("/api/clientes/estados")).LeerJsonAsync()).EnumerateArray();
+        Assert.DoesNotContain(estados, e => e.GetProperty("id").GetInt32() == 3 || e.GetProperty("nombre").GetString() == "Con Deuda Vencida");
+        await (await operador.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = 3 })).ProblemaAsync(400, "estado_no_existe");
     }
 }

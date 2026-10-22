@@ -210,4 +210,20 @@ public class CobranzasTests(ApiDePrueba api)
         Assert.Equal(4, marcada.GetProperty("estado").GetInt32());
         Assert.Equal("El cliente cerró su negocio", marcada.GetProperty("observaciones").GetString());
     }
+
+    [Fact]
+    public async Task Una_deuda_ya_incobrable_no_se_vuelve_a_marcar_y_conserva_su_motivo()
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, zonaId, productoId) = escenario;
+        var cobranzaId = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(zonaId), productoId, 1);
+        (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", new { observacion = "El cliente se mudó" }))
+            .EnsureSuccessStatusCode();
+
+        await (await operador.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/incobrable", new { observacion = "Otro motivo" }))
+            .ProblemaAsync(400, "cobranza_ya_incobrable");
+
+        var cobranza = await (await operador.GetAsync($"/api/cobranzas/{cobranzaId}")).LeerJsonAsync();
+        Assert.Equal("El cliente se mudó", cobranza.GetProperty("observaciones").GetString());
+    }
 }

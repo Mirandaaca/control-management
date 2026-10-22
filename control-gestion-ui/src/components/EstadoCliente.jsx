@@ -1,4 +1,5 @@
 import { Clock, MapPin } from 'lucide-react';
+import { colorDePaleta } from './paletaDeEstados';
 
 // Los ids de ControlGestion.API/Models/EstadosDeCliente.cs. Su color tiene significado fijo (docs/diseno.md, 5.2):
 // rojo es "visitado hace poco" y verde es "disponible para re-visita", siempre con su texto y su ícono.
@@ -24,10 +25,12 @@ export default function EstadoCliente({ estado }) {
     );
   }
 
-  // Los estados asignados a mano llevan el color que eligió el administrador (7.4), en un punto junto al nombre.
+  // Los estados asignados a mano se pintan con el color que eligió el administrador (7.4), de la paleta, con su texto.
+  // Un color que no es de la paleta (no debería pasar: la API lo rechaza) queda en gris.
+  const pintura = colorDePaleta(estado.color);
+  if (!pintura) return <span className={`${base} bg-slate-100 text-slate-700`}>{estado.nombre}</span>;
   return (
-    <span className={`${base} bg-slate-100 text-slate-700`}>
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: estado.color }} aria-hidden="true" />
+    <span className={base} style={{ backgroundColor: pintura.color, color: pintura.texto }}>
       {estado.nombre}
     </span>
   );

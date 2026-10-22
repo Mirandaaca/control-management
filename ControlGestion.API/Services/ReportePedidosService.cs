@@ -3,6 +3,7 @@ using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
+using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
 using Microsoft.EntityFrameworkCore;
@@ -33,10 +34,15 @@ public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, Time
         return new ReportePedidosDTO(porEstado, cantidad, monto, new Pagina<PedidoListaDTO>(items, total, filtros.Pagina, filtros.Tamano));
     }
 
-    /// <summary>El Excel del reporte: todos los pedidos de los filtros, sin paginar, y una hoja con los totales.</summary>
+    /// <summary>
+    /// El Excel del reporte: todos los pedidos de los filtros, sin paginar, y una hoja con los totales. Sin pedidos no se
+    /// exporta; un anulado sí cuenta, porque es una fila del Excel.
+    /// </summary>
     public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosPedidoDTO filtros)
     {
         var consulta = Filtrados(filtros);
+        if (!await consulta.AnyAsync())
+            throw new ReglaDeNegocioException("reporte_sin_datos", "No hay pedidos con esos filtros: no hay nada que exportar.");
         var (porEstado, cantidad, monto) = await TotalesAsync(consulta);
         var filas = await consulta
             .OrderBy(p => p.FechaEntregaEstimada).ThenBy(p => p.Id)

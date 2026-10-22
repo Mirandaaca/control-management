@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Services;
@@ -16,9 +17,11 @@ public class ClientesController(ClienteService clientes) : ControllerBase
     public async Task<ActionResult<Pagina<ClienteListaDTO>>> GetAll([FromQuery] FiltrosClienteDTO filtros) =>
         await clientes.ListarAsync(filtros);
 
+    // Con más de 2.000 clientes, el selector con búsqueda del panel pide los primeros 50 que coinciden con lo que se escribe.
     [HttpGet("opciones")]
-    public async Task<ActionResult<List<ClienteOpcionDTO>>> GetOpciones([FromQuery] string? buscar) =>
-        await clientes.OpcionesAsync(buscar);
+    public async Task<ActionResult<List<ClienteOpcionDTO>>> GetOpciones([FromQuery] string? buscar,
+        [FromQuery, Range(1, 100, ErrorMessage = "El límite va de 1 a 100.")] int? limite) =>
+        await clientes.OpcionesAsync(buscar, limite);
 
     [HttpGet("mapa")]
     [Permiso(Permisos.Ventas.VerUbicacionCliente, Permisos.Territorial.VerMapaClientes)]

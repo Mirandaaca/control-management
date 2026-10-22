@@ -1,3 +1,4 @@
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
@@ -23,9 +24,8 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         {
             // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
             // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
-            var ahora = reloj.GetUtcNow().UtcDateTime;
-            consulta = consulta.Where(c => EstadosDeCliente.DelSistema.Contains(c.EstadoClienteId)
-                && (c.ProximaVisita == null || c.ProximaVisita <= ahora));
+            consulta = consulta.Where(c => c.EstadoCliente!.EsDelSistema)
+                .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj)));
         }
 
         var total = await consulta.CountAsync();
@@ -38,10 +38,16 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         return new Pagina<ClienteListaDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
-    /// <summary>Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos.</summary>
-    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar) =>
-        Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
-            .Buscar(buscar).OrderBy(c => c.NombreCompleto).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+    /// <summary>
+    /// Para los selectores de HP, pedidos, eventos y rutas: los clientes visibles que no están inactivos, por nombre. Con
+    /// límite, solo los primeros: el selector con búsqueda pide de a pocos mientras se escribe.
+    /// </summary>
+    public Task<List<ClienteOpcionDTO>> OpcionesAsync(string? buscar, int? limite = null)
+    {
+        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo)
+            .Buscar(buscar).OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id);
+        return (limite is { } n ? consulta.Take(n) : consulta).Select(ClienteConsultas.ComoOpcion).ToListAsync();
+    }
 
     public Task<List<ClienteMapaDTO>> MapaAsync(int? zonaId)
     {
@@ -55,7 +61,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         ?? throw new NoEncontradoException("No se encontró el cliente.");
 
     public Task<List<EstadoClienteDTO>> EstadosAsync() =>
-        db.EstadosCliente.Where(e => e.Activo).OrderBy(e => e.Id).Select(ClienteConsultas.EstadoComoDTO).ToListAsync();
+        db.EstadosCliente.OrderBy(e => e.Id).Select(ClienteConsultas.EstadoComoDTO).ToListAsync();
 
     public async Task<ClienteDTO> CrearAsync(GuardarClienteDTO dto)
     {
@@ -96,17 +102,19 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
 
         if (dto.EstadoClienteId is { } estadoId)
         {
-            if (EstadosDeCliente.DelSistema.Contains(estadoId))
+            var estado = await db.EstadosCliente.Where(e => e.Id == estadoId).Select(e => new { e.EsDelSistema }).FirstOrDefaultAsync()
+                ?? throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
+            if (estado.EsDelSistema)
                 throw new ReglaDeNegocioException("estado_del_sistema",
                     "Activo y Disponible para re-visita los asigna el sistema según las visitas.");
-            if (!await db.EstadosCliente.AnyAsync(e => e.Id == estadoId && e.Activo))
-                throw new ReglaDeNegocioException("estado_no_existe", "El estado elegido no existe.");
             cliente.EstadoClienteId = estadoId;
         }
         else
         {
-            var ahora = reloj.GetUtcNow().UtcDateTime;
-            cliente.EstadoClienteId = cliente.ProximaVisita > ahora ? EstadosDeCliente.Activo : EstadosDeCliente.DisponibleParaRevisita;
+            // La misma regla que la lista "por visitar" y el recálculo de los días de re-visita.
+            var llego = await db.Clientes.Where(c => c.Id == id)
+                .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj))).AnyAsync();
+            cliente.EstadoClienteId = llego ? EstadosDeCliente.DisponibleParaRevisita : EstadosDeCliente.Activo;
         }
 
         await db.SaveChangesAsync();

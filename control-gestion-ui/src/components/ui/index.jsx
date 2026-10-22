@@ -1,13 +1,17 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import {
-  ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Inbox, Info, LoaderCircle, RefreshCw, Search, TriangleAlert, X,
+  Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, Inbox, Info, LoaderCircle, RefreshCw, Search,
+  TriangleAlert, X,
 } from 'lucide-react';
+import { coincide } from '../../utils/texto';
 import { Checkbox } from './checkbox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './command';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
+import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
 // Componentes del panel con el diseño de docs/diseno.md. Los archivos en minúscula de esta carpeta (dialog, select,
-// checkbox) son de shadcn/ui: las pantallas usan los de aquí, que ya traen los textos y el estilo del sistema.
+// checkbox, command, popover) son de shadcn/ui: las pantallas usan los de aquí, que ya traen los textos y el estilo.
 
 export function PageHeader({ title, subtitle, action }) {
   return (
@@ -144,6 +148,112 @@ export function Selector({ label, value, onChange, opciones, placeholder = 'Eleg
           {opciones.map((o) => <SelectItem key={o.valor} value={o.valor}>{o.texto}</SelectItem>)}
         </SelectContent>
       </Select>
+    </Campo>
+  );
+}
+
+/**
+ * Selector con búsqueda (el combobox de shadcn/ui), para elegir entre muchas opciones, como un cliente o un producto.
+ * Para pocas opciones fijas, como los filtros de una lista, se usa Selector.
+ * - opciones: [{ valor, texto, detalle? }]. "detalle" se muestra debajo del texto y también se busca en él.
+ * - onChange(valor, opcion): recibe además la opción entera, por ejemplo para proponer la dirección de un cliente.
+ * - Sin onBuscar, filtra aquí al escribir, sin distinguir mayúsculas ni tildes.
+ * - Con onBuscar(texto), la búsqueda es de quien lo usa (la API): "opciones" trae los resultados, "cargando" dice si
+ *   está buscando y "limite" avisa que hay más cuando llegan tantas como pidió.
+ * - textoInicial: el texto del valor elegido mientras todavía no está entre las opciones (al editar).
+ */
+export function Combobox({
+  label, value, onChange, opciones, placeholder = 'Elegir…', placeholderBusqueda = 'Buscar…', ayuda, error, id, disabled,
+  onBuscar, cargando = false, errorBusqueda, limite, textoInicial,
+}) {
+  const generado = useId();
+  const campoId = id ?? generado;
+  const listaId = `${campoId}-opciones`;
+  const [abierto, setAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  // La última opción elegida: su texto se sigue mostrando aunque una búsqueda nueva ya no la traiga.
+  const [elegida, setElegida] = useState(null);
+
+  const seleccionada = opciones.find((o) => String(o.valor) === String(value))
+    ?? (elegida && String(elegida.valor) === String(value) ? elegida : null);
+  const textoElegido = seleccionada?.texto ?? (value ? textoInicial : '');
+  const visibles = onBuscar ? opciones : opciones.filter((o) => coincide(busqueda, o.texto, o.detalle));
+  const hayMas = Boolean(onBuscar && limite && opciones.length >= limite);
+
+  let anuncio = visibles.length === 1 ? '1 resultado' : `${visibles.length} resultados`;
+  if (cargando) anuncio = 'Buscando…';
+  else if (errorBusqueda) anuncio = errorBusqueda;
+  else if (visibles.length === 0) anuncio = 'Sin resultados';
+
+  const cambiarAbierto = (abre) => {
+    setAbierto(abre);
+    setBusqueda('');
+    if (abre) onBuscar?.('');
+  };
+
+  const buscar = (texto) => {
+    setBusqueda(texto);
+    onBuscar?.(texto);
+  };
+
+  const elegir = (opcion) => {
+    setElegida(opcion);
+    onChange(opcion.valor, opcion);
+    setAbierto(false);
+  };
+
+  return (
+    <Campo id={campoId} label={label} ayuda={ayuda} error={error}>
+      {/* modal: dentro de un Modal, la rueda del mouse desplaza la lista y no la página. */}
+      <Popover open={abierto} onOpenChange={cambiarAbierto} modal>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            id={campoId}
+            role="combobox"
+            aria-expanded={abierto}
+            aria-controls={abierto ? listaId : undefined}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describirCon(campoId, error, ayuda)}
+            disabled={disabled}
+            className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600 ${
+              error ? 'border-red-600' : 'border-borde-control'
+            }`}
+          >
+            <span className={`min-w-0 truncate ${textoElegido ? 'text-slate-900' : 'text-slate-500'}`}>{textoElegido || placeholder}</span>
+            <ChevronsUpDown size={16} className="shrink-0 text-slate-600" aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" collisionPadding={16} className="w-(--radix-popover-trigger-width) min-w-56 p-0">
+          <Command shouldFilter={false} label={label}>
+            <CommandInput value={busqueda} onValueChange={buscar} placeholder={placeholderBusqueda} aria-label={`Buscar: ${label}`} />
+            <CommandList id={listaId}>
+              {!cargando && !errorBusqueda && <CommandEmpty>Sin resultados.</CommandEmpty>}
+              {visibles.length > 0 && (
+                <CommandGroup>
+                  {visibles.map((o) => (
+                    <CommandItem key={o.valor} value={String(o.valor)} onSelect={() => elegir(o)}>
+                      <Check size={16} className={String(o.valor) === String(value) ? 'text-marca-700' : 'invisible'} aria-hidden="true" />
+                      <span className="min-w-0">
+                        <span className="block truncate">{o.texto}</span>
+                        {o.detalle && <span className="block truncate text-xs text-slate-600">{o.detalle}</span>}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+            {(cargando || errorBusqueda || hayMas) && (
+              <p className={`border-t border-border px-3 py-2 text-xs ${errorBusqueda && !cargando ? 'text-red-700' : 'text-slate-600'}`}>
+                {cargando && 'Buscando…'}
+                {!cargando && errorBusqueda}
+                {!cargando && !errorBusqueda && hayMas && 'Hay más: escribe para afinar la búsqueda.'}
+              </p>
+            )}
+            <p className="sr-only" aria-live="polite">{anuncio}</p>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </Campo>
   );
 }
