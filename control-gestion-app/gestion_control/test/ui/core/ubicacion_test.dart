@@ -118,6 +118,46 @@ void main() {
     expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
   });
 
+  testWidgets('al volver a la app sin permiso, lo revisa sin pedirlo: pedirlo la pausa y sería un ciclo', (
+    tester,
+  ) async {
+    gps
+      ..permisoActual = PermisoDeUbicacion.denegado
+      ..alPedir = PermisoDeUbicacion.denegado;
+    await abrir(tester);
+    expect(gps.pedidosDePermiso, 1);
+
+    captura(tester).alVolverALaApp();
+    await tester.pump();
+    expect(gps.pedidosDePermiso, 1);
+    expect(find.text('La app no tiene permiso para usar tu ubicación.'), findsOneWidget);
+
+    // Lo dio en los ajustes del celular: al volver, busca.
+    gps.permisoActual = PermisoDeUbicacion.concedido;
+    captura(tester).alVolverALaApp();
+    await tester.pump();
+    expect(gps.pedidosDePermiso, 1);
+    expect(find.text('Buscando la señal del GPS…'), findsOneWidget);
+  });
+
+  testWidgets('si Android lo niega para siempre al pedirlo, "Dar permiso" abre los ajustes, también al volver', (
+    tester,
+  ) async {
+    gps
+      ..comoAndroid = true
+      ..permisoActual = PermisoDeUbicacion.denegado
+      ..alPedir = PermisoDeUbicacion.denegadoParaSiempre;
+    await abrir(tester);
+
+    await tester.tap(find.text('Dar permiso'));
+    expect(gps.ajustesDeLaApp, 1);
+    captura(tester).alVolverALaApp();
+    await tester.pump();
+    await tester.tap(find.text('Dar permiso'));
+    expect(gps.ajustesDeLaApp, 2);
+    expect(gps.pedidosDePermiso, 1);
+  });
+
   testWidgets('negado para siempre, "Dar permiso" abre los ajustes de la app', (tester) async {
     gps.permisoActual = PermisoDeUbicacion.denegadoParaSiempre;
     await abrir(tester);

@@ -128,7 +128,12 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
 
   /// Busca la ubicación: espera hasta [esperaDelGps] una lectura de [precisionBuena] o mejor y, si no llega, se queda
   /// con la mejor que tuvo. Nunca usa la última ubicación conocida: puede ser de otro lugar.
-  Future<void> capturar() async {
+  ///
+  /// Sin permiso, lo pide. Con [pedirPermiso] en false (al volver a la app) solo lo revisa: pedirlo abre y cierra la
+  /// pantalla de Android, que pausa y retoma la app; si al retomarla se volviera a pedir, y Android lo niega solo (negado
+  /// para siempre), sería un ciclo sin fin. Pasó en el TECNO.
+  Future<void> capturar({bool pedirPermiso = true}) async {
+    final anterior = state;
     _detener();
     state = const UbicacionBuscando();
     final servicio = _servicio;
@@ -137,7 +142,7 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
     try {
       activado = await servicio.gpsActivado();
       permiso = activado ? await servicio.permiso() : PermisoDeUbicacion.denegado;
-      if (activado && permiso == PermisoDeUbicacion.denegado) permiso = await servicio.pedirPermiso();
+      if (activado && pedirPermiso && permiso == PermisoDeUbicacion.denegado) permiso = await servicio.pedirPermiso();
     } catch (e) {
       // Un error inesperado del GPS no deja la tarjeta buscando para siempre: ofrece "Reintentar".
       debugPrint('No se pudo empezar a buscar la ubicación. $e');
@@ -146,7 +151,11 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
     if (!ref.mounted) return;
     if (!activado) return _terminar(const GpsDesactivado());
     if (permiso == PermisoDeUbicacion.denegado || permiso == PermisoDeUbicacion.denegadoParaSiempre) {
-      return _terminar(UbicacionSinPermiso(paraSiempre: permiso == PermisoDeUbicacion.denegadoParaSiempre));
+      // Revisarlo no dice si es para siempre (en Android, solo pedirlo lo sabe): se conserva lo que dijo el pedido.
+      final paraSiempre =
+          permiso == PermisoDeUbicacion.denegadoParaSiempre ||
+          (!pedirPermiso && anterior is UbicacionSinPermiso && anterior.paraSiempre);
+      return _terminar(UbicacionSinPermiso(paraSiempre: paraSiempre));
     }
 
     _soloAproximada = permiso == PermisoDeUbicacion.soloAproximada;
@@ -233,7 +242,7 @@ class CapturaDeUbicacion extends Notifier<EstadoDeUbicacion> {
       UbicacionBuscando(soloAproximada: true) || UbicacionCapturada(soloAproximada: true) => true,
       _ => false,
     };
-    if (faltabaAlgo) capturar();
+    if (faltabaAlgo) capturar(pedirPermiso: false);
   }
 }
 

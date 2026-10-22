@@ -61,10 +61,12 @@ class ServicioConGeolocator implements ServicioDeUbicacion {
   };
 
   @override
-  Future<PermisoDeUbicacion> pedirPermiso() async {
-    await Geolocator.requestPermission();
-    return permiso();
-  }
+  Future<PermisoDeUbicacion> pedirPermiso() async => switch (await Geolocator.requestPermission()) {
+    // Solo la respuesta del pedido sabe si es para siempre: checkPermission, en Android, lo devuelve como "denied".
+    LocationPermission.deniedForever => PermisoDeUbicacion.denegadoParaSiempre,
+    LocationPermission.denied || LocationPermission.unableToDetermine => PermisoDeUbicacion.denegado,
+    LocationPermission.whileInUse || LocationPermission.always => await permiso(),
+  };
 
   Future<bool> _soloAproximada() async {
     // En la web no existe: el navegador da la ubicación que tiene.

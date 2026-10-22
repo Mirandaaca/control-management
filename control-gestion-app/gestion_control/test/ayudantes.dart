@@ -197,8 +197,13 @@ class UbicacionFalsa implements ServicioDeUbicacion {
     return activado;
   }
 
+  /// Como Android: revisar el permiso no dice si es para siempre; solo la respuesta del pedido lo sabe.
+  var comoAndroid = false;
+
   @override
-  Future<PermisoDeUbicacion> permiso() async => permisoActual;
+  Future<PermisoDeUbicacion> permiso() async => comoAndroid && permisoActual == PermisoDeUbicacion.denegadoParaSiempre
+      ? PermisoDeUbicacion.denegado
+      : permisoActual;
 
   @override
   Future<PermisoDeUbicacion> pedirPermiso() async {
