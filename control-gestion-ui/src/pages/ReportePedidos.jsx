@@ -71,13 +71,15 @@ export default function ReportePedidos() {
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pagina = reporte?.pedidos;
+  // Los anulados también cuentan: son filas del Excel.
+  const sinPedidos = pagina?.total === 0;
 
   let estado = null;
   if (cargando) estado = <Cargando texto="Generando el reporte…" />;
   else if (errorCarga && !reporte) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
-  else if (pagina?.total === 0 && !hayFiltros) estado = (
+  else if (sinPedidos && !hayFiltros) estado = (
     <EstadoVacio titulo="Todavía no hay pedidos" icono={Package}>Los pedidos que se registren aparecen en este reporte.</EstadoVacio>
   );
 
@@ -87,7 +89,7 @@ export default function ReportePedidos() {
         title="Reporte de pedidos"
         subtitle="Los pedidos por estado, zona, promotor y fecha de entrega. El total no suma los anulados."
         action={(
-          <Btn variant="outline" size="md" onClick={exportar} disabled={exportando || !reporte}>
+          <Btn variant="outline" size="md" onClick={exportar} disabled={exportando || !reporte || sinPedidos}>
             {exportando ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
             {exportando ? 'Exportando…' : 'Exportar Excel'}
           </Btn>
@@ -96,6 +98,9 @@ export default function ReportePedidos() {
 
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && reporte && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
+      {sinPedidos && hayFiltros && (
+        <Alert type="info" className="mb-4">Ningún pedido coincide con los filtros: no hay nada que exportar.</Alert>
+      )}
 
       {reporte && (
         <section aria-label="Totales por estado" className="mb-5 grid gap-4 sm:grid-cols-3">

@@ -102,6 +102,21 @@ public class ReportePedidosTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Sin_pedidos_no_exporta_pero_un_anulado_si_es_una_fila_del_Excel()
+    {
+        using var operador = await api.OperadorAsync();
+        var zonaVacia = await operador.CrearZonaAsync();
+        var zonaConAnulado = await operador.CrearZonaAsync();
+        var anulado = await operador.CrearPedidoAsync(await operador.CrearClienteAsync(zonaConAnulado),
+            await operador.CrearProductoAsync(10m), 1);
+        (await operador.PostAsJsonAsync($"/api/pedidos/{anulado}/anular", new { motivo = "Prueba" })).EnsureSuccessStatusCode();
+        using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
+
+        await (await gerente.GetAsync($"/api/pedidos/reporte/excel?zonaId={zonaVacia}")).ProblemaAsync(400, "reporte_sin_datos");
+        Assert.Equal(HttpStatusCode.OK, (await gerente.GetAsync($"/api/pedidos/reporte/excel?zonaId={zonaConAnulado}")).StatusCode);
+    }
+
+    [Fact]
     public async Task Solo_quien_genera_el_reporte_lo_ve_y_puede_filtrar_por_promotor()
     {
         using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
