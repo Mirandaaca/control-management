@@ -20,16 +20,18 @@ Comprobar-Suscripcion
 $servidor = (Leer-Salidas)['servidorMysql']
 $clave = (Leer-Secretos)['mysql']
 $conexion = "-h $servidor -u controladmin --ssl-mode=VERIFY_IDENTITY --ssl-ca=/etc/pki/tls/certs/ca-bundle.crt"
-$antes = 'read -r MYSQL_PWD; export MYSQL_PWD; docker run --rm -i -e MYSQL_PWD mysql:8.4'
+# En Windows, PowerShell termina cada línea con CR LF: el servidor quita los CR antes de leer. Si no, la contraseña
+# llegaría con un CR de más y MySQL respondería "Access denied".
+$antes = "tr -d '\r' | { read -r MYSQL_PWD; export MYSQL_PWD; docker run --rm -i -e MYSQL_PWD mysql:8.4"
 
 if ($Sql) {
     $entrada = @($clave) + (Get-Content $Sql)
-    $entrada | ssh $ServidorDePruebas "$antes mysql $conexion -t control"
+    $entrada | ssh $ServidorDePruebas "$antes mysql $conexion -t control; }"
 }
 else {
     # --set-gtid-purged=OFF y --no-tablespaces: el administrador de Azure no tiene esos privilegios, y el respaldo se
     # restaura en otra base sin ellos.
-    $clave | ssh $ServidorDePruebas "$antes mysqldump $conexion --single-transaction --set-gtid-purged=OFF --no-tablespaces --routines control" |
+    $clave | ssh $ServidorDePruebas "$antes mysqldump $conexion --single-transaction --set-gtid-purged=OFF --no-tablespaces --routines control; }" |
         Set-Content -Encoding utf8 $Respaldo
     Write-Host "Listo: $Respaldo. Las fotos van aparte (docs/despliegue.md, 'Respaldo')." -ForegroundColor Green
 }
