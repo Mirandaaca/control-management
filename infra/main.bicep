@@ -23,8 +23,11 @@ param claveJwt string
 @description('La contraseña de admin@control.com, que la API siembra al arrancar (Seed__AdminPassword).')
 param claveAdmin string
 
-@description('El repo de GitHub que despliega, tal como lo escribe GitHub (el sujeto del token distingue mayúsculas).')
-param repoDeGithub string = 'Mirandaaca/control-management'
+// GitHub firma el token de cada trabajo con el sujeto "repo:<cuenta>@<id de la cuenta>/<repo>@<id del repo>:environment:<entorno>".
+// Los id no cambian aunque se renombre la cuenta o el repo. Salen de https://api.github.com/repos/Mirandaaca/control-management
+// ("id" y "owner.id"). El sujeto distingue mayúsculas.
+@description('El repo de GitHub que despliega, como <cuenta>@<id de la cuenta>/<repo>@<id del repo>.')
+param repoDeGithub string = 'Mirandaaca@113213195/control-management@1422675639'
 
 @description('El entorno de GitHub Actions que puede desplegar.')
 param entornoDeGithub string = 'pruebas'
