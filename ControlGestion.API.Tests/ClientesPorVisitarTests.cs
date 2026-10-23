@@ -88,6 +88,18 @@ public class ClientesPorVisitarTests(ApiDePrueba api)
         await (await cliente.GetAsync("/api/clientes/por-visitar")).ProblemaAsync(403);
     }
 
+    // Quien planifica una ruta elige sus clientes del mapa de la zona (el formulario de Rutas).
+    [Fact]
+    public async Task Quien_planifica_rutas_puede_pedir_el_mapa_de_clientes()
+    {
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Territorial.PlanificarRuta, Permisos.Seguridad.VerCarteraCompleta);
+        var planificador = await api.CrearUsuarioAsync(rol);
+        using var cliente = api.ClienteCon(planificador.Token);
+
+        Assert.True((await cliente.GetAsync("/api/clientes/mapa")).IsSuccessStatusCode);
+    }
+
     // 7.3.18, ext. *c: un estado asignado a mano se ve en el mapa con su color, no se esconde.
     [Fact]
     public async Task El_mapa_muestra_tambien_a_los_inactivos_y_la_ultima_visita()
