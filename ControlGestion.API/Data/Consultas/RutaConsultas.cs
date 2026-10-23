@@ -52,5 +52,7 @@ public static class RutaConsultas
             new ClienteDeRutaDTO(d.Cliente!.Id, d.Cliente.Codigo, d.Cliente.NombreCompleto, d.Cliente.DireccionTexto,
                 d.Cliente.Latitud, d.Cliente.Longitud, d.Cliente.UltimaVisita, d.Cliente.ProximaVisita),
             // Depende del día en que se pide: lo completa RutaService.
-            null)).ToList());
+            null)).ToList(),
+        // Lo completa RutaService: sale de otra tabla.
+        null);
 }

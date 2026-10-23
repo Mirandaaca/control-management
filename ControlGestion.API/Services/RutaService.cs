@@ -14,7 +14,8 @@ namespace ControlGestion.API.Services;
 /// Rutas de re-visita (5.4, 7.3.20): el gerente planifica y sigue; el promotor recorre la suya. Sin cartera completa, cada
 /// usuario ve solo sus rutas.
 /// </summary>
-public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
+public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, RevisitaService revisitas,
+    TimeProvider reloj)
 {
     private IQueryable<Ruta> Visibles => db.Rutas.VisiblesPara(usuario);
 
@@ -35,21 +36,150 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
     {
         var ruta = await Visibles.Where(r => r.Id == id).Select(RutaConsultas.ComoDetalle).FirstOrDefaultAsync()
             ?? throw new NoEncontradoException("No se encontró la ruta.");
-        return ConAtraso(ruta);
+        return await CompletarAsync(ruta);
     }
 
-    /// <summary>Los días de atraso de las visitas pendientes, contados el día en que se pide la ruta.</summary>
-    private RutaDTO ConAtraso(RutaDTO ruta)
+    /// <summary>La ruta del día del promotor (7.3.20, pasos 3 y 3.1), para la app.</summary>
+    public async Task<RutaDTO> DelDiaAsync()
     {
         var hoy = HoraBolivia.Hoy(reloj);
+        var ruta = await db.Rutas.Where(r => r.PromotorId == usuario.Id && r.FechaPlanificada == hoy)
+            .Select(RutaConsultas.ComoDetalle).FirstOrDefaultAsync()
+            ?? throw new NoEncontradoException("No tienes una ruta para hoy.", "sin_ruta_del_dia");
+        return await CompletarAsync(ruta);
+    }
+
+    /// <summary>
+    /// Lo que la consulta no trae: los días de atraso de las visitas pendientes, contados el día en que se pide la ruta, y
+    /// la última ubicación del promotor desde que la inició (y hasta que la terminó: una de la ruta de ayer no cuenta).
+    /// </summary>
+    private async Task<RutaDTO> CompletarAsync(RutaDTO ruta)
+    {
+        var hoy = HoraBolivia.Hoy(reloj);
+        UbicacionDTO? ultima = null;
+        if (ruta.FechaInicio is { } inicio)
+        {
+            var fin = ruta.FechaFin ?? DateTime.MaxValue;
+            ultima = await db.UbicacionesPromotor
+                .Where(u => u.PromotorId == ruta.Promotor.Id && u.Fecha >= inicio && u.Fecha <= fin)
+                .OrderByDescending(u => u.Fecha).ThenByDescending(u => u.Id)
+                .Select(u => new UbicacionDTO(u.Latitud, u.Longitud, u.Fecha))
+                .FirstOrDefaultAsync();
+        }
         return ruta with
         {
             Visitas = ruta.Visitas.Select(v => v with
             {
                 DiasDeAtraso = v.Resultado == EstadoVisita.Pendiente ? ClienteConsultas.DiasDeAtraso(v.Cliente.ProximaVisita, hoy) : null
-            }).ToList()
+            }).ToList(),
+            UltimaUbicacion = ultima,
         };
     }
+
+    /// <summary>
+    /// La ruta que el usuario recorre: visible y suya. Verla (cartera completa) no alcanza para recorrerla: lo que depende
+    /// del dueño no es un permiso.
+    /// </summary>
+    private async Task<Ruta> SuyaAsync(int id)
+    {
+        var ruta = await Visibles.FirstOrDefaultAsync(r => r.Id == id)
+            ?? throw new NoEncontradoException("No se encontró la ruta.");
+        if (ruta.PromotorId != usuario.Id)
+            throw new ReglaDeNegocioException("ruta_de_otro_promotor", "Solo el promotor de la ruta puede recorrerla.");
+        return ruta;
+    }
+
+    private static void ExigirEnCurso(Ruta ruta)
+    {
+        if (ruta.Estado != EstadoRuta.EnCurso)
+            throw new ReglaDeNegocioException("ruta_no_en_curso", ruta.Estado == EstadoRuta.Planificada
+                ? "Inicia la ruta antes de marcar las visitas."
+                : "La ruta ya se completó.");
+    }
+
+    /// <summary>Iniciar (7.3.20, pasos 4.1 y 4.2): solo una ruta planificada (ext. 4.1a).</summary>
+    public async Task<RutaDTO> IniciarAsync(int id)
+    {
+        var ruta = await SuyaAsync(id);
+        if (ruta.Estado != EstadoRuta.Planificada)
+            throw new ReglaDeNegocioException("ruta_ya_iniciada", ruta.Estado == EstadoRuta.EnCurso
+                ? "La ruta ya está en curso."
+                : "La ruta ya se completó.");
+        ruta.Estado = EstadoRuta.EnCurso;
+        ruta.FechaInicio = Ahora;
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// Marcar una visita (7.3.20, pasos 5.1 a 5.3). Visitado es una visita del cliente: lo pasa a activo y calcula su
+    /// próxima visita, en la misma transacción. Ausente no cambia al cliente (ext. 5.3a) y se puede volver a marcar mientras
+    /// la ruta sigue en curso, por ejemplo cuando el promotor vuelve en la tarde (decisión de la tarea 14). Un Visitado ya
+    /// movió al cliente: no se vuelve a marcar.
+    /// </summary>
+    public async Task<RutaDTO> MarcarVisitaAsync(int id, int visitaId, MarcarVisitaDTO dto)
+    {
+        var ruta = await SuyaAsync(id);
+        ExigirEnCurso(ruta);
+        var visita = await db.RutasDetalle.Include(d => d.Cliente).FirstOrDefaultAsync(d => d.Id == visitaId && d.RutaId == id)
+            ?? throw new NoEncontradoException("No se encontró la visita en la ruta.");
+        if (visita.EstadoVisita == EstadoVisita.Visitado)
+            throw new ReglaDeNegocioException("visita_ya_marcada", $"La visita a {visita.Cliente!.NombreCompleto} ya está marcada como visitada.");
+
+        var ahora = Ahora;
+        visita.EstadoVisita = (EstadoVisita)dto.Resultado!.Value;
+        visita.HoraVisita = ahora;
+        visita.Latitud = dto.Latitud;
+        visita.Longitud = dto.Longitud;
+        visita.Observaciones = string.IsNullOrWhiteSpace(dto.Observacion) ? null : dto.Observacion.Trim();
+        if (visita.EstadoVisita == EstadoVisita.Visitado)
+            await revisitas.RegistrarVisitaAsync(visita.Cliente!, ahora);
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictoException("conflicto_concurrencia",
+                "El cliente cambió mientras marcabas la visita. Vuelve a intentarlo.");
+        }
+        return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// La posición del promotor (paso 4.3), con la hora del servidor. Solo con la ruta en curso: al terminarla, la API deja
+    /// de recibirla (paso 7.1) y la app deja de enviarla.
+    /// </summary>
+    public async Task RegistrarUbicacionAsync(int id, RegistrarUbicacionDTO dto)
+    {
+        var ruta = await SuyaAsync(id);
+        ExigirEnCurso(ruta);
+        db.UbicacionesPromotor.Add(new UbicacionPromotor
+        {
+            PromotorId = ruta.PromotorId,
+            Latitud = dto.Latitud!.Value,
+            Longitud = dto.Longitud!.Value,
+            Fecha = Ahora,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Terminar (pasos 7.1 y 7.2). Las visitas sin marcar quedan pendientes (ext. 7.1a): la app avisa cuántas antes.</summary>
+    public async Task<RutaDTO> TerminarAsync(int id)
+    {
+        var ruta = await SuyaAsync(id);
+        if (ruta.Estado != EstadoRuta.EnCurso)
+            throw new ReglaDeNegocioException("ruta_no_en_curso", ruta.Estado == EstadoRuta.Planificada
+                ? "La ruta todavía no se inició."
+                : "La ruta ya se completó.");
+        ruta.Estado = EstadoRuta.Completada;
+        ruta.FechaFin = Ahora;
+        await db.SaveChangesAsync();
+        return await ObtenerAsync(id);
+    }
+
+    private DateTime Ahora => reloj.GetUtcNow().UtcDateTime;
 
     /// <summary>
     /// La ruta sugerida (7.3.20, pasos 2.1 y 2.2): los clientes de la zona con la re-visita vencida el día de la ruta, que es

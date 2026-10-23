@@ -82,6 +82,10 @@ public record VisitaDTO(
     ClienteDeRutaDTO Cliente,
     int? DiasDeAtraso);
 
+/// <summary>
+/// Una ruta con sus visitas. Pendientes es lo que la app avisa antes de terminar (ext. 7.1a). UltimaUbicacion es la última
+/// posición del promotor desde que empezó la ruta (paso 6.1); null si todavía no llegó ninguna (ext. 6.1a).
+/// </summary>
 public record RutaDTO(
     int Id,
     string Numero,
@@ -95,7 +99,44 @@ public record RutaDTO(
     int Marcadas,
     int Visitadas,
     int Pendientes,
-    List<VisitaDTO> Visitas);
+    List<VisitaDTO> Visitas,
+    UbicacionDTO? UltimaUbicacion);
+
+public record UbicacionDTO(decimal Latitud, decimal Longitud, DateTime Fecha);
+
+/// <summary>
+/// Marcar una visita (7.3.20, pasos 5 a 5.2): visitado (1) o ausente (2), con la ubicación del celular. Sin ubicación no se
+/// marca (ext. 5.1a). La hora la pone el servidor.
+/// </summary>
+public record MarcarVisitaDTO
+{
+    [Required(ErrorMessage = "Elige el resultado de la visita.")]
+    [Range(1, 2, ErrorMessage = "El resultado es Visitado o Ausente.")]
+    public int? Resultado { get; init; }
+
+    [Required(ErrorMessage = "Sin ubicación no se marca la visita: activa el GPS.")]
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Required(ErrorMessage = "Sin ubicación no se marca la visita: activa el GPS.")]
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
+
+    [MaxLength(500, ErrorMessage = "La observación no puede superar los 500 caracteres.")]
+    public string? Observacion { get; init; }
+}
+
+/// <summary>La posición del promotor que la app manda cada 30 segundos con la ruta en curso (paso 4.3).</summary>
+public record RegistrarUbicacionDTO
+{
+    [Required(ErrorMessage = "Falta la latitud.")]
+    [Range(-90.0, 90.0, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; init; }
+
+    [Required(ErrorMessage = "Falta la longitud.")]
+    [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; init; }
+}
 
 /// <summary>Un cliente de la ruta sugerida (7.3.20, paso 2.2), con su atraso al día de la ruta.</summary>
 public record ClienteSugeridoDTO(

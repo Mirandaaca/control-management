@@ -21,6 +21,12 @@ public class RutasController(RutaService rutas) : ControllerBase
     public async Task<ActionResult<List<ClienteSugeridoDTO>>> GetSugerida([FromQuery] SugeridaDTO dto) =>
         await rutas.SugeridaAsync(dto.ZonaId!.Value, dto.Fecha!.Value);
 
+    // La ruta de hoy del promotor que la pide, para la app (7.3.20, paso 3). Sin ruta, 404 sin_ruta_del_dia.
+    [HttpGet("del-dia")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<ActionResult<RutaDTO>> GetDelDia() =>
+        await rutas.DelDiaAsync();
+
     [HttpGet("{id:int}")]
     [Permiso(Permisos.Territorial.PlanificarRuta, Permisos.Territorial.SeguirRuta, Permisos.Territorial.RecorrerRuta)]
     public async Task<ActionResult<RutaDTO>> GetById(int id) =>
@@ -33,4 +39,28 @@ public class RutasController(RutaService rutas) : ControllerBase
         var ruta = await rutas.PlanificarAsync(dto);
         return CreatedAtAction(nameof(GetById), new { id = ruta.Id }, ruta);
     }
+
+    // El recorrido es del promotor de la ruta, con la app (tarea 17): RutaService revisa que sea el dueño.
+    [HttpPost("{id:int}/iniciar")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<ActionResult<RutaDTO>> Iniciar(int id) =>
+        await rutas.IniciarAsync(id);
+
+    [HttpPost("{id:int}/visitas/{visitaId:int}")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<ActionResult<RutaDTO>> MarcarVisita(int id, int visitaId, [FromBody] MarcarVisitaDTO dto) =>
+        await rutas.MarcarVisitaAsync(id, visitaId, dto);
+
+    [HttpPost("{id:int}/ubicaciones")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<IActionResult> RegistrarUbicacion(int id, [FromBody] RegistrarUbicacionDTO dto)
+    {
+        await rutas.RegistrarUbicacionAsync(id, dto);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/terminar")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<ActionResult<RutaDTO>> Terminar(int id) =>
+        await rutas.TerminarAsync(id);
 }
