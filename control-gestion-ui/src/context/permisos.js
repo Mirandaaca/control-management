@@ -102,6 +102,8 @@ export const PANTALLAS = {
   mapaEventos: [eventos.verMapa],
   reporteEventos: [eventos.generarReporte],
   cobranzas: [cobranzas.consultarDeudas, cobranzas.consultarPagos],
+  mapaClientes: [territorial.verMapaClientes],
+  porVisitar: [territorial.verClientesPorVisitar],
   rutas: [territorial.planificarRuta, territorial.seguirRuta, territorial.recorrerRuta],
   // El gerente dibuja y registra puntos; quien ve el mapa de clientes (el promotor) lo mira sin acciones.
   mapaZonas: [territorial.dibujarLimites, territorial.registrarPuntoReferencia, territorial.verMapaClientes],

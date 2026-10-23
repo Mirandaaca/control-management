@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Inbox, Layers, LogOut, Map as Mapa, MapPin, MapPinned, Menu, Package, PanelLeftClose,
+  Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Inbox, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
   PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
@@ -30,6 +30,8 @@ const modulos = [
     { to: '/eventos/mapa', label: 'Mapa de eventos', icon: MapPin, permisos: PANTALLAS.mapaEventos },
   ] },
   { id: 'territorio', seccion: 'operacion', nombre: 'Territorio', icon: MapPinned, items: [
+    { to: '/clientes/mapa', label: 'Mapa de clientes', icon: MapPinHouse, permisos: PANTALLAS.mapaClientes },
+    { to: '/clientes/por-visitar', label: 'Clientes por visitar', icon: CalendarClock, permisos: PANTALLAS.porVisitar },
     { to: '/rutas', label: 'Rutas', icon: Route, permisos: PANTALLAS.rutas },
     { to: '/zonas/mapa', label: 'Mapa de zonas', icon: Layers, permisos: PANTALLAS.mapaZonas },
   ] },

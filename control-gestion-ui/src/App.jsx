@@ -22,6 +22,8 @@ import Eventos from './pages/Eventos';
 import MapaEventos from './pages/MapaEventos';
 import Cobranzas from './pages/Cobranzas';
 import Rutas from './pages/Rutas';
+import MapaClientes from './pages/MapaClientes';
+import ClientesPorVisitar from './pages/ClientesPorVisitar';
 import Roles from './pages/Roles';
 import Perfil from './pages/Perfil';
 
@@ -40,6 +42,8 @@ export default function App() {
           <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
           <Route path="/eventos/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaEventos}><MapaEventos /></PrivateRoute>} />
           <Route path="/cobranzas" element={<PrivateRoute permisos={PANTALLAS.cobranzas}><Cobranzas /></PrivateRoute>} />
+          <Route path="/clientes/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaClientes}><MapaClientes /></PrivateRoute>} />
+          <Route path="/clientes/por-visitar" element={<PrivateRoute permisos={PANTALLAS.porVisitar}><ClientesPorVisitar /></PrivateRoute>} />
           <Route path="/rutas" element={<PrivateRoute permisos={PANTALLAS.rutas}><Rutas /></PrivateRoute>} />
           <Route path="/usuarios" element={<PrivateRoute permisos={PANTALLAS.usuarios}><Usuarios /></PrivateRoute>} />
           <Route path="/roles" element={<PrivateRoute permisos={PANTALLAS.roles}><Roles /></PrivateRoute>} />
