@@ -63,6 +63,9 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     /// </summary>
     public async Task<EventoDTO> RegistrarAsync(RegistrarEventoDTO dto)
     {
+        if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } repetido)
+            return repetido;
+
         await ExigirTipoActivoAsync(dto.TipoEventoId);
         var (clienteId, pedidoId) = await VinculoAsync(dto);
 
@@ -76,14 +79,38 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             Latitud = dto.Latitud!.Value,
             Longitud = dto.Longitud!.Value,
             Descripcion = dto.Descripcion.Trim(),
-            EstadoEvento = EstadoEvento.Pendiente
+            EstadoEvento = EstadoEvento.Pendiente,
+            ClaveIdempotencia = dto.ClaveIdempotencia
         };
         // El número se pide después de validar: un evento rechazado no gasta un número.
         evento.Numero = await numerador.SiguienteDelAnioAsync(NumeradorService.Evento);
 
         db.Eventos.Add(evento);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (dto.ClaveIdempotencia != null)
+        {
+            // Dos envíos del mismo evento a la vez: el índice único frena al segundo, que devuelve el evento del primero.
+            db.ChangeTracker.Clear();
+            if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } ganador) return ganador;
+            throw;
+        }
         return await ObtenerAsync(evento.Id);
+    }
+
+    /// <summary>
+    /// El evento que ya se registró con esa clave, o null si la clave es nueva. La clave se guarda solo con un evento
+    /// guardado: uno rechazado (sin ubicación, sin cliente) no la gasta.
+    /// </summary>
+    private async Task<EventoDTO?> YaRegistradoAsync(Guid? clave)
+    {
+        if (clave == null) return null;
+        var id = await db.Eventos.Where(e => e.ClaveIdempotencia == clave).Select(e => (int?)e.Id).FirstOrDefaultAsync();
+        if (id == null) return null;
+        return await Visibles.Where(e => e.Id == id).Select(EventoConsultas.ComoDetalle).FirstOrDefaultAsync()
+            ?? throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otro evento.");
     }
 
     private async Task ExigirTipoActivoAsync(int tipoEventoId)

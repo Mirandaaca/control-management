@@ -65,6 +65,9 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
 
     public async Task<PedidoDTO> RegistrarAsync(RegistrarPedidoDTO dto)
     {
+        if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } repetido)
+            return repetido;
+
         // Un cliente de otra cartera responde lo mismo que uno que no existe, como en la HP: no se le confirma que existe.
         var cliente = await db.Clientes.VisiblesPara(usuario)
             .Where(c => c.Id == dto.ClienteId)
@@ -86,7 +89,8 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             RegistradoPorId = usuario.Id,
             ZonaId = cliente.ZonaId,
             FechaRegistro = Ahora,
-            EstadoPedidoId = EstadosDePedido.Pendiente
+            EstadoPedidoId = EstadosDePedido.Pendiente,
+            ClaveIdempotencia = dto.ClaveIdempotencia
         };
         await CopiarAsync(dto, pedido, entrega);
         // El número se pide después de validar: un pedido rechazado no gasta un número.
@@ -94,8 +98,31 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         pedido.Historial.Add(Entrada(EstadosDePedido.Pendiente, "Pedido registrado"));
 
         db.Pedidos.Add(pedido);
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (dto.ClaveIdempotencia != null)
+        {
+            // Dos envíos del mismo pedido a la vez: el índice único frena al segundo, que devuelve el pedido del primero.
+            db.ChangeTracker.Clear();
+            if (await YaRegistradoAsync(dto.ClaveIdempotencia) is { } ganador) return ganador;
+            throw;
+        }
         return await ObtenerAsync(pedido.Id);
+    }
+
+    /// <summary>
+    /// El pedido que ya se registró con esa clave, o null si la clave es nueva. La clave se guarda solo con un pedido
+    /// guardado: uno rechazado (un dato inválido, la fecha pasada) no la gasta.
+    /// </summary>
+    private async Task<PedidoDTO?> YaRegistradoAsync(Guid? clave)
+    {
+        if (clave == null) return null;
+        var id = await db.Pedidos.Where(p => p.ClaveIdempotencia == clave).Select(p => (int?)p.Id).FirstOrDefaultAsync();
+        if (id == null) return null;
+        return await Visibles.Where(p => p.Id == id).AsSplitQuery().Select(PedidoConsultas.ComoDetalle).FirstOrDefaultAsync()
+            ?? throw new ConflictoException("clave_idempotencia_usada", "Esa clave de idempotencia ya se usó en otro pedido.");
     }
 
     /// <summary>
