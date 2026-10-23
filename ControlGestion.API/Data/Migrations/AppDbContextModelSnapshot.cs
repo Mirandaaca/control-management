@@ -500,7 +500,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 2,
                             Color = "#3b82f6",
                             EsEstadoFinal = false,
-                            Nombre = "En Proceso",
+                            Nombre = "En proceso",
                             Orden = 2
                         },
                         new
@@ -508,7 +508,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 3,
                             Color = "#8b5cf6",
                             EsEstadoFinal = false,
-                            Nombre = "En Ruta",
+                            Nombre = "En ruta",
                             Orden = 3
                         },
                         new
@@ -1354,7 +1354,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 1,
                             Activo = true,
                             NivelPrioridad = 1,
-                            Nombre = "Cliente Ausente",
+                            Nombre = "Cliente ausente",
                             RequiereEvidencia = true,
                             RequiereGeolocalizacion = true
                         },
@@ -1363,7 +1363,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 2,
                             Activo = true,
                             NivelPrioridad = 2,
-                            Nombre = "Entrega No Realizada",
+                            Nombre = "Entrega no realizada",
                             RequiereEvidencia = true,
                             RequiereGeolocalizacion = true
                         },
@@ -1372,7 +1372,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 3,
                             Activo = true,
                             NivelPrioridad = 1,
-                            Nombre = "Problema de Acceso",
+                            Nombre = "Problema de acceso",
                             RequiereEvidencia = false,
                             RequiereGeolocalizacion = true
                         },
@@ -1381,7 +1381,7 @@ namespace ControlGestion.API.Data.Migrations
                             Id = 4,
                             Activo = true,
                             NivelPrioridad = 2,
-                            Nombre = "Incidencia de Cobro",
+                            Nombre = "Incidencia de cobro",
                             RequiereEvidencia = false,
                             RequiereGeolocalizacion = true
                         },

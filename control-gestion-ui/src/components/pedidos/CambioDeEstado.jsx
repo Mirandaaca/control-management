@@ -56,7 +56,7 @@ export default function CambioDeEstado({ cambio, onCerrar, onHecho }) {
       titulo: `¿Pasar ${pedido.numero} a ${siguiente?.nombre}?`,
       accion: `Pasar a ${siguiente?.nombre}`,
       explicacion: siguiente?.id === EN_RUTA
-        ? 'Sale a entregarse: desde En Ruta ya no se modifica, y el promotor asignado registra la entrega.'
+        ? 'Sale a entregarse: desde En ruta ya no se modifica, y el promotor asignado registra la entrega.'
         : 'Se está armando. Todavía se puede modificar.',
       ejemplo: 'Algo que deba saber quien lo entregue…',
     },

@@ -77,7 +77,7 @@ public class ReporteEventosTests(ApiDePrueba api)
         var eventos = libro.Worksheet("Eventos");
         Assert.Equal("Número", eventos.Cell(1, 1).GetString());
         Assert.Equal(new DateTime(2026, 5, 15, 22, 0, 0), eventos.Cell(2, 2).GetDateTime());
-        Assert.Equal("Cliente Ausente", eventos.Cell(2, 3).GetString());
+        Assert.Equal("Cliente ausente", eventos.Cell(2, 3).GetString());
         Assert.Equal("Media", eventos.Cell(2, 4).GetString());
         Assert.Equal("Resuelto", eventos.Cell(2, 5).GetString());
         Assert.Equal(1, eventos.Cell(2, 11).GetValue<int>());

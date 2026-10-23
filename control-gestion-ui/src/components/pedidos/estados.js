@@ -12,7 +12,7 @@ export const esFinal = (estadoId) => estadoId === ENTREGADO || estadoId === ANUL
 export const esModificable = (estadoId) => estadoId === PENDIENTE || estadoId === EN_PROCESO;
 
 /** El estado al que avanza (Pendiente → En proceso → En ruta). Desde En ruta lo que sigue es la entrega. */
-export const SIGUIENTE = { [PENDIENTE]: { id: EN_PROCESO, nombre: 'En Proceso' }, [EN_PROCESO]: { id: EN_RUTA, nombre: 'En Ruta' } };
+export const SIGUIENTE = { [PENDIENTE]: { id: EN_PROCESO, nombre: 'En proceso' }, [EN_PROCESO]: { id: EN_RUTA, nombre: 'En ruta' } };
 
 // EstadoHP y EstadoCobranza de la API, para la HP que nació de la entrega.
 export const ESTADOS_DE_HP = { 0: 'Borrador', 1: 'Confirmada', 2: 'Anulada' };
