@@ -6,7 +6,6 @@ import { PageHeader, Badge, Btn, Input, Card } from '../components/ui';
 import { diaEnBolivia, formatearFecha } from '../utils/formato';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
-import { leerToken } from '../api/sesion';
 
 const METHOD_COLOR = { POST: 'blue', PUT: 'yellow', DELETE: 'red' };
 // Cada pestaña se ve con el permiso de su reporte; así nadie abre una pestaña que la API le va a negar.
@@ -65,13 +64,11 @@ export default function Reportes() {
   useEffect(() => { fetchTab(tab); }, [tab]);
 
   const handleExport = async (tipo) => {
-    const p = new URLSearchParams({ desde: filtros.desde, hasta: filtros.hasta });
-    const token = leerToken();
-    const res = await fetch(`http://localhost:5124/api/reportes/export/${tipo}?${p}`, {
-      headers: { Authorization: `Bearer ${token}` }
+    const res = await api.get(`/reportes/export/${tipo}`, {
+      params: { desde: filtros.desde, hasta: filtros.hasta },
+      responseType: 'blob',
     });
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(res.data);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${tipo}_${filtros.desde}_${filtros.hasta}.xlsx`;

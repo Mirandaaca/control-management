@@ -1,9 +1,21 @@
 import axios from 'axios';
 import { borrarSesion, leerToken } from './sesion';
 
+/** La raíz de la API, sin /api ni barra final: sale de VITE_API_URL (`.env.local` o el build de CI). */
+export const URL_DE_LA_API = import.meta.env.VITE_API_URL.replace(/\/+$/, '').replace(/\/api$/, '');
+
 const api = axios.create({
-  baseURL: 'http://localhost:5124/api',
+  baseURL: `${URL_DE_LA_API}/api`,
 });
+
+/**
+ * En el plan gratis de Azure la API se duerme, y despertarla tarda. El inicio de sesión la llama al abrirse, sin esperar
+ * la respuesta: despierta mientras el usuario escribe.
+ */
+export function despertarLaApi() {
+  api.get('/health', { baseURL: URL_DE_LA_API })
+    .catch((err) => console.info('No se pudo despertar la API; el inicio de sesión lo intentará igual.', err));
+}
 
 api.interceptors.request.use((config) => {
   const token = leerToken();

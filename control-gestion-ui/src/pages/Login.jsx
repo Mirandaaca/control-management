@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react';
+import { despertarLaApi } from '../api/axios';
 import { useAuth } from '../context/auth';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import { Alert } from '../components/ui';
@@ -84,6 +85,8 @@ export default function Login() {
   const [errores, setErrores] = useState({});
   const [loading, setLoading] = useState(false);
   const formRef = useRef(null);
+
+  useEffect(() => { despertarLaApi(); }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
