@@ -64,6 +64,13 @@ final entradasDelMenu = [
     permisos: PermisosDe.cobranzas,
   ),
   EntradaDelMenu(
+    titulo: 'Eventos',
+    descripcion: 'Lo que pasa en la calle, con sus fotos y su ubicación.',
+    icono: Icons.report_outlined,
+    ruta: Rutas.eventos,
+    permisos: PermisosDe.eventos,
+  ),
+  EntradaDelMenu(
     titulo: 'Productos',
     descripcion: 'El catálogo, con el precio y el stock de cada producto.',
     icono: Icons.category_outlined,

@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/cobranza.dart';
+import 'package:gestion_control/data/models/evento.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/data/models/pedido.dart';
@@ -18,6 +19,7 @@ import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/cobranzas_repository.dart';
+import 'package:gestion_control/data/repositories/eventos_repository.dart';
 import 'package:gestion_control/data/repositories/hojas_pedido_repository.dart';
 import 'package:gestion_control/data/repositories/pedidos_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
@@ -763,11 +765,21 @@ final fotoDePrueba = FotoTomada(
 class CamaraFalsa implements Camara {
   FotoTomada? siguiente = fotoDePrueba;
   var tomas = 0;
+  var elegidas = 0;
 
   @override
   Future<FotoTomada?> tomarFoto() async {
     tomas++;
     return siguiente;
+  }
+
+  @override
+  Future<FotoTomada?> elegirDeLaGaleria() async {
+    elegidas++;
+    final foto = siguiente;
+    return foto == null
+        ? null
+        : FotoTomada(bytes: foto.bytes, nombre: 'de-la-galeria.png', tomadaUtc: foto.tomadaUtc, deLaGaleria: true);
   }
 }
 
@@ -961,4 +973,140 @@ class PedidosRepositoryFalso implements PedidosRepository {
     entregas.add(envio);
     return alEntregar(envio);
   }
+}
+
+// Los tipos de evento que siembra la API, con mayúscula solo en la primera palabra.
+const tiposDeEvento = [
+  TipoDeEvento(id: 1, nombre: 'Cliente ausente', requiereEvidencia: true),
+  TipoDeEvento(id: 2, nombre: 'Entrega no realizada', requiereEvidencia: true),
+  TipoDeEvento(id: 3, nombre: 'Problema de acceso', requiereEvidencia: false),
+  TipoDeEvento(id: 5, nombre: 'Otro', requiereEvidencia: false),
+];
+
+/// Una foto del evento de Pedro: tomada a las 09:21 y subida a las 09:22 (8.6.8).
+FotoDeEvento fotoDelEventoDePrueba(int id) => FotoDeEvento(
+  id: id,
+  fechaSubida: '2026-10-30T13:22:00',
+  subidoPor: 'Carlos Mendoza Flores',
+  fechaCaptura: '2026-10-30T13:21:00',
+);
+
+/// El evento del 8.6.8: "Cliente ausente" de Pedro Mamani Cruz, registrado por Carlos (u1) el 30/10/2026 a las 09:22.
+Evento eventoDePrueba({
+  int id = 5,
+  String numero = 'EVT-2026-00005',
+  EstadoEvento estado = EstadoEvento.pendiente,
+  String promotorId = 'u1',
+  List<FotoDeEvento> fotos = const [],
+  PedidoDelEvento? pedido,
+}) => Evento(
+  id: id,
+  numero: numero,
+  tipo: tiposDeEvento.first,
+  estado: estado,
+  fecha: '2026-10-30T13:22:00',
+  latitud: -17.768930,
+  longitud: -63.179455,
+  descripcion: 'El local estaba cerrado y nadie atendió. Vuelvo a pasar en la tarde.',
+  cliente: const Referencia(id: '64', nombre: 'Pedro Mamani Cruz'),
+  pedido: pedido,
+  promotor: Referencia(id: promotorId, nombre: 'Carlos Mendoza Flores'),
+  solucion: estado == EstadoEvento.resuelto ? 'Se le entregó en la tarde.' : null,
+  fechaResolucion: estado == EstadoEvento.resuelto ? '2026-10-30T20:00:00' : null,
+  resueltoPor: estado == EstadoEvento.resuelto ? 'Lucía Vargas Rojas' : null,
+  fotos: fotos,
+);
+
+EventoResumen resumenDeEvento(Evento evento) => EventoResumen(
+  id: evento.id,
+  numero: evento.numero,
+  tipo: evento.tipo,
+  estado: evento.estado,
+  fecha: evento.fecha,
+  cliente: evento.cliente,
+  pedido: evento.pedido,
+  promotor: evento.promotor,
+  fotos: evento.fotos.length,
+);
+
+const pedroOpcion = ClienteOpcion(
+  id: 64,
+  codigo: 'CLI-00064',
+  nombreCompleto: 'Pedro Mamani Cruz',
+  direccion: 'Calle 5 N.º 214, esquina con la avenida',
+  estado: estadoActivo,
+  inactivo: false,
+);
+
+/// Lo que se le envió al repositorio de eventos.
+typedef EnvioDeEventoPrueba = ({DatosDeEvento datos, Posicion ubicacion, String clave});
+typedef FotoSubidaPrueba = ({int eventoId, FotoTomada foto, Posicion? lugar});
+
+class EventosRepositoryFalso implements EventosRepository {
+  Future<Pagina<EventoResumen>> Function(String buscar, EstadoEvento? estado) alListar = (_, _) async => Pagina(
+    items: [
+      resumenDeEvento(eventoDePrueba(fotos: [fotoDelEventoDePrueba(1), fotoDelEventoDePrueba(2)])),
+    ],
+    total: 1,
+    numero: 1,
+    tamano: 25,
+  );
+  Future<Evento> Function(int id) alObtener = (_) async => eventoDePrueba();
+  Future<Evento> Function(EnvioDeEventoPrueba envio) alRegistrar = (_) async => eventoDePrueba();
+  Future<Evento> Function(int id, DatosDeEvento datos) alModificar = (_, _) async => eventoDePrueba();
+  Future<Evento> Function(FotoSubidaPrueba subida)? alAgregarFoto;
+  Future<Evento> Function(int id, int fotoId)? alEliminarFoto;
+
+  final listados = <({String buscar, EstadoEvento? estado})>[];
+  final registrados = <EnvioDeEventoPrueba>[];
+  final modificados = <({int id, DatosDeEvento datos})>[];
+  final fotosSubidas = <FotoSubidaPrueba>[];
+  final fotosEliminadas = <int>[];
+
+  @override
+  Future<Pagina<EventoResumen>> listar({String buscar = '', EstadoEvento? estado, int pagina = 1}) {
+    listados.add((buscar: buscar, estado: estado));
+    return alListar(buscar, estado);
+  }
+
+  @override
+  Future<List<TipoDeEvento>> tipos() async => tiposDeEvento;
+
+  @override
+  Future<Evento> obtener(int id) => alObtener(id);
+
+  @override
+  Future<Evento> registrar(DatosDeEvento datos, Posicion ubicacion, {required String clave}) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: clave);
+    registrados.add(envio);
+    return alRegistrar(envio);
+  }
+
+  @override
+  Future<Evento> modificar(int id, DatosDeEvento datos) {
+    modificados.add((id: id, datos: datos));
+    return alModificar(id, datos);
+  }
+
+  @override
+  Future<Evento> agregarFoto(int id, FotoTomada foto, {Posicion? lugar}) async {
+    final subida = (eventoId: id, foto: foto, lugar: lugar);
+    final alAgregar = alAgregarFoto;
+    if (alAgregar != null) {
+      final evento = await alAgregar(subida);
+      fotosSubidas.add(subida);
+      return evento;
+    }
+    fotosSubidas.add(subida);
+    return eventoDePrueba(fotos: [for (var i = 1; i <= fotosSubidas.length; i++) fotoDelEventoDePrueba(i)]);
+  }
+
+  @override
+  Future<Evento> eliminarFoto(int id, int fotoId) {
+    fotosEliminadas.add(fotoId);
+    return (alEliminarFoto ?? (_, _) async => eventoDePrueba())(id, fotoId);
+  }
+
+  @override
+  Future<Uint8List> archivo(int evidenciaId) async => fotoDePrueba.bytes;
 }

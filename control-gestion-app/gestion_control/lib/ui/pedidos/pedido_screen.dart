@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/evento.dart';
 import '../../data/models/hoja_pedido.dart';
 import '../../data/models/pedido.dart';
 import '../../domain/permisos.dart';
@@ -15,6 +16,7 @@ import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
+import '../eventos/formulario_evento_screen.dart';
 import '../sesion/sesion_notifier.dart';
 import 'etiqueta_de_pedido.dart';
 import 'pedido_view_model.dart';
@@ -79,10 +81,32 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
         ),
         _ => const Cargando('Cargando el pedido…'),
       },
-      bottomNavigationBar: pedido != null && _puedeEntregar(pedido)
-          ? BarraDeAcciones(principal: Accion('Registrar entrega', () => context.push(Rutas.entrega(pedido.id))))
-          : null,
+      bottomNavigationBar: pedido == null ? null : _acciones(pedido),
     );
+  }
+
+  /// "Registrar entrega" desde la bandeja, y "Registrar evento" si no se pudo entregar (7.3.2, ext. 3a): el evento
+  /// viene con el pedido y su cliente.
+  Widget? _acciones(Pedido pedido) {
+    final sesion = ref.read(sesionProvider);
+    final entrega = _puedeEntregar(pedido)
+        ? Accion('Registrar entrega', () => context.push(Rutas.entrega(pedido.id)))
+        : null;
+    final evento = sesion is ConSesion && sesion.sesion.tiene([Permisos.eventos.registrarEvento])
+        ? Accion(
+            'Registrar evento',
+            () => context.push(
+              Rutas.nuevoEvento,
+              extra: AbrirNuevoEvento(
+                cliente: (id: int.parse(pedido.cliente.id), texto: pedido.cliente.nombre),
+                pedido: PedidoDelEvento(id: pedido.id, numero: pedido.numero),
+              ),
+            ),
+          )
+        : null;
+    if (entrega != null) return BarraDeAcciones(secundaria: evento, principal: entrega);
+    if (evento != null) return BarraDeAcciones(principal: evento);
+    return null;
   }
 }
 
