@@ -274,6 +274,23 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
         return await ObtenerAsync(ruta.Id);
     }
 
+    /// <summary>
+    /// Eliminar una ruta que todavía no se inició (extensión nueva de la 7.3.20, tarea 14): así se corrige una ruta, porque
+    /// no se modifica; después se planifica otra para ese promotor y ese día. Sus visitas se eliminan con ella (cascada). Su
+    /// número no se vuelve a usar.
+    /// </summary>
+    public async Task EliminarAsync(int id)
+    {
+        var ruta = await Visibles.FirstOrDefaultAsync(r => r.Id == id)
+            ?? throw new NoEncontradoException("No se encontró la ruta.");
+        if (ruta.Estado != EstadoRuta.Planificada)
+            throw new ReglaDeNegocioException("ruta_ya_iniciada", ruta.Estado == EstadoRuta.EnCurso
+                ? "La ruta ya está en curso: no se puede eliminar."
+                : "La ruta ya se completó: no se puede eliminar.");
+        db.Rutas.Remove(ruta);
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>Los clientes van sin repetirse, son de la zona y tienen ubicación (la precondición de la 7.3.20).</summary>
     private async Task<string?> RevisarClientesAsync(List<int> ids, int zonaId, string nombreDeLaZona)
     {

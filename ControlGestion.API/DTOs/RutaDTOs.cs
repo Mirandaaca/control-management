@@ -89,6 +89,7 @@ public record VisitaDTO(
 public record RutaDTO(
     int Id,
     string Numero,
+    string Nombre,
     DateOnly Fecha,
     EstadoRuta Estado,
     UsuarioResumenDTO Promotor,

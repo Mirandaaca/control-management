@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, RefreshCw, Route as IconoRuta } from 'lucide-react';
+import { Plus, RefreshCw, Route as IconoRuta, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader } from '../components/ui';
+import { Alert, Btn, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, PageHeader } from '../components/ui';
 import EstadoRuta from '../components/rutas/EstadoRuta';
 import FormularioRuta from '../components/rutas/FormularioRuta';
 import MapaDeRuta, { LeyendaDeRuta } from '../components/rutas/MapaDeRuta';
@@ -43,7 +43,7 @@ function Avance({ marcadas, total }) {
 }
 
 // La ruta elegida: el seguimiento (7.3.20, pasos 6 a 6.3), como el 8.6.3.
-function Seguimiento({ ruta, zona, puntos }) {
+function Seguimiento({ ruta, zona, puntos, onEliminar }) {
   const paradas = ruta.visitas.map((v) => ({
     clave: v.id, orden: v.orden, resultado: v.resultado, latitud: v.cliente.latitud, longitud: v.cliente.longitud,
     nombre: v.cliente.nombreCompleto, detalle: resultadoDeLaVisita(v),
@@ -53,10 +53,21 @@ function Seguimiento({ ruta, zona, puntos }) {
   return (
     <section aria-labelledby="titulo-ruta" className="min-w-0">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h3 id="titulo-ruta" className="text-base font-semibold text-slate-900">{ruta.promotor.nombreCompleto} · {ruta.zona.nombre}</h3>
-        <p className="text-sm text-slate-600 tabular-nums">
-          <span className="font-mono text-xs" translate="no">{ruta.numero}</span> · {estadoDeLaCabeza(ruta)}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h3 id="titulo-ruta" className="text-base font-semibold text-slate-900">{ruta.promotor.nombreCompleto} · {ruta.zona.nombre}</h3>
+            <p className="text-sm text-slate-600 tabular-nums">
+              <span className="font-mono text-xs" translate="no">{ruta.numero}</span> · {estadoDeLaCabeza(ruta)}
+            </p>
+          </div>
+          {/* Solo una ruta que no se inició: para corregirla se elimina y se planifica otra. */}
+          {onEliminar && ruta.estado === PLANIFICADA && (
+            <Btn variant="outline" onClick={onEliminar}>
+              <Trash2 size={14} aria-hidden="true" />
+              Eliminar ruta
+            </Btn>
+          )}
+        </div>
         {enCurso && (
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-600">
             <RefreshCw size={14} aria-hidden="true" />
@@ -112,6 +123,9 @@ export default function Rutas() {
   const [errorRuta, setErrorRuta] = useState('');
   const [aviso, setAviso] = useState('');
   const [planificando, setPlanificando] = useState(() => parametros.get('planificar') === '1');
+  const [aEliminar, setAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
   const zonaInicial = parametros.get('zona');
 
   useEffect(() => {
@@ -173,6 +187,23 @@ export default function Rutas() {
     setElegidaId(nueva.id);
     if (nueva.fecha === dia) cargarLista();
     else { setCargando(true); setDia(nueva.fecha); }
+  };
+
+  const eliminar = async () => {
+    setEliminando(true);
+    setErrorEliminar('');
+    try {
+      await api.delete(`/rutas/${aEliminar.id}`);
+      setAviso(`Se eliminó la ruta ${aEliminar.numero}.`);
+      setAEliminar(null);
+      setElegidaId(null);
+      setRuta(null);
+      cargarLista();
+    } catch (err) {
+      setErrorEliminar(mensajeDeError(err, 'No se pudo eliminar la ruta.'));
+    } finally {
+      setEliminando(false);
+    }
   };
 
   const elegida = ruta?.id === elegidaId ? ruta : null;
@@ -238,13 +269,28 @@ export default function Rutas() {
         <div className="min-w-0">
           {errorRuta && <div className="p-4"><Alert type="error">{errorRuta}</Alert></div>}
           {elegida
-            ? <Seguimiento ruta={elegida} zona={zonaDeLaRuta} puntos={puntosDeLaRuta} />
+            ? (
+              <Seguimiento ruta={elegida} zona={zonaDeLaRuta} puntos={puntosDeLaRuta}
+                onEliminar={puedePlanificar ? () => { setErrorEliminar(''); setAEliminar(elegida); } : null} />
+            )
             : !cargando && rutas?.length > 0 && !errorRuta && <Cargando texto="Cargando la ruta…" />}
           {!cargando && rutas?.length === 0 && (
             <p className="px-4 py-10 text-center text-sm text-slate-600">Elige otro día para ver sus rutas.</p>
           )}
         </div>
       </div>
+
+      <Confirmar
+        abierto={aEliminar !== null}
+        titulo={`¿Eliminar la ruta ${aEliminar?.nombre ?? ''} de ${aEliminar?.promotor.nombreCompleto ?? ''}?`}
+        textoAccion="Eliminar ruta"
+        enviando={eliminando}
+        error={errorEliminar}
+        onConfirmar={eliminar}
+        onCancelar={() => setAEliminar(null)}
+      >
+        <p>Después puedes planificar otra para ese día.</p>
+      </Confirmar>
 
       {planificando && catalogos && (
         <FormularioRuta zonas={zonas} promotores={promotores} diaInicial={dia} zonaInicial={zonaInicial}

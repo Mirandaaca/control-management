@@ -148,6 +148,52 @@ public class RutasPlanificacionTests(ApiDePrueba api)
         await (await cliente.GetAsync("/api/rutas")).ProblemaAsync(403);
     }
 
+    // Extensión nueva de la 7.3.20 (tarea 14): para corregir una ruta se elimina y se planifica otra para ese día.
+    [Fact]
+    public async Task Una_ruta_planificada_se_elimina_con_sus_visitas_y_se_planifica_otra_para_ese_dia()
+    {
+        var gerente = await api.CrearUsuarioAsync(Roles.GerenteGeneral);
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync(promotor.Id);
+        var cliente = await ClienteAsync(operador, zonaId, null);
+        using var comoGerente = api.ClienteCon(gerente.Token);
+        var ruta = await (await PlanificarAsync(comoGerente, zonaId, promotor.Id, Hoy.AddDays(3), cliente)).LeerJsonAsync();
+        var id = ruta.GetProperty("id").GetInt32();
+        var zona = (await (await operador.GetAsync($"/api/zonas/{zonaId}")).LeerJsonAsync()).GetProperty("nombre").GetString();
+        Assert.Equal($"{zona} · {Hoy.AddDays(3):dd/MM/yyyy}", ruta.GetProperty("nombre").GetString());
+
+        Assert.Equal(HttpStatusCode.NoContent, (await comoGerente.DeleteAsync($"/api/rutas/{id}")).StatusCode);
+
+        await (await comoGerente.GetAsync($"/api/rutas/{id}")).ProblemaAsync(404);
+        using (var scope = api.Services.CreateScope())
+            Assert.False(await scope.ServiceProvider.GetRequiredService<AppDbContext>().RutasDetalle.AnyAsync(d => d.RutaId == id));
+        Assert.Equal(HttpStatusCode.Created, (await PlanificarAsync(comoGerente, zonaId, promotor.Id, Hoy.AddDays(3), cliente)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Una_ruta_en_curso_o_completada_no_se_elimina()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var operador = await api.OperadorAsync();
+        var zonaId = await operador.CrearZonaAsync(promotor.Id);
+        var ruta = await (await PlanificarAsync(operador, zonaId, promotor.Id, Hoy, await ClienteAsync(operador, zonaId, null)))
+            .LeerJsonAsync();
+        var id = ruta.GetProperty("id").GetInt32();
+        using var comoPromotor = api.ClienteCon(promotor.Token);
+
+        // El promotor no planifica: tampoco elimina.
+        await (await comoPromotor.DeleteAsync($"/api/rutas/{id}")).ProblemaAsync(403);
+        (await comoPromotor.PostAsync($"/api/rutas/{id}/iniciar", null)).EnsureSuccessStatusCode();
+        var enCurso = await (await operador.DeleteAsync($"/api/rutas/{id}")).ProblemaAsync(400, "ruta_ya_iniciada");
+        (await comoPromotor.PostAsync($"/api/rutas/{id}/terminar", null)).EnsureSuccessStatusCode();
+        var completada = await (await operador.DeleteAsync($"/api/rutas/{id}")).ProblemaAsync(400, "ruta_ya_iniciada");
+
+        Assert.Equal("La ruta ya está en curso: no se puede eliminar.", enCurso.GetProperty("detail").GetString());
+        Assert.Equal("La ruta ya se completó: no se puede eliminar.", completada.GetProperty("detail").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await operador.GetAsync($"/api/rutas/{id}")).StatusCode);
+    }
+
     // 7.3.20, paso 2.2: primero el más atrasado (el nunca visitado) y después, cada vez, el más cercano al anterior.
     [Fact]
     public async Task La_sugerida_empieza_por_el_mas_atrasado_y_sigue_por_el_mas_cercano()

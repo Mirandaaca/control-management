@@ -40,6 +40,15 @@ public class RutasController(RutaService rutas) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = ruta.Id }, ruta);
     }
 
+    // Solo una ruta planificada: para corregirla se elimina y se planifica otra (no se modifica).
+    [HttpDelete("{id:int}")]
+    [Permiso(Permisos.Territorial.PlanificarRuta)]
+    public async Task<IActionResult> Eliminar(int id)
+    {
+        await rutas.EliminarAsync(id);
+        return NoContent();
+    }
+
     // El recorrido es del promotor de la ruta, con la app (tarea 17): RutaService revisa que sea el dueño.
     [HttpPost("{id:int}/iniciar")]
     [Permiso(Permisos.Territorial.RecorrerRuta)]

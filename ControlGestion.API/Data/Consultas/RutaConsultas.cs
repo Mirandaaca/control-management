@@ -31,6 +31,7 @@ public static class RutaConsultas
     public static readonly Expression<Func<Ruta, RutaDTO>> ComoDetalle = r => new RutaDTO(
         r.Id,
         r.Numero,
+        r.Nombre,
         r.FechaPlanificada,
         r.Estado,
         new UsuarioResumenDTO(r.Promotor!.Id, r.Promotor.NombreCompleto),
