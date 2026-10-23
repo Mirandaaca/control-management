@@ -4,7 +4,9 @@
 #
 #   ./infra/scripts/desplegar-infra.ps1                   what-if y, si confirmas, el despliegue
 #   ./infra/scripts/desplegar-infra.ps1 -SoloVerCambios   solo el what-if
-param([switch] $SoloVerCambios)
+#   ./infra/scripts/desplegar-infra.ps1 -SinFirewall      sin tocar las reglas del firewall de MySQL (tardan unos 40
+#                                                         minutos). Úsalo si no cambió el plan de la API.
+param([switch] $SoloVerCambios, [switch] $SinFirewall)
 . "$PSScriptRoot/comun.ps1"
 
 Comprobar-Suscripcion
@@ -22,6 +24,7 @@ $env:CONTROL_CORREO_PRESUPUESTO = $ambiente['correo']
 $env:CONTROL_CLAVE_MYSQL = $secretos['mysql']
 $env:CONTROL_CLAVE_JWT = $secretos['jwt']
 $env:CONTROL_CLAVE_ADMIN = $secretos['admin']
+$env:CONTROL_ACTUALIZAR_FIREWALL = if ($SinFirewall) { 'false' } else { 'true' }
 $parametros = Join-Path $RaizDelRepo 'infra/pruebas.bicepparam'
 try {
     # ResourceIdOnly: muestra qué se crea o cambia, sin las propiedades (que incluirían las configuraciones de la API).
@@ -34,6 +37,6 @@ try {
     Write-Host 'Listo. Si es la primera vez, sigue con infra/scripts/activar-sitios-estaticos.ps1.' -ForegroundColor Green
 }
 finally {
-    Remove-Item Env:CONTROL_CORREO_PRESUPUESTO, Env:CONTROL_CLAVE_MYSQL, Env:CONTROL_CLAVE_JWT, Env:CONTROL_CLAVE_ADMIN `
+    Remove-Item Env:CONTROL_CORREO_PRESUPUESTO, Env:CONTROL_CLAVE_MYSQL, Env:CONTROL_CLAVE_JWT, Env:CONTROL_CLAVE_ADMIN, Env:CONTROL_ACTUALIZAR_FIREWALL `
         -ErrorAction SilentlyContinue
 }

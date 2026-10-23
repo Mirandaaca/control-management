@@ -29,6 +29,9 @@ param repoDeGithub string = 'Mirandaaca/control-management'
 @description('El entorno de GitHub Actions que puede desplegar.')
 param entornoDeGithub string = 'pruebas'
 
+@description('Las reglas del firewall de MySQL, una por IP de salida de la API (31 en el F1). MySQL las aplica de a una: unos 40 minutos. Con false no se tocan, y quedan las que ya están.')
+param actualizarFirewall bool = true
+
 @description('El primer día del mes en que empieza el presupuesto.')
 param inicioDelPresupuesto string = utcNow('yyyy-MM-01')
 
@@ -104,7 +107,7 @@ module api 'modulos/api.bicep' = {
 
 // Solo las IP de salida de la API entran a MySQL. Nunca "permitir los servicios de Azure": abriría la base a cualquier
 // cliente de Azure.
-module firewall 'modulos/firewall-mysql.bicep' = {
+module firewall 'modulos/firewall-mysql.bicep' = if (actualizarFirewall) {
   name: 'firewall-mysql'
   params: {
     servidor: nombres.mysql

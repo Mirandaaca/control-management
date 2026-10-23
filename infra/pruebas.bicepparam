@@ -7,3 +7,5 @@ param correoDelPresupuesto = readEnvironmentVariable('CONTROL_CORREO_PRESUPUESTO
 param claveMysql = readEnvironmentVariable('CONTROL_CLAVE_MYSQL')
 param claveJwt = readEnvironmentVariable('CONTROL_CLAVE_JWT')
 param claveAdmin = readEnvironmentVariable('CONTROL_CLAVE_ADMIN')
+// desplegar-infra.ps1 -SinFirewall la pone en false.
+param actualizarFirewall = bool(readEnvironmentVariable('CONTROL_ACTUALIZAR_FIREWALL', 'true'))
