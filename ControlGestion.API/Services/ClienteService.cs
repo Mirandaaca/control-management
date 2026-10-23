@@ -20,13 +20,7 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         if (filtros.ZonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == filtros.ZonaId);
         if (filtros.EstadoId.HasValue) consulta = consulta.Where(c => c.EstadoClienteId == filtros.EstadoId);
         if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
-        if (filtros.PorVisitar)
-        {
-            // Un cliente nunca visitado no tiene próxima visita, y es el primero que hay que visitar. Los estados
-            // asignados a mano (Inactivo y otros) sacan al cliente del ciclo de visitas.
-            consulta = consulta.Where(c => c.EstadoCliente!.EsDelSistema)
-                .Where(ClienteConsultas.ProximaVisitaLlego(HoraBolivia.FinDeHoyUtc(reloj)));
-        }
+        if (filtros.PorVisitar) consulta = consulta.PorVisitar(HoraBolivia.FinDeHoyUtc(reloj));
 
         var total = await consulta.CountAsync();
         var items = await consulta
@@ -50,11 +44,39 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         return (limite is { } n ? consulta.Take(n) : consulta).Select(ClienteConsultas.ComoOpcion).ToListAsync();
     }
 
+    /// <summary>
+    /// El mapa de clientes (5.1 y 5.2): todos los de la cartera con ubicación, también los de un estado asignado a mano,
+    /// que se ven con su color (7.3.18, ext. *c). Un cliente sin ubicación (los viejos, con 0,0) no aparece (7.3.17, ext. 2.4b).
+    /// </summary>
     public Task<List<ClienteMapaDTO>> MapaAsync(int? zonaId)
     {
-        var consulta = Visibles.Where(c => c.EstadoClienteId != EstadosDeCliente.Inactivo && c.Latitud != 0 && c.Longitud != 0);
+        var consulta = Visibles.Where(c => c.Latitud != 0 && c.Longitud != 0);
         if (zonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == zonaId);
-        return consulta.Select(ClienteConsultas.ComoMapa).ToListAsync();
+        return consulta.OrderBy(c => c.NombreCompleto).ThenBy(c => c.Id).Select(ClienteConsultas.ComoMapa).ToListAsync();
+    }
+
+    /// <summary>
+    /// La lista de clientes por visitar (5.3, 7.3.19): primero los nunca visitados y después del más atrasado al más
+    /// reciente, con los días de atraso de hoy.
+    /// </summary>
+    public async Task<Pagina<ClientePorVisitarDTO>> PorVisitarAsync(FiltrosPorVisitarDTO filtros)
+    {
+        var consulta = Visibles.Buscar(filtros.Buscar).PorVisitar(HoraBolivia.FinDeHoyUtc(reloj));
+        if (filtros.ZonaId.HasValue) consulta = consulta.Where(c => c.ZonaId == filtros.ZonaId);
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
+
+        var total = await consulta.CountAsync();
+        var filas = await consulta.DelMasAtrasado()
+            .Skip((filtros.Pagina - 1) * filtros.Tamano)
+            .Take(filtros.Tamano)
+            .Select(c => new ClientePorVisitarDTO(c.Id, c.Codigo, c.NombreCompleto, c.DireccionTexto, c.Latitud, c.Longitud,
+                new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
+                c.Promotor == null ? null : new UsuarioResumenDTO(c.Promotor.Id, c.Promotor.NombreCompleto),
+                c.UltimaVisita, c.ProximaVisita, null))
+            .ToListAsync();
+        var hoy = HoraBolivia.Hoy(reloj);
+        var items = filas.Select(c => c with { DiasDeAtraso = ClienteConsultas.DiasDeAtraso(c.ProximaVisita, hoy) }).ToList();
+        return new Pagina<ClientePorVisitarDTO>(items, total, filtros.Pagina, filtros.Tamano);
     }
 
     public async Task<ClienteDTO> ObtenerAsync(int id) =>

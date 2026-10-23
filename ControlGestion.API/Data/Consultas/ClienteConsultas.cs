@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
@@ -38,6 +39,22 @@ public static class ClienteConsultas
     /// <summary>La próxima visita es de mañana en adelante: el cliente sigue activo.</summary>
     public static Expression<Func<Cliente, bool>> ProximaVisitaPendiente(DateTime finDeHoyUtc) =>
         c => c.ProximaVisita >= finDeHoyUtc;
+
+    /// <summary>
+    /// Los clientes por visitar (5.3) al terminar ese día de Bolivia: los del ciclo de visitas (los estados asignados a mano,
+    /// como Inactivo, lo sacan) cuya próxima visita llegó o que nunca se visitaron. Lo usan la lista por visitar, el filtro
+    /// de Clientes y la ruta sugerida (5.4), que lo pide al día de la ruta.
+    /// </summary>
+    public static IQueryable<Cliente> PorVisitar(this IQueryable<Cliente> clientes, DateTime finDelDiaUtc) =>
+        clientes.Where(c => c.EstadoCliente!.EsDelSistema).Where(ProximaVisitaLlego(finDelDiaUtc));
+
+    /// <summary>Primero los nunca visitados y después del más atrasado al más reciente.</summary>
+    public static IOrderedQueryable<Cliente> DelMasAtrasado(this IQueryable<Cliente> clientes) =>
+        clientes.OrderBy(c => c.ProximaVisita != null).ThenBy(c => c.ProximaVisita).ThenBy(c => c.NombreCompleto).ThenBy(c => c.Id);
+
+    /// <summary>Los días que pasaron desde el día de la próxima visita hasta ese día, en Bolivia; null si nunca se visitó.</summary>
+    public static int? DiasDeAtraso(DateTime? proximaVisitaUtc, DateOnly dia) =>
+        proximaVisitaUtc is { } proxima ? dia.DayNumber - HoraBolivia.DiaDe(proxima).DayNumber : null;
 
     public static readonly Expression<Func<EstadoCliente, EstadoClienteDTO>> EstadoComoDTO =
         e => new EstadoClienteDTO(e.Id, e.Nombre, e.Color, e.Descripcion, e.EsDelSistema);
@@ -90,6 +107,8 @@ public static class ClienteConsultas
         c.Longitud,
         c.Telefono,
         c.DireccionTexto,
+        c.ZonaId,
+        c.UltimaVisita,
         c.ProximaVisita,
         new EstadoClienteDTO(c.EstadoCliente!.Id, c.EstadoCliente.Nombre, c.EstadoCliente.Color, c.EstadoCliente.Descripcion,
             c.EstadoCliente.EsDelSistema));

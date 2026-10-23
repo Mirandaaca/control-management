@@ -29,6 +29,11 @@ public class ClientesController(ClienteService clientes) : ControllerBase
     public async Task<ActionResult<List<ClienteMapaDTO>>> GetParaMapa([FromQuery] int? zonaId) =>
         await clientes.MapaAsync(zonaId);
 
+    [HttpGet("por-visitar")]
+    [Permiso(Permisos.Territorial.VerClientesPorVisitar)]
+    public async Task<ActionResult<Pagina<ClientePorVisitarDTO>>> GetPorVisitar([FromQuery] FiltrosPorVisitarDTO filtros) =>
+        await clientes.PorVisitarAsync(filtros);
+
     [HttpGet("estados")]
     public async Task<ActionResult<List<EstadoClienteDTO>>> GetEstados() =>
         await clientes.EstadosAsync();
