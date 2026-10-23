@@ -347,6 +347,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(r => r.Zona).WithMany().HasForeignKey(r => r.ZonaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Ruta>()
             .HasIndex(r => r.Numero).IsUnique();
+        builder.Entity<Ruta>()
+            .HasIndex(r => new { r.PromotorId, r.FechaPlanificada }).IsUnique();
 
         // RutaDetalle
         builder.Entity<RutaDetalle>()

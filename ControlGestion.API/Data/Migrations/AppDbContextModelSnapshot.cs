@@ -1196,8 +1196,8 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<DateTime?>("FechaInicio")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("FechaPlanificada")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateOnly>("FechaPlanificada")
+                        .HasColumnType("date");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1225,9 +1225,10 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasIndex("Numero")
                         .IsUnique();
 
-                    b.HasIndex("PromotorId");
-
                     b.HasIndex("ZonaId");
+
+                    b.HasIndex("PromotorId", "FechaPlanificada")
+                        .IsUnique();
 
                     b.ToTable("Rutas");
                 });
