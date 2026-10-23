@@ -5,7 +5,7 @@
 //
 // Ningún secreto sale de aquí: los tres llegan como @secure() y solo van a las configuraciones de la API.
 
-@description('La región de todo. Es la del grupo: canadacentral, la más cerca de Bolivia de las que permite la suscripción.')
+@description('La región de todo. Es la del grupo: spaincentral, la más cerca de Bolivia de las que permiten MySQL en esta suscripción.')
 param region string = resourceGroup().location
 
 @description('A dónde va la alerta de presupuesto. No va en el repo: lo lee pruebas.bicepparam de una variable de entorno.')

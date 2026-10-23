@@ -11,7 +11,8 @@ $ArchivoDeSecretos = Join-Path $Carpeta 'secretos.txt'
 $ArchivoDelAmbiente = Join-Path $Carpeta 'ambiente.txt'
 $Keystore = Join-Path $Carpeta 'pruebas.jks'
 $Grupo = 'rg-control-pruebas'
-$Region = 'canadacentral'
+# Canada Central y West US no dejan crear MySQL flexible en esta suscripción (ProvisionNotSupportedForRegion, 23/10/2026).
+$Region = 'spaincentral'
 $NombreDelDespliegue = 'ambiente-de-pruebas'
 $RaizDelRepo = Split-Path (Split-Path $PSScriptRoot)
 $ServidorDePruebas = 'crisbuntu2021@192.168.6.249'
