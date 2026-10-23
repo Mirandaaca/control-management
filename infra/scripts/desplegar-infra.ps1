@@ -13,7 +13,7 @@ $ambiente = Leer-Ambiente
 
 if ((az group exists -n $Grupo) -ne 'true') {
     if ($SoloVerCambios) { Write-Host "El grupo $Grupo todavía no existe."; return }
-    if (-not (Confirmar "El grupo $Grupo no existe. ¿Lo creo en $Region?")) { return }
+    if (-not (Confirmar "El grupo $Grupo no existe. ¿Lo creo en ${Region}?")) { return }
     az group create -n $Grupo -l $Region --query properties.provisioningState -o tsv
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el grupo.' }
 }
