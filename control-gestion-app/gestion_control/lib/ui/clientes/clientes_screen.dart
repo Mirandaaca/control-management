@@ -13,6 +13,7 @@ import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
+import '../core/widgets/tarjeta_que_se_toca.dart';
 import '../core/widgets/vacio.dart';
 import '../sesion/sesion_notifier.dart';
 import 'clientes_view_model.dart';
@@ -109,35 +110,25 @@ class TarjetaDeCliente extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // MergeSemantics por fuera del InkWell: así el toque y los textos son un solo elemento, con su etiqueta.
-    return MergeSemantics(
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: alTocar,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(cliente.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text('${cliente.codigo} · ${cliente.zona.nombre}', style: const TextStyle(color: textoSecundario)),
-                Text(cliente.direccion, style: const TextStyle(color: textoSecundario)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    EtiquetaDelCliente(cliente.estado),
-                    if (cliente.saldoPendiente > 0) Text('Debe ${formatearMonto(cliente.saldoPendiente)}'),
-                  ],
-                ),
-              ],
-            ),
+    return TarjetaQueSeToca(
+      alTocar: alTocar,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(cliente.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text('${cliente.codigo} · ${cliente.zona.nombre}', style: const TextStyle(color: textoSecundario)),
+          Text(cliente.direccion, style: const TextStyle(color: textoSecundario)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              EtiquetaDelCliente(cliente.estado),
+              if (cliente.saldoPendiente > 0) Text('Debe ${formatearMonto(cliente.saldoPendiente)}'),
+            ],
           ),
-        ),
+        ],
       ),
     );
   }

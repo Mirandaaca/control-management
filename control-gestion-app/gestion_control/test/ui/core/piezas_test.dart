@@ -5,10 +5,35 @@ import 'package:gestion_control/ui/core/widgets/barra_de_acciones.dart';
 import 'package:gestion_control/ui/core/widgets/campos_numericos.dart';
 import 'package:gestion_control/ui/core/widgets/confirmar.dart';
 import 'package:gestion_control/ui/core/widgets/segmentado.dart';
+import 'package:gestion_control/ui/core/widgets/tarjeta_que_se_toca.dart';
 
 import '../../ayudantes.dart';
 
 void main() {
+  group('TarjetaQueSeToca', () {
+    testWidgets('se anuncia como botón, con sus textos en un solo elemento', (tester) async {
+      final semantica = tester.ensureSemantics();
+      await tester.pumpWidget(
+        conLaApp(
+          Scaffold(
+            body: TarjetaQueSeToca(
+              alTocar: () {},
+              abajo: OutlinedButton(onPressed: () {}, child: const Text('Registrar entrega')),
+              child: const Column(children: [Text('Rosa Quispe Mamani'), Text('PED-2026-00031')]),
+            ),
+          ),
+        ),
+      );
+
+      final tarjeta = tester.getSemantics(find.text('Rosa Quispe Mamani'));
+      expect(tarjeta, isSemantics(isButton: true, hasTapAction: true));
+      expect(tarjeta.label, contains('PED-2026-00031'));
+      // La acción de abajo es otro botón, fuera del toque de la tarjeta.
+      expect(tarjeta.label, isNot(contains('Registrar entrega')));
+      semantica.dispose();
+    });
+  });
+
   group('FormatoDecimal', () {
     TextEditingValue escribir(FormatoDecimal formato, String anterior, String nuevo) =>
         formato.formatEditUpdate(TextEditingValue(text: anterior), TextEditingValue(text: nuevo));

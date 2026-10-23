@@ -15,6 +15,7 @@ import '../core/tema.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/selectores.dart';
+import '../core/widgets/tarjeta_que_se_toca.dart';
 import '../core/widgets/vacio.dart';
 import '../sesion/sesion_notifier.dart';
 import 'hojas_pedido_view_model.dart';
@@ -170,51 +171,35 @@ class _TarjetaDeHoja extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
+    return TarjetaQueSeToca(
+      alTocar: () => context.push(Rutas.hojaPedido(hoja.id)),
+      abajo: confirmable
+          ? OutlinedButton(
+              onPressed: () => context.push(Rutas.hojaPedido(hoja.id), extra: const AbrirHoja(confirmar: true)),
+              child: const Text('Confirmar venta'),
+            )
+          : null,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MergeSemantics(
-            child: InkWell(
-              onTap: () => context.push(Rutas.hojaPedido(hoja.id)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(hoja.numero, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        EtiquetaDeHoja(hoja.estado),
-                      ],
-                    ),
-                    Text(hoja.cliente.nombre),
-                    Text(
-                      '${formatearFecha(hoja.fechaRegistro, hora: true)} · ${tipoDeVenta(hoja.tipoVenta)}',
-                      style: const TextStyle(color: textoSecundario),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(formatearMonto(hoja.total), style: const TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(hoja.numero, style: const TextStyle(fontWeight: FontWeight.w600)),
+              EtiquetaDeHoja(hoja.estado),
+            ],
           ),
-          if (confirmable)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: OutlinedButton(
-                onPressed: () => context.push(Rutas.hojaPedido(hoja.id), extra: const AbrirHoja(confirmar: true)),
-                child: const Text('Confirmar venta'),
-              ),
-            ),
+          Text(hoja.cliente.nombre),
+          Text(
+            '${formatearFecha(hoja.fechaRegistro, hora: true)} · ${tipoDeVenta(hoja.tipoVenta)}',
+            style: const TextStyle(color: textoSecundario),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(formatearMonto(hoja.total), style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
     );
