@@ -113,7 +113,8 @@ module firewall 'modulos/firewall-mysql.bicep' = {
 }
 
 module presupuesto 'modulos/presupuesto.bicep' = {
-  name: 'presupuesto'
+  // Un despliegue de la suscripción queda anotado en una región: con otra, el mismo nombre falla (InvalidDeploymentLocation).
+  name: 'presupuesto-${region}'
   scope: subscription()
   params: {
     nombre: nombres.presupuesto
