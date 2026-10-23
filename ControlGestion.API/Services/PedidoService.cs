@@ -284,7 +284,10 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     /// </summary>
     public async Task<PedidoDTO> EntregarAsync(int id, EntregarPedidoDTO dto)
     {
-        var pedido = await Visibles.Include(p => p.Detalles).Include(p => p.Cliente).FirstOrDefaultAsync(p => p.Id == id)
+        // Las líneas, en el orden en que se guardaron, que es el del detalle: la HP nace con ese orden, y el error de stock
+        // de la línea i (errors["detalles[i].cantidad"]) cae en la línea que la app muestra en ese lugar.
+        var pedido = await Visibles.Include(p => p.Detalles.OrderBy(d => d.Id)).Include(p => p.Cliente)
+            .FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new NoEncontradoException("No se encontró el pedido.");
         if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
             throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó.");
