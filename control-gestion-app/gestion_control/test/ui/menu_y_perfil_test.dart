@@ -55,27 +55,18 @@ void main() {
       expect(find.text('Cerrar sesión'), findsOneWidget);
     });
 
-    final conBandeja = [
-      ...entradasDelMenu,
-      EntradaDelMenu(
-        titulo: 'Bandeja del día',
-        descripcion: 'Los pedidos que te asignaron.',
-        icono: Icons.inbox_outlined,
-        ruta: '/bandeja',
-        permisos: [Permisos.pedidos.verBandeja],
-      ),
-    ];
-
     testWidgets('una entrada con permisos no se ve sin ninguno de ellos', (tester) async {
-      await abrir(tester, MenuScreen(entradas: conBandeja));
+      await abrir(tester, const MenuScreen());
 
       expect(find.text('Bandeja del día'), findsNothing);
+      expect(find.text('Pedidos'), findsNothing);
+      expect(find.text('Eventos'), findsNothing);
     });
 
     testWidgets('una entrada con permisos se ve con uno de ellos', (tester) async {
       await abrir(
         tester,
-        MenuScreen(entradas: conBandeja),
+        const MenuScreen(),
         sesion: Sesion(
           id: 'u1',
           email: 'a@test.local',

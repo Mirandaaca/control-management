@@ -18,6 +18,8 @@ import '../hojas_pedido/hoja_pedido_screen.dart';
 import '../hojas_pedido/hojas_pedido_screen.dart';
 import '../hojas_pedido/nueva_hoja_screen.dart';
 import '../menu/menu_screen.dart';
+import '../pedidos/bandeja_screen.dart';
+import '../pedidos/entrega_screen.dart';
 import '../pedidos/nuevo_pedido_screen.dart';
 import '../pedidos/pedido_screen.dart';
 import '../pedidos/pedidos_screen.dart';
@@ -52,6 +54,9 @@ abstract final class Rutas {
   static const pedidos = '/pedidos';
   static const nuevoPedido = '/pedidos/nuevo';
   static String pedido(int id) => '/pedidos/$id';
+  static const bandeja = '/bandeja';
+  static String pedidoDeLaBandeja(int id) => '/bandeja/$id';
+  static String entrega(int id) => '/bandeja/$id/entrega';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -84,6 +89,9 @@ abstract final class PermisosDe {
     Permisos.pedidos.asignarPedidos,
     Permisos.pedidos.registrarEntrega,
   ];
+
+  // Los de `PANTALLAS.bandeja` del panel, que son los de GET /pedidos/bandeja.
+  static final bandeja = [Permisos.pedidos.verBandeja];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -183,6 +191,32 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => ConPermiso(
                       permisos: [Permisos.cobranzas.registrarPago],
                       child: RegistrarPagoScreen(cobranzaId: int.parse(state.pathParameters['id']!)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'bandeja',
+            // Después de una entrega, la bandeja vuelve con su aviso.
+            builder: (context, state) => ConPermiso(
+              permisos: PermisosDe.bandeja,
+              child: BandejaScreen(mensaje: state.extra as String?),
+            ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.bandeja,
+                  child: PedidoScreen(id: int.parse(state.pathParameters['id']!), desdeLaBandeja: true),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'entrega',
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.pedidos.registrarEntrega],
+                      child: EntregaScreen(id: int.parse(state.pathParameters['id']!)),
                     ),
                   ),
                 ],

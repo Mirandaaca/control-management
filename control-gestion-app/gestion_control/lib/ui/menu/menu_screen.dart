@@ -29,6 +29,13 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Bandeja del día',
+    descripcion: 'Los pedidos que tienes que entregar hoy.',
+    icono: Icons.inbox_outlined,
+    ruta: Rutas.bandeja,
+    permisos: PermisosDe.bandeja,
+  ),
+  EntradaDelMenu(
     titulo: 'Pedidos',
     descripcion: 'Los de tus clientes y los que te asignan: registrarlos y ver su estado.',
     icono: Icons.shopping_bag_outlined,

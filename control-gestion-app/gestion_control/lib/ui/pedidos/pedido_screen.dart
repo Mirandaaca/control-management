@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/hoja_pedido.dart';
 import '../../data/models/pedido.dart';
+import '../../domain/permisos.dart';
 import '../../proveedores.dart';
 import '../core/formato.dart';
 import '../core/lineas/linea_de_producto.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
@@ -25,12 +27,14 @@ class AbrirPedido {
 }
 
 /// Un pedido (`frmPedidoMovil` y `frmBandejaPedidosMovil`): el cliente, la dirección, los productos, el monto y la
-/// fecha y hora de entrega (7.3.3, paso 4), la entrega si ya se hizo, y su historial (7.3.2, paso 4).
+/// fecha y hora de entrega (7.3.3, paso 4), la entrega si ya se hizo, y su historial (7.3.2, paso 4). Abierto desde la
+/// bandeja, ofrece registrar la entrega (7.3.2, paso 3: "selecciona un pedido de su bandeja").
 class PedidoScreen extends ConsumerStatefulWidget {
-  const PedidoScreen({super.key, required this.id, this.abrir});
+  const PedidoScreen({super.key, required this.id, this.abrir, this.desdeLaBandeja = false});
 
   final int id;
   final AbrirPedido? abrir;
+  final bool desdeLaBandeja;
 
   @override
   ConsumerState<PedidoScreen> createState() => _PedidoScreenState();
@@ -46,6 +50,16 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
     if (mensaje != null) Future.microtask(() => _viewModel.avisar(mensaje));
   }
 
+  // Solo el promotor asignado entrega, y solo un pedido en ruta (7.3.2, ext. 3.1b y 3.1c): la API lo revisa igual.
+  bool _puedeEntregar(Pedido pedido) {
+    final sesion = ref.read(sesionProvider);
+    return widget.desdeLaBandeja &&
+        pedido.estado.id == EstadosDePedido.enRuta &&
+        sesion is ConSesion &&
+        pedido.repartidor?.id == sesion.sesion.id &&
+        sesion.sesion.tiene([Permisos.pedidos.registrarEntrega]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(pedidoProvider(widget.id));
@@ -56,7 +70,7 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
       body: switch (estado) {
         DetalleDePedido(pedido: final pedido?) => RefreshIndicator(
           onRefresh: _viewModel.cargar,
-          child: _Contenido(pedido: pedido, mensaje: estado.mensaje),
+          child: _Contenido(pedido: pedido, mensaje: estado.mensaje, desdeLaBandeja: widget.desdeLaBandeja),
         ),
         DetalleDePedido(error: final error?) => ErrorConReintento.de(
           error,
@@ -65,15 +79,19 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
         ),
         _ => const Cargando('Cargando el pedido…'),
       },
+      bottomNavigationBar: pedido != null && _puedeEntregar(pedido)
+          ? BarraDeAcciones(principal: Accion('Registrar entrega', () => context.push(Rutas.entrega(pedido.id))))
+          : null,
     );
   }
 }
 
 class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.pedido, this.mensaje});
+  const _Contenido({required this.pedido, this.mensaje, this.desdeLaBandeja = false});
 
   final Pedido pedido;
   final String? mensaje;
+  final bool desdeLaBandeja;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,6 +104,11 @@ class _Contenido extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         if (mensaje != null) ...[Aviso(mensaje!, tipo: TipoDeAviso.exito), const SizedBox(height: 16)],
+        if (desdeLaBandeja &&
+            (pedido.estado.id == EstadosDePedido.pendiente || pedido.estado.id == EstadosDePedido.enProceso)) ...[
+          const Aviso('Se entrega cuando salga a ruta.', tipo: TipoDeAviso.informacion),
+          const SizedBox(height: 16),
+        ],
         Wrap(
           spacing: 12,
           runSpacing: 4,
