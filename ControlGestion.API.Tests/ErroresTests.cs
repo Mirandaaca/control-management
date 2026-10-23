@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ControlGestion.API.Data;
 using ControlGestion.API.Excepciones;
+using ControlGestion.API.Models;
 using ControlGestion.API.Tests.Infraestructura;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -43,16 +44,36 @@ public class ErroresTests(ApiDePrueba api)
     public async Task Una_referencia_a_un_id_que_no_existe_responde_400_y_no_500()
     {
         using var operador = await api.OperadorAsync();
-
-        // Rutas todavía no valida la zona: la ruta llega a la base y la FK responde el error 1452 de MySQL. Cuando
-        // Rutas se migre y valide la zona, esta prueba tiene que pasar a otro endpoint que siga llegando a la FK.
         await (await operador.PostAsJsonAsync("/api/rutas", new
         {
-            nombre = Ayudantes.Unico("Ruta"),
             zonaId = 999999,
-            fechaPlanificada = DateTime.UtcNow.AddDays(1),
-            clientes = Array.Empty<object>()
-        })).ProblemaAsync(400, "referencia_invalida");
+            promotorId = ApiDePrueba.PromotorDeZonasId,
+            fecha = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd"),
+            clientes = new[] { 1 }
+        })).ProblemaAsync(400, "validacion");
+
+        // Desde la tarea 14 ningún endpoint llega a esta FK sin revisar antes el id (Rutas era el último). Se provoca el
+        // error 1452 de verdad, con una zona que no existe, y se pasa por el manejador.
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Rutas.Add(new Ruta
+        {
+            Numero = Ayudantes.Unico("R"),
+            PromotorId = ApiDePrueba.PromotorDeZonasId,
+            ZonaId = 999999,
+            FechaPlanificada = new DateOnly(2000, 1, 1),
+        });
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        http.Response.Body = new MemoryStream();
+
+        var manejador = ActivatorUtilities.CreateInstance<ManejadorDeExcepciones>(scope.ServiceProvider);
+        Assert.True(await manejador.TryHandleAsync(http, error, CancellationToken.None));
+
+        Assert.Equal(400, http.Response.StatusCode);
+        http.Response.Body.Position = 0;
+        var problema = (await JsonDocument.ParseAsync(http.Response.Body)).RootElement;
+        Assert.Equal("referencia_invalida", problema.GetProperty("codigo").GetString());
     }
 
     [Fact]

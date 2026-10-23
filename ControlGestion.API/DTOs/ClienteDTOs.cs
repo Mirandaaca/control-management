@@ -123,6 +123,7 @@ public record ClienteDTO(
 public record ClienteOpcionDTO(int Id, string Codigo, string NombreCompleto, int ZonaId, string DireccionTexto,
     EstadoClienteDTO Estado, bool Inactivo);
 
+/// <summary>Un cliente en el mapa de clientes (5.1 y 5.2): al elegirlo, el panel muestra sus datos y su ciclo de visitas.</summary>
 public record ClienteMapaDTO(
     int Id,
     string Codigo,
@@ -131,5 +132,40 @@ public record ClienteMapaDTO(
     decimal Longitud,
     string Telefono,
     string DireccionTexto,
+    int ZonaId,
+    DateTime? UltimaVisita,
     DateTime? ProximaVisita,
     EstadoClienteDTO Estado);
+
+/// <summary>Filtros de la lista de clientes por visitar (5.3, query string).</summary>
+public record FiltrosPorVisitarDTO
+{
+    [MaxLength(100, ErrorMessage = "La búsqueda no puede superar los 100 caracteres.")]
+    public string? Buscar { get; init; }
+
+    public int? ZonaId { get; init; }
+    public string? PromotorId { get; init; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "La página empieza en 1.")]
+    public int Pagina { get; init; } = 1;
+
+    [Range(1, 100, ErrorMessage = "El tamaño de la página va de 1 a 100.")]
+    public int Tamano { get; init; } = 25;
+}
+
+/// <summary>
+/// Un cliente por visitar (5.3). DiasDeAtraso es hoy menos el día de su próxima visita, en días de Bolivia: 0 si le toca
+/// hoy, y null si nunca se visitó.
+/// </summary>
+public record ClientePorVisitarDTO(
+    int Id,
+    string Codigo,
+    string NombreCompleto,
+    string DireccionTexto,
+    decimal Latitud,
+    decimal Longitud,
+    ZonaResumenDTO Zona,
+    UsuarioResumenDTO? Promotor,
+    DateTime? UltimaVisita,
+    DateTime? ProximaVisita,
+    int? DiasDeAtraso);

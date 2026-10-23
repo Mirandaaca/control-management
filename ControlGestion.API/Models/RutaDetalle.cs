@@ -2,7 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ControlGestion.API.Models;
 
-public enum EstadoVisita { Pendiente = 0, Visitado = 1, Ausente = 2, Reprogramado = 3 }
+/// <summary>El resultado de la visita (7.3.20, paso 5): visitado o ausente. "Ausente" no cuenta como visita del cliente.</summary>
+public enum EstadoVisita { Pendiente = 0, Visitado = 1, Ausente = 2 }
 
 public class RutaDetalle
 {

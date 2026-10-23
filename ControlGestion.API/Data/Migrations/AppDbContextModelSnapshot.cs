@@ -1196,8 +1196,8 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<DateTime?>("FechaInicio")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime>("FechaPlanificada")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateOnly>("FechaPlanificada")
+                        .HasColumnType("date");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -1225,9 +1225,10 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasIndex("Numero")
                         .IsUnique();
 
-                    b.HasIndex("PromotorId");
-
                     b.HasIndex("ZonaId");
+
+                    b.HasIndex("PromotorId", "FechaPlanificada")
+                        .IsUnique();
 
                     b.ToTable("Rutas");
                 });
@@ -1393,6 +1394,36 @@ namespace ControlGestion.API.Data.Migrations
                             RequiereEvidencia = false,
                             RequiereGeolocalizacion = true
                         });
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.UbicacionPromotor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Latitud")
+                        .HasPrecision(10, 8)
+                        .HasColumnType("decimal(10,8)");
+
+                    b.Property<decimal>("Longitud")
+                        .HasPrecision(11, 8)
+                        .HasColumnType("decimal(11,8)");
+
+                    b.Property<string>("PromotorId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PromotorId", "Fecha");
+
+                    b.ToTable("UbicacionesPromotor");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Zona", b =>
@@ -1970,6 +2001,17 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.UbicacionPromotor", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
+                        .WithMany()
+                        .HasForeignKey("PromotorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Promotor");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Zona", b =>

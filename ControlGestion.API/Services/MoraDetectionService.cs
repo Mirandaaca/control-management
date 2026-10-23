@@ -3,9 +3,10 @@ using ControlGestion.API.Configuracion;
 namespace ControlGestion.API.Services;
 
 /// <summary>
-/// Corre el proceso de mora al arrancar la API y después cada día a las 00:05 de Bolivia, cuando ya terminó el día de
-/// vencimiento de ayer. Al arrancar, porque si la API estuvo apagada a esa hora, las moras de ese día quedarían sin marcar.
-/// En la misma corrida borra las sesiones que terminaron hace más de 30 días.
+/// Corre los procesos diarios al arrancar la API y después cada día a las 00:05 de Bolivia, cuando ya terminó el día de
+/// ayer: las moras (3.2) y los clientes que pasan a disponible para re-visita (5.2). Al arrancar, porque si la API estuvo
+/// apagada a esa hora (en Azure se duerme), esos cambios quedarían sin hacer. Los dos se pueden repetir sin efectos. En la
+/// misma corrida borra las sesiones que terminaron hace más de 30 días.
 /// </summary>
 public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<MoraDetectionService> logger)
     : BackgroundService
@@ -15,6 +16,7 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
         while (!stoppingToken.IsCancellationRequested)
         {
             await DetectarMorasAsync();
+            await PasarADisponiblesAsync();
             await BorrarSesionesTerminadasAsync();
             try
             {
@@ -47,6 +49,20 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
         catch (Exception ex)
         {
             logger.LogError(ex, "Error en la detección automática de moras.");
+        }
+    }
+
+    private async Task PasarADisponiblesAsync()
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var pasaron = await scope.ServiceProvider.GetRequiredService<RevisitaService>().PasarADisponiblesAsync();
+            logger.LogInformation("Re-visitas: {Cantidad} clientes pasaron a disponible para re-visita.", pasaron);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error al pasar los clientes a disponible para re-visita.");
         }
     }
 

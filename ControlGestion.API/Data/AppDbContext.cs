@@ -38,6 +38,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     // Fase 5
     public DbSet<Ruta> Rutas { get; set; }
     public DbSet<RutaDetalle> RutasDetalle { get; set; }
+    public DbSet<UbicacionPromotor> UbicacionesPromotor { get; set; }
 
     public DbSet<Secuencia> Secuencias { get; set; }
 
@@ -347,6 +348,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(r => r.Zona).WithMany().HasForeignKey(r => r.ZonaId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Ruta>()
             .HasIndex(r => r.Numero).IsUnique();
+        builder.Entity<Ruta>()
+            .HasIndex(r => new { r.PromotorId, r.FechaPlanificada }).IsUnique();
 
         // RutaDetalle
         builder.Entity<RutaDetalle>()
@@ -355,6 +358,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(d => d.Cliente).WithMany().HasForeignKey(d => d.ClienteId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<RutaDetalle>().Property(d => d.Latitud).HasPrecision(10, 8);
         builder.Entity<RutaDetalle>().Property(d => d.Longitud).HasPrecision(11, 8);
+
+        // UbicacionPromotor: el seguimiento busca la última de un promotor desde que empezó su ruta.
+        builder.Entity<UbicacionPromotor>()
+            .HasOne(u => u.Promotor).WithMany().HasForeignKey(u => u.PromotorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<UbicacionPromotor>().HasIndex(u => new { u.PromotorId, u.Fecha });
+        builder.Entity<UbicacionPromotor>().Property(u => u.Latitud).HasPrecision(10, 8);
+        builder.Entity<UbicacionPromotor>().Property(u => u.Longitud).HasPrecision(11, 8);
 
         // Seed estados de pedido
         builder.Entity<EstadoPedido>().HasData(

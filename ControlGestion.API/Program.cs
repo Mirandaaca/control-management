@@ -124,6 +124,8 @@ builder.Services.AddScoped<ControlGestion.API.Services.EvidenciaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EventoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ReporteEventosService>();
 builder.Services.AddScoped<ControlGestion.API.Services.MoraService>();
+builder.Services.AddScoped<ControlGestion.API.Services.RevisitaService>();
+builder.Services.AddScoped<ControlGestion.API.Services.RutaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ConfiguracionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();

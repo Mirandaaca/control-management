@@ -24,10 +24,16 @@ public class ClientesController(ClienteService clientes) : ControllerBase
         [FromQuery] bool incluirInactivos = false) =>
         await clientes.OpcionesAsync(buscar, limite, incluirInactivos);
 
+    // Quien planifica una ruta elige sus clientes de aquí: los de la zona, con su ubicación para el mapa de la ruta.
     [HttpGet("mapa")]
-    [Permiso(Permisos.Ventas.VerUbicacionCliente, Permisos.Territorial.VerMapaClientes)]
+    [Permiso(Permisos.Ventas.VerUbicacionCliente, Permisos.Territorial.VerMapaClientes, Permisos.Territorial.PlanificarRuta)]
     public async Task<ActionResult<List<ClienteMapaDTO>>> GetParaMapa([FromQuery] int? zonaId) =>
         await clientes.MapaAsync(zonaId);
+
+    [HttpGet("por-visitar")]
+    [Permiso(Permisos.Territorial.VerClientesPorVisitar)]
+    public async Task<ActionResult<Pagina<ClientePorVisitarDTO>>> GetPorVisitar([FromQuery] FiltrosPorVisitarDTO filtros) =>
+        await clientes.PorVisitarAsync(filtros);
 
     [HttpGet("estados")]
     public async Task<ActionResult<List<EstadoClienteDTO>>> GetEstados() =>

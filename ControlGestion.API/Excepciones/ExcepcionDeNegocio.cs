@@ -14,8 +14,9 @@ public abstract class ExcepcionDeNegocio(int estadoHttp, string codigo, string t
     public virtual IReadOnlyDictionary<string, string[]>? Errores => null;
 }
 
-public class NoEncontradoException(string mensaje)
-    : ExcepcionDeNegocio(StatusCodes.Status404NotFound, "no_encontrado", "No encontrado", mensaje);
+/// <summary>Con otro código cuando la app tiene que distinguirlo, como "sin_ruta_del_dia": no es un error, es un día sin ruta.</summary>
+public class NoEncontradoException(string mensaje, string codigo = "no_encontrado")
+    : ExcepcionDeNegocio(StatusCodes.Status404NotFound, codigo, "No encontrado", mensaje);
 
 /// <summary>
 /// Con errores, la regla además marca sus campos (el monto de un pago, la cantidad de cada línea sin stock): el panel
