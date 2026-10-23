@@ -33,5 +33,13 @@ desktop.ini
 *.log
 logs/
 
+# Claves de firma y certificados, en cualquier carpeta: el keystore del APK de pruebas vive fuera del repo
+# (docs/despliegue.md), pero una copia aquí no debe subirse nunca. El repo es público.
+*.jks
+*.keystore
+*.pfx
+*.p12
+key.properties
+
 # Fotos y comprobantes que suben los usuarios (Almacenamiento:Ruta)
 ControlGestion.API/archivos/
