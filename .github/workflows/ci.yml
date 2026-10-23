@@ -1,0 +1,303 @@
+# Las pruebas de cada PR y el despliegue al ambiente de pruebas en Azure (tarea 13b, docs/despliegue.md).
+#
+# - En cada PR a develop y en cada push a develop: la API, el panel, la app e infra/, cada uno solo si cambió su carpeta.
+# - El check obligatorio para mergear es "resumen": si cada trabajo fuera obligatorio, uno saltado por el filtro de
+#   carpetas dejaría el PR esperando para siempre.
+# - Al entrar a develop, con todo en verde, despliega lo que cambió. "Run workflow" (a mano) prueba y despliega todo.
+#
+# El repo es público y sus logs también: ningún paso imprime un secreto ni las variables de entorno.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Un PR con un commit nuevo cancela su corrida vieja; en develop, cada despliegue termina.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  FLUTTER_VERSION: 3.44.7
+
+jobs:
+  cambios:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      api: ${{ github.event_name == 'workflow_dispatch' || steps.filtro.outputs.api == 'true' }}
+      panel: ${{ github.event_name == 'workflow_dispatch' || steps.filtro.outputs.panel == 'true' }}
+      app: ${{ github.event_name == 'workflow_dispatch' || steps.filtro.outputs.app == 'true' }}
+      infra: ${{ github.event_name == 'workflow_dispatch' || steps.filtro.outputs.infra == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filtro
+        with:
+          filters: |
+            api:
+              - 'ControlGestion.API/**'
+              - 'ControlGestion.API.Tests/**'
+              - 'ControlGestion.sln'
+              - '.github/workflows/**'
+            panel:
+              - 'control-gestion-ui/**'
+              - '.github/**'
+            app:
+              - 'control-gestion-app/**'
+              - '.github/**'
+            infra:
+              - 'infra/**'
+              - '.github/workflows/**'
+
+  api:
+    needs: cambios
+    if: needs.cambios.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-
+      # La misma versión que Azure y lower_case_table_names=1, como allá. Los contenedores de servicio de Actions no
+      # aceptan argumentos: se arranca con docker run. La contraseña es nueva en cada corrida y no se imprime.
+      - name: MySQL 8.4 para las pruebas
+        run: |
+          clave="$(openssl rand -hex 24)"
+          echo "::add-mask::$clave"
+          docker run -d --name mysql -e MYSQL_ROOT_PASSWORD="$clave" -p 3306:3306 mysql:8.4 \
+            --lower-case-table-names=1 --innodb-buffer-pool-size=256M >/dev/null
+          echo "ConnectionStrings__Pruebas=Server=127.0.0.1;Port=3306;User=root;Password=$clave" >> "$GITHUB_ENV"
+          # Por TCP: el servidor temporal con el que MySQL se inicializa no escucha en la red.
+          for intento in $(seq 1 60); do
+            if docker exec -e MYSQL_PWD="$clave" mysql mysql -h127.0.0.1 -uroot -e 'SELECT 1' >/dev/null 2>&1; then
+              docker exec -e MYSQL_PWD="$clave" mysql mysql -h127.0.0.1 -uroot -N -e 'SELECT VERSION(), @@lower_case_table_names'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MySQL no arrancó." && docker logs mysql | tail -20 && exit 1
+      - run: dotnet build ControlGestion.sln
+      - run: dotnet test ControlGestion.sln --no-build
+
+  panel:
+    needs: cambios
+    if: needs.cambios.outputs.panel == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-gestion-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: control-gestion-ui/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      # Solo para comprobar que compila: el que se publica se compila en "desplegar-panel", con la URL de verdad.
+      - run: npm run build
+        env:
+          VITE_API_URL: https://api.ejemplo.invalid
+
+  app:
+    needs: cambios
+    if: needs.cambios.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-gestion-app/gestion_control
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  infra:
+    needs: cambios
+    if: needs.cambios.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: az bicep install
+      - run: az bicep build --file infra/main.bicep --stdout > /dev/null
+      # Con valores falsos: solo comprueba que el archivo de parámetros compila.
+      - run: az bicep build-params --file infra/pruebas.bicepparam --stdout > /dev/null
+        env:
+          CONTROL_CORREO_PRESUPUESTO: nadie@ejemplo.invalid
+          CONTROL_CLAVE_MYSQL: falsa
+          CONTROL_CLAVE_JWT: falsa
+          CONTROL_CLAVE_ADMIN: falsa
+
+  resumen:
+    if: always()
+    needs: [cambios, api, panel, app, infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Todos en verde (o saltados porque su carpeta no cambió)
+        run: |
+          echo "cambios=${{ needs.cambios.result }} api=${{ needs.api.result }} panel=${{ needs.panel.result }} app=${{ needs.app.result }} infra=${{ needs.infra.result }}"
+          for resultado in ${{ join(needs.*.result, ' ') }}; do
+            case "$resultado" in success|skipped) ;; *) exit 1 ;; esac
+          done
+
+  # ── El despliegue: solo desde develop (push o a mano), con todo en verde ──────────────────────────────────────────
+  # Entra a Azure con OIDC (azure/login): ninguna contraseña de Azure está guardada en GitHub. La identidad solo sirve
+  # para el entorno "pruebas", que solo acepta develop.
+
+  desplegar-api:
+    needs: [cambios, resumen]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop' && needs.cambios.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    environment: pruebas
+    concurrency: despliegue-api
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - run: dotnet publish ControlGestion.API -c Release -o publicado
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.NOMBRE_DE_LA_API }}
+          package: publicado
+      # El primer arranque aplica las migraciones y siembra: puede tardar. En el F1, App Service espera hasta 230 s.
+      - name: Esperar a que /health responda
+        run: |
+          for intento in $(seq 1 30); do
+            if curl -fsS --max-time 60 "${{ vars.URL_DE_LA_API }}/health"; then echo; exit 0; fi
+            sleep 10
+          done
+          exit 1
+
+  desplegar-panel:
+    needs: [cambios, resumen]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop' && needs.cambios.outputs.panel == 'true'
+    runs-on: ubuntu-latest
+    environment: pruebas
+    concurrency: despliegue-panel
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: control-gestion-ui/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: control-gestion-ui
+        env:
+          VITE_API_URL: ${{ vars.URL_DE_LA_API }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - run: bash .github/scripts/subir-sitio-estatico.sh "${{ vars.CUENTA_DEL_PANEL }}" control-gestion-ui/dist assets
+
+  # La versión web de la app, solo para ver la app desde el iPhone de Julio.
+  desplegar-app-web:
+    needs: [cambios, resumen]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop' && needs.cambios.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    environment: pruebas
+    concurrency: despliegue-app-web
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build web --release --dart-define=API_URL=${{ vars.URL_DE_LA_API }}
+        working-directory: control-gestion-app/gestion_control
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - run: bash .github/scripts/subir-sitio-estatico.sh "${{ vars.CUENTA_DE_LA_APP_WEB }}" control-gestion-app/gestion_control/build/web
+
+  # El APK de pruebas, en el release "pruebas" de GitHub: siempre en el mismo enlace.
+  apk:
+    needs: [cambios, resumen]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/develop' && needs.cambios.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    environment: pruebas
+    concurrency: despliegue-apk
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: El keystore del ambiente
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pruebas.jks"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      # El número de la corrida es el versionCode: cada APK se instala encima del anterior.
+      - name: El APK de pruebas
+        working-directory: control-gestion-app/gestion_control
+        run: >-
+          flutter build apk --flavor pruebas --release
+          --dart-define=API_URL=${{ vars.URL_DE_LA_API }}
+          --build-number=${{ github.run_number }} --build-name=1.0.${{ github.run_number }}
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/pruebas.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: pruebas
+      - name: Publicar en el release "pruebas"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp control-gestion-app/gestion_control/build/app/outputs/flutter-apk/app-pruebas-release.apk control-gestion-pruebas.apk
+          notas="Versión 1.0.${{ github.run_number }}, del commit ${GITHUB_SHA::7} de develop. Apunta a ${{ vars.URL_DE_LA_API }}."
+          if ! gh release view pruebas >/dev/null 2>&1; then
+            gh release create pruebas --prerelease --target develop --title 'Control de Gestión (pruebas)' --notes "$notas"
+          fi
+          gh release upload pruebas control-gestion-pruebas.apk --clobber
+          gh release edit pruebas --notes "$notas"
+          rm -f "$RUNNER_TEMP/pruebas.jks"
