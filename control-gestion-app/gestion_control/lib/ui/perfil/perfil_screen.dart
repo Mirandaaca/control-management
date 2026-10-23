@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/formato.dart';
+import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
 import '../core/widgets/campo_de_texto.dart';
@@ -9,7 +11,8 @@ import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import 'perfil_view_model.dart';
 
-/// El perfil propio (8.3): ver el rol y la fecha de alta, y editar el nombre y el correo.
+/// El perfil propio (8.3): ver el rol y la fecha de alta, y editar el nombre y el correo. Desde aquí se cambia la
+/// contraseña (8.1; 7.3.31, paso 3: "desde su perfil").
 class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
 
@@ -94,6 +97,22 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   Flexible(child: Text(estado.guardando ? 'Guardando…' : 'Guardar cambios')),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            const SizedBox(height: 24),
+            Semantics(
+              header: true,
+              container: true,
+              child: Text('Contraseña', style: Theme.of(context).textTheme.titleMedium),
+            ),
+            const SizedBox(height: 4),
+            const Text('Para cambiarla necesitas la actual.', style: TextStyle(color: textoSecundario)),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => context.push(Rutas.contrasena),
+              icon: const Icon(Icons.key_outlined),
+              label: const Text('Cambiar contraseña'),
             ),
           ],
         ),

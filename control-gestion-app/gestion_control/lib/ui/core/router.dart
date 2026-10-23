@@ -31,7 +31,7 @@ abstract final class Rutas {
   static const entrar = '/entrar';
   static const menu = '/';
   static const perfil = '/perfil';
-  static const contrasena = '/contrasena';
+  static const contrasena = '/perfil/contrasena';
   static const productos = '/productos';
   static const clientes = '/clientes';
   static const nuevoCliente = '/clientes/nuevo';
@@ -112,10 +112,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'perfil',
             builder: (context, state) => const ConPermiso(child: PerfilScreen()),
-          ),
-          GoRoute(
-            path: 'contrasena',
-            builder: (context, state) => const ConPermiso(child: CambiarContrasenaScreen()),
+            routes: [
+              GoRoute(
+                path: 'contrasena',
+                builder: (context, state) => const ConPermiso(child: CambiarContrasenaScreen()),
+              ),
+            ],
           ),
           GoRoute(
             path: 'productos',

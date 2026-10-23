@@ -56,17 +56,12 @@ final entradasDelMenu = [
     ruta: Rutas.productos,
     permisos: PermisosDe.productos,
   ),
+  // "Cambiar contraseña" va dentro de Mi perfil, como en el panel (colaboración 7.4.31).
   const EntradaDelMenu(
     titulo: 'Mi perfil',
-    descripcion: 'Tu nombre y el correo con el que entras.',
+    descripcion: 'Tu nombre, tu correo y tu contraseña.',
     icono: Icons.person_outline,
     ruta: Rutas.perfil,
-  ),
-  const EntradaDelMenu(
-    titulo: 'Cambiar contraseña',
-    descripcion: 'Para cambiarla necesitas la actual.',
-    icono: Icons.key_outlined,
-    ruta: Rutas.contrasena,
   ),
 ];
 

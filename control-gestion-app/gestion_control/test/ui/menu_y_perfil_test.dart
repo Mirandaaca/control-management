@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/domain/permisos.dart';
@@ -49,7 +50,8 @@ void main() {
       expect(find.text('Pablo Promotor'), findsOneWidget);
       expect(find.text('Promotor'), findsOneWidget);
       expect(find.text('Mi perfil'), findsOneWidget);
-      expect(find.text('Cambiar contraseña'), findsOneWidget);
+      // Va dentro de Mi perfil (colaboración 7.4.31), no en el menú.
+      expect(find.text('Cambiar contraseña'), findsNothing);
       expect(find.text('Cerrar sesión'), findsOneWidget);
     });
 
@@ -152,6 +154,31 @@ void main() {
       expect(perfiles.ediciones.single, ('Pablo Promotor Pérez', 'promotor@test.local'));
       expect(find.text('Se guardaron tus datos.'), findsOneWidget);
       expect(sesiones.pedidosDeYo, 1);
+    });
+
+    testWidgets('"Cambiar contraseña" está en el perfil y abre su pantalla (7.3.31, paso 3)', (tester) async {
+      await abrirConRouter(
+        tester,
+        inicio: '/perfil',
+        rutas: [
+          GoRoute(
+            path: '/perfil',
+            builder: (_, _) => const PerfilScreen(),
+            routes: [GoRoute(path: 'contrasena', builder: (_, state) => Text('En ${state.uri}'))],
+          ),
+        ],
+        overrides: [
+          perfilRepositoryProvider.overrideWithValue(perfiles),
+          sesionProvider.overrideWith(() => SesionFija(const ConSesion(sesionDePrueba))),
+        ],
+      );
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.text('Cambiar contraseña'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.tap(find.text('Cambiar contraseña'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('En /perfil/contrasena'), findsOneWidget);
     });
 
     testWidgets('con la letra al 200 % cumple las guías de accesibilidad', (tester) async {
