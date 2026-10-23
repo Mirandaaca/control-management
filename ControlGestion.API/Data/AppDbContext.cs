@@ -233,6 +233,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(p => p.EstadoPedido).WithMany().HasForeignKey(p => p.EstadoPedidoId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Pedido>()
             .HasIndex(p => p.Numero).IsUnique();
+        builder.Entity<Pedido>()
+            .HasIndex(p => p.ClaveIdempotencia).IsUnique();
         // Una HP es la venta de un solo pedido. MySQL admite varios NULL en un índice único: los pedidos sin entregar.
         builder.Entity<Pedido>()
             .HasIndex(p => p.HojaPedidoId).IsUnique();
@@ -284,6 +286,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(e => e.ResueltoPor).WithMany().HasForeignKey(e => e.ResueltoPorId).OnDelete(DeleteBehavior.SetNull);
         builder.Entity<Evento>()
             .HasIndex(e => e.Numero).IsUnique();
+        builder.Entity<Evento>()
+            .HasIndex(e => e.ClaveIdempotencia).IsUnique();
         builder.Entity<Evento>().Property(e => e.Latitud).HasPrecision(10, 8);
         builder.Entity<Evento>().Property(e => e.Longitud).HasPrecision(11, 8);
         builder.Entity<Evento>().Property(e => e.Descripcion).HasMaxLength(1000);
@@ -366,21 +370,21 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<UbicacionPromotor>().Property(u => u.Latitud).HasPrecision(10, 8);
         builder.Entity<UbicacionPromotor>().Property(u => u.Longitud).HasPrecision(11, 8);
 
-        // Seed estados de pedido
+        // Seed estados de pedido. Los nombres llevan mayúscula solo en la primera palabra, como los diseños del 8.6.
         builder.Entity<EstadoPedido>().HasData(
             new EstadoPedido { Id = 1, Nombre = "Pendiente",     Orden = 1, Color = "#f59e0b" },
-            new EstadoPedido { Id = 2, Nombre = "En Proceso",    Orden = 2, Color = "#3b82f6" },
-            new EstadoPedido { Id = 3, Nombre = "En Ruta",       Orden = 3, Color = "#8b5cf6" },
+            new EstadoPedido { Id = 2, Nombre = "En proceso",    Orden = 2, Color = "#3b82f6" },
+            new EstadoPedido { Id = 3, Nombre = "En ruta",       Orden = 3, Color = "#8b5cf6" },
             new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 4, Color = "#10b981", EsEstadoFinal = true },
             new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 5, Color = "#ef4444", EsEstadoFinal = true }
         );
 
         // Seed tipos de evento
         builder.Entity<TipoEvento>().HasData(
-            new TipoEvento { Id = 1, Nombre = "Cliente Ausente",        RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Medio },
-            new TipoEvento { Id = 2, Nombre = "Entrega No Realizada",   RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Alto  },
-            new TipoEvento { Id = 3, Nombre = "Problema de Acceso",     RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Medio },
-            new TipoEvento { Id = 4, Nombre = "Incidencia de Cobro",    RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Alto  },
+            new TipoEvento { Id = 1, Nombre = "Cliente ausente",        RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Medio },
+            new TipoEvento { Id = 2, Nombre = "Entrega no realizada",   RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Alto  },
+            new TipoEvento { Id = 3, Nombre = "Problema de acceso",     RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Medio },
+            new TipoEvento { Id = 4, Nombre = "Incidencia de cobro",    RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Alto  },
             new TipoEvento { Id = 5, Nombre = "Otro",                   RequiereEvidencia = false, NivelPrioridad = NivelPrioridad.Bajo  }
         );
 

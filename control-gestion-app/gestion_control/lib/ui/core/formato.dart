@@ -5,6 +5,7 @@ const _desfaseBolivia = Duration(hours: -4);
 final _conZona = RegExp(r'(Z|[+-]\d{2}:?\d{2})$', caseSensitive: false);
 final _dia = DateFormat('dd/MM/yyyy');
 final _diaYHora = DateFormat('dd/MM/yyyy HH:mm');
+final _hora = DateFormat('HH:mm');
 final _miles = RegExp(r'\B(?=(\d{3})+(?!\d))');
 
 /// La API guarda en UTC, pero devuelve las fechas leídas de MySQL sin la "Z" final. Sin ella, `DateTime.parse` las
@@ -20,6 +21,12 @@ String formatearFecha(String? valor, {bool hora = false}) {
   final utc = leerFechaUtc(valor);
   if (utc == null) return '—';
   return formatearMomento(utc, hora: hora);
+}
+
+/// Solo la hora de un momento, en la hora de Bolivia: "09:00", como en la bandeja del 8.6.10. Sin fecha, "—".
+String formatearHora(String? valor) {
+  final utc = leerFechaUtc(valor);
+  return utc == null ? '—' : _hora.format(utc.add(_desfaseBolivia));
 }
 
 /// Un momento en UTC, en la hora de Bolivia.

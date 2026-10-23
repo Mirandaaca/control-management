@@ -46,6 +46,10 @@ public class Pedido
     // mientras se entrega, por ejemplo) se pisarían.
     public DateTime VersionConcurrencia { get; set; }
 
+    // La genera la app al registrarlo, como en la HP: si el mismo pedido llega dos veces (un reintento con mala señal),
+    // se registra una sola vez.
+    public Guid? ClaveIdempotencia { get; set; }
+
     public ICollection<DetallePedido> Detalles { get; set; } = new List<DetallePedido>();
     public ICollection<HistorialEstadoPedido> Historial { get; set; } = new List<HistorialEstadoPedido>();
 }

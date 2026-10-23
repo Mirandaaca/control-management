@@ -9,15 +9,19 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/cobranza.dart';
+import 'package:gestion_control/data/models/evento.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pagina.dart';
+import 'package:gestion_control/data/models/pedido.dart';
 import 'package:gestion_control/data/models/perfil.dart';
 import 'package:gestion_control/data/models/producto.dart';
 import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/cobranzas_repository.dart';
+import 'package:gestion_control/data/repositories/eventos_repository.dart';
 import 'package:gestion_control/data/repositories/hojas_pedido_repository.dart';
+import 'package:gestion_control/data/repositories/pedidos_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
@@ -761,10 +765,348 @@ final fotoDePrueba = FotoTomada(
 class CamaraFalsa implements Camara {
   FotoTomada? siguiente = fotoDePrueba;
   var tomas = 0;
+  var elegidas = 0;
 
   @override
   Future<FotoTomada?> tomarFoto() async {
     tomas++;
     return siguiente;
   }
+
+  @override
+  Future<FotoTomada?> elegirDeLaGaleria() async {
+    elegidas++;
+    final foto = siguiente;
+    return foto == null
+        ? null
+        : FotoTomada(bytes: foto.bytes, nombre: 'de-la-galeria.png', tomadaUtc: foto.tomadaUtc, deLaGaleria: true);
+  }
+}
+
+// Los pedidos de datos-ejemplo.md.
+const estadosDePedido = [
+  EstadoPedido(id: EstadosDePedido.pendiente, nombre: 'Pendiente'),
+  EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
+  EstadoPedido(id: EstadosDePedido.enRuta, nombre: 'En ruta'),
+  EstadoPedido(id: EstadosDePedido.entregado, nombre: 'Entregado'),
+  EstadoPedido(id: EstadosDePedido.anulado, nombre: 'Anulado'),
+];
+
+EstadoPedido estadoDePedido(int id) => estadosDePedido.firstWhere((e) => e.id == id);
+
+/// El PED-2026-00031 de Rosa: 2 arroz = Bs 76,00, con entrega el 30/10/2026 a las 09:00, asignado a Carlos (u1).
+Pedido pedidoDePrueba({
+  int id = 31,
+  String numero = 'PED-2026-00031',
+  int estado = EstadosDePedido.enRuta,
+  String? repartidorId = 'u1',
+  bool conDosLineas = false,
+}) => Pedido(
+  id: id,
+  numero: numero,
+  estado: estadoDePedido(estado),
+  subTotal: conDosLineas ? 142 : 76,
+  descuento: 0,
+  total: conDosLineas ? 142 : 76,
+  fechaRegistro: '2026-10-28T14:00:00',
+  // 13:00 UTC son las 09:00 de Bolivia.
+  fechaEntrega: '2026-10-30T13:00:00',
+  fechaEntregaReal: estado == EstadosDePedido.entregado ? '2026-10-30T13:10:00' : null,
+  direccionEntrega: 'Calle 4 N.º 120, frente al Mercado Norte',
+  recibidoPor: estado == EstadosDePedido.entregado ? 'Doña Rosa' : null,
+  cliente: const Referencia(id: '42', nombre: 'Rosa Quispe Mamani'),
+  registradoPor: 'Lucía Vargas Rojas',
+  repartidor: repartidorId == null ? null : Referencia(id: repartidorId, nombre: 'Carlos Mendoza Flores'),
+  venta: estado == EstadosDePedido.entregado
+      ? const VentaDeLaEntrega(
+          id: 40,
+          numero: 'HP-2026-00040',
+          tipoVenta: TipoVenta.credito,
+          cobranza: CobranzaDeHoja(id: 30, numero: 'COB-2026-00030'),
+        )
+      : null,
+  lineas: [
+    const LineaDePedido(
+      descripcion: 'Arroz grano largo 5 kg',
+      cantidad: 2,
+      precioUnitario: 38,
+      descuento: 0,
+      subtotal: 76,
+    ),
+    if (conDosLineas)
+      const LineaDePedido(
+        descripcion: 'Detergente en polvo 1 kg',
+        cantidad: 4,
+        precioUnitario: 16.5,
+        descuento: 0,
+        subtotal: 66,
+      ),
+  ],
+  historial: [
+    CambioDelPedido(
+      estado: estadoDePedido(EstadosDePedido.pendiente),
+      fecha: '2026-10-28T14:00:00',
+      usuario: 'Lucía Vargas Rojas',
+      observacion: 'Pedido registrado',
+    ),
+    CambioDelPedido(
+      estado: estadoDePedido(EstadosDePedido.pendiente),
+      fecha: '2026-10-29T14:00:00',
+      usuario: 'Lucía Vargas Rojas',
+      observacion: 'Asignado a Carlos Mendoza Flores para el 30/10/2026.',
+    ),
+    if (estado != EstadosDePedido.pendiente)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.enProceso),
+        fecha: '2026-10-30T11:00:00',
+        usuario: 'Lucía Vargas Rojas',
+      ),
+    if (estado == EstadosDePedido.enRuta || estado == EstadosDePedido.entregado)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.enRuta),
+        fecha: '2026-10-30T12:00:00',
+        usuario: 'Lucía Vargas Rojas',
+      ),
+    if (estado == EstadosDePedido.entregado)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.entregado),
+        fecha: '2026-10-30T13:10:00',
+        usuario: 'Carlos Mendoza Flores',
+        observacion: 'Recibió Doña Rosa. Venta HP-2026-00040, a crédito.',
+      ),
+  ],
+);
+
+PedidoResumen resumenDePedido(Pedido pedido) => PedidoResumen(
+  id: pedido.id,
+  numero: pedido.numero,
+  estado: pedido.estado,
+  total: pedido.total,
+  fechaEntrega: pedido.fechaEntrega,
+  direccionEntrega: pedido.direccionEntrega,
+  cliente: pedido.cliente,
+  repartidor: pedido.repartidor,
+);
+
+/// La bandeja del 8.6.10: el 31 y el 32 en ruta, y el 34 en proceso.
+final bandejaDePrueba = [
+  resumenDePedido(pedidoDePrueba()),
+  const PedidoResumen(
+    id: 32,
+    numero: 'PED-2026-00032',
+    estado: EstadoPedido(id: EstadosDePedido.enRuta, nombre: 'En ruta'),
+    total: 104,
+    fechaEntrega: '2026-10-30T14:30:00',
+    direccionEntrega: 'Av. Norte N.º 455, al lado de la farmacia',
+    cliente: Referencia(id: '57', nombre: 'Juan Choque Condori'),
+    repartidor: Referencia(id: 'u1', nombre: 'Carlos Mendoza Flores'),
+  ),
+  const PedidoResumen(
+    id: 34,
+    numero: 'PED-2026-00034',
+    estado: EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
+    total: 66,
+    fechaEntrega: '2026-10-30T19:00:00',
+    direccionEntrega: 'Calle 3 N.º 402',
+    cliente: Referencia(id: '71', nombre: 'Luis Fernández Áñez'),
+    repartidor: Referencia(id: 'u1', nombre: 'Carlos Mendoza Flores'),
+  ),
+];
+
+/// Lo que se le envió al repositorio de pedidos.
+typedef EnvioDePedidoPrueba = ({DatosDePedido datos, String clave});
+typedef EnvioDeEntregaPrueba = ({int id, DatosDeEntrega datos, Posicion ubicacion});
+
+class PedidosRepositoryFalso implements PedidosRepository {
+  Future<Pagina<PedidoResumen>> Function(String buscar, int? estadoId, int? clienteId) alListar = (_, _, _) async =>
+      Pagina(items: [resumenDePedido(pedidoDePrueba())], total: 1, numero: 1, tamano: 25);
+  Future<List<PedidoResumen>> Function() alPedirLaBandeja = () async => bandejaDePrueba;
+  Future<Pedido> Function(int id) alObtener = (_) async => pedidoDePrueba();
+  Future<Pedido> Function(EnvioDePedidoPrueba envio) alRegistrar = (_) async =>
+      pedidoDePrueba(id: 37, numero: 'PED-2026-00037', estado: EstadosDePedido.pendiente, repartidorId: null);
+  Future<Pedido> Function(EnvioDeEntregaPrueba envio) alEntregar = (_) async =>
+      pedidoDePrueba(estado: EstadosDePedido.entregado);
+
+  final listados = <({String buscar, int? estadoId, int? clienteId})>[];
+  final registrados = <EnvioDePedidoPrueba>[];
+  final entregas = <EnvioDeEntregaPrueba>[];
+  var obtenidos = 0;
+  var bandejas = 0;
+
+  @override
+  Future<Pagina<PedidoResumen>> listar({
+    String buscar = '',
+    int? estadoId,
+    int? clienteId,
+    int pagina = 1,
+    int tamano = tamanoDePagina,
+  }) {
+    listados.add((buscar: buscar, estadoId: estadoId, clienteId: clienteId));
+    return alListar(buscar, estadoId, clienteId);
+  }
+
+  @override
+  Future<List<EstadoPedido>> estados() async => estadosDePedido;
+
+  @override
+  Future<List<PedidoResumen>> bandeja() {
+    bandejas++;
+    return alPedirLaBandeja();
+  }
+
+  @override
+  Future<Pedido> obtener(int id) {
+    obtenidos++;
+    return alObtener(id);
+  }
+
+  @override
+  Future<Pedido> registrar(DatosDePedido datos, {required String clave}) {
+    final envio = (datos: datos, clave: clave);
+    registrados.add(envio);
+    return alRegistrar(envio);
+  }
+
+  @override
+  Future<Pedido> entregar(int id, DatosDeEntrega datos, Posicion ubicacion) {
+    final envio = (id: id, datos: datos, ubicacion: ubicacion);
+    entregas.add(envio);
+    return alEntregar(envio);
+  }
+}
+
+// Los tipos de evento que siembra la API, con mayúscula solo en la primera palabra.
+const tiposDeEvento = [
+  TipoDeEvento(id: 1, nombre: 'Cliente ausente', requiereEvidencia: true),
+  TipoDeEvento(id: 2, nombre: 'Entrega no realizada', requiereEvidencia: true),
+  TipoDeEvento(id: 3, nombre: 'Problema de acceso', requiereEvidencia: false),
+  TipoDeEvento(id: 5, nombre: 'Otro', requiereEvidencia: false),
+];
+
+/// Una foto del evento de Pedro: tomada a las 09:21 y subida a las 09:22 (8.6.8).
+FotoDeEvento fotoDelEventoDePrueba(int id) => FotoDeEvento(
+  id: id,
+  fechaSubida: '2026-10-30T13:22:00',
+  subidoPor: 'Carlos Mendoza Flores',
+  fechaCaptura: '2026-10-30T13:21:00',
+);
+
+/// El evento del 8.6.8: "Cliente ausente" de Pedro Mamani Cruz, registrado por Carlos (u1) el 30/10/2026 a las 09:22.
+Evento eventoDePrueba({
+  int id = 5,
+  String numero = 'EVT-2026-00005',
+  EstadoEvento estado = EstadoEvento.pendiente,
+  String promotorId = 'u1',
+  List<FotoDeEvento> fotos = const [],
+  PedidoDelEvento? pedido,
+}) => Evento(
+  id: id,
+  numero: numero,
+  tipo: tiposDeEvento.first,
+  estado: estado,
+  fecha: '2026-10-30T13:22:00',
+  latitud: -17.768930,
+  longitud: -63.179455,
+  descripcion: 'El local estaba cerrado y nadie atendió. Vuelvo a pasar en la tarde.',
+  cliente: const Referencia(id: '64', nombre: 'Pedro Mamani Cruz'),
+  pedido: pedido,
+  promotor: Referencia(id: promotorId, nombre: 'Carlos Mendoza Flores'),
+  solucion: estado == EstadoEvento.resuelto ? 'Se le entregó en la tarde.' : null,
+  fechaResolucion: estado == EstadoEvento.resuelto ? '2026-10-30T20:00:00' : null,
+  resueltoPor: estado == EstadoEvento.resuelto ? 'Lucía Vargas Rojas' : null,
+  fotos: fotos,
+);
+
+EventoResumen resumenDeEvento(Evento evento) => EventoResumen(
+  id: evento.id,
+  numero: evento.numero,
+  tipo: evento.tipo,
+  estado: evento.estado,
+  fecha: evento.fecha,
+  cliente: evento.cliente,
+  pedido: evento.pedido,
+  promotor: evento.promotor,
+  fotos: evento.fotos.length,
+);
+
+const pedroOpcion = ClienteOpcion(
+  id: 64,
+  codigo: 'CLI-00064',
+  nombreCompleto: 'Pedro Mamani Cruz',
+  direccion: 'Calle 5 N.º 214, esquina con la avenida',
+  estado: estadoActivo,
+  inactivo: false,
+);
+
+/// Lo que se le envió al repositorio de eventos.
+typedef EnvioDeEventoPrueba = ({DatosDeEvento datos, Posicion ubicacion, String clave});
+typedef FotoSubidaPrueba = ({int eventoId, FotoTomada foto, Posicion? lugar});
+
+class EventosRepositoryFalso implements EventosRepository {
+  Future<Pagina<EventoResumen>> Function(String buscar, EstadoEvento? estado) alListar = (_, _) async => Pagina(
+    items: [
+      resumenDeEvento(eventoDePrueba(fotos: [fotoDelEventoDePrueba(1), fotoDelEventoDePrueba(2)])),
+    ],
+    total: 1,
+    numero: 1,
+    tamano: 25,
+  );
+  Future<Evento> Function(int id) alObtener = (_) async => eventoDePrueba();
+  Future<Evento> Function(EnvioDeEventoPrueba envio) alRegistrar = (_) async => eventoDePrueba();
+  Future<Evento> Function(int id, DatosDeEvento datos) alModificar = (_, _) async => eventoDePrueba();
+  Future<Evento> Function(FotoSubidaPrueba subida)? alAgregarFoto;
+  Future<Evento> Function(int id, int fotoId)? alEliminarFoto;
+
+  final listados = <({String buscar, EstadoEvento? estado})>[];
+  final registrados = <EnvioDeEventoPrueba>[];
+  final modificados = <({int id, DatosDeEvento datos})>[];
+  final fotosSubidas = <FotoSubidaPrueba>[];
+  final fotosEliminadas = <int>[];
+
+  @override
+  Future<Pagina<EventoResumen>> listar({String buscar = '', EstadoEvento? estado, int pagina = 1}) {
+    listados.add((buscar: buscar, estado: estado));
+    return alListar(buscar, estado);
+  }
+
+  @override
+  Future<List<TipoDeEvento>> tipos() async => tiposDeEvento;
+
+  @override
+  Future<Evento> obtener(int id) => alObtener(id);
+
+  @override
+  Future<Evento> registrar(DatosDeEvento datos, Posicion ubicacion, {required String clave}) {
+    final envio = (datos: datos, ubicacion: ubicacion, clave: clave);
+    registrados.add(envio);
+    return alRegistrar(envio);
+  }
+
+  @override
+  Future<Evento> modificar(int id, DatosDeEvento datos) {
+    modificados.add((id: id, datos: datos));
+    return alModificar(id, datos);
+  }
+
+  @override
+  Future<Evento> agregarFoto(int id, FotoTomada foto, {Posicion? lugar}) async {
+    final subida = (eventoId: id, foto: foto, lugar: lugar);
+    final alAgregar = alAgregarFoto;
+    if (alAgregar != null) {
+      final evento = await alAgregar(subida);
+      fotosSubidas.add(subida);
+      return evento;
+    }
+    fotosSubidas.add(subida);
+    return eventoDePrueba(fotos: [for (var i = 1; i <= fotosSubidas.length; i++) fotoDelEventoDePrueba(i)]);
+  }
+
+  @override
+  Future<Evento> eliminarFoto(int id, int fotoId) {
+    fotosEliminadas.add(fotoId);
+    return (alEliminarFoto ?? (_, _) async => eventoDePrueba())(id, fotoId);
+  }
+
+  @override
+  Future<Uint8List> archivo(int evidenciaId) async => fotoDePrueba.bytes;
 }

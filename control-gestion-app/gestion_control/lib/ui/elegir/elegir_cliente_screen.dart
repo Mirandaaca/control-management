@@ -18,10 +18,13 @@ import '../core/widgets/vacio.dart';
 import '../sesion/sesion_notifier.dart';
 import 'elegir_cliente_view_model.dart';
 
-/// Elegir el cliente de una venta (⇅): una pantalla de búsqueda con el campo enfocado. Busca en su cartera, en la API,
-/// 300 ms después de la última tecla. Vuelve con el cliente elegido.
+/// Elegir el cliente de una venta, un pedido o un evento (⇅): una pantalla de búsqueda con el campo enfocado. Busca en
+/// su cartera, en la API, 300 ms después de la última tecla. Vuelve con el cliente elegido.
 class ElegirClienteScreen extends ConsumerStatefulWidget {
-  const ElegirClienteScreen({super.key});
+  const ElegirClienteScreen({super.key, this.aceptaInactivos = false});
+
+  /// Un evento acepta un cliente inactivo: puede explicar justo por qué quedó inactivo. Una venta o un pedido, no.
+  final bool aceptaInactivos;
 
   @override
   ConsumerState<ElegirClienteScreen> createState() => _ElegirClienteScreenState();
@@ -93,7 +96,8 @@ class _ElegirClienteScreenState extends ConsumerState<ElegirClienteScreen> {
               texto: 'Si es un cliente nuevo, regístralo.',
             )
           else
-            for (final cliente in resultados ?? const <ClienteOpcion>[]) _OpcionDeCliente(cliente),
+            for (final cliente in resultados ?? const <ClienteOpcion>[])
+              _OpcionDeCliente(cliente, aceptaInactivo: widget.aceptaInactivos),
         ],
       ),
       bottomNavigationBar: puedeRegistrar
@@ -104,22 +108,24 @@ class _ElegirClienteScreenState extends ConsumerState<ElegirClienteScreen> {
 }
 
 class _OpcionDeCliente extends StatelessWidget {
-  const _OpcionDeCliente(this.cliente);
+  const _OpcionDeCliente(this.cliente, {required this.aceptaInactivo});
 
   final ClienteOpcion cliente;
+  final bool aceptaInactivo;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       minTileHeight: 56,
-      enabled: !cliente.inactivo,
+      enabled: !cliente.inactivo || aceptaInactivo,
       title: Text(cliente.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w600)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${cliente.codigo} · ${cliente.direccion}'),
-          // Un cliente inactivo no recibe ventas (7.3.5, ext. 2.2c): sale deshabilitado, con su estado.
+          // Un cliente inactivo no recibe ventas ni pedidos (7.3.5, ext. 2.2c; 7.3.1, ext. 2.1c): sale deshabilitado,
+          // con su estado.
           if (cliente.inactivo) ...[const SizedBox(height: 4), EtiquetaDelCliente(cliente.estado)],
         ],
       ),

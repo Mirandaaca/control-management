@@ -17,7 +17,12 @@ const precisionBuena = 30.0;
 /// Qué se registra con la ubicación: el final de cada aviso lo nombra ("sin ubicación, la venta no se guarda").
 enum QueSeRegistra {
   venta('la venta'),
-  cliente('el cliente');
+  cliente('el cliente'),
+  entrega('la entrega'),
+  evento('el evento'),
+
+  /// Una foto que se agrega a un evento ya registrado: no tiene tarjeta, y si no hay lectura se sube sin el lugar.
+  foto('la foto');
 
   const QueSeRegistra(this.nombre);
 

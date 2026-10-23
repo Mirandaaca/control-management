@@ -29,6 +29,20 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Bandeja del día',
+    descripcion: 'Los pedidos que tienes que entregar hoy.',
+    icono: Icons.inbox_outlined,
+    ruta: Rutas.bandeja,
+    permisos: PermisosDe.bandeja,
+  ),
+  EntradaDelMenu(
+    titulo: 'Pedidos',
+    descripcion: 'Los de tus clientes y los que te asignan: registrarlos y ver su estado.',
+    icono: Icons.shopping_bag_outlined,
+    ruta: Rutas.pedidos,
+    permisos: PermisosDe.pedidos,
+  ),
+  EntradaDelMenu(
     titulo: 'Clientes',
     descripcion: 'Tu cartera: registrarlos, editarlos y ver dónde están.',
     icono: Icons.storefront_outlined,
@@ -50,23 +64,25 @@ final entradasDelMenu = [
     permisos: PermisosDe.cobranzas,
   ),
   EntradaDelMenu(
+    titulo: 'Eventos',
+    descripcion: 'Lo que pasa en la calle, con sus fotos y su ubicación.',
+    icono: Icons.report_outlined,
+    ruta: Rutas.eventos,
+    permisos: PermisosDe.eventos,
+  ),
+  EntradaDelMenu(
     titulo: 'Productos',
     descripcion: 'El catálogo, con el precio y el stock de cada producto.',
     icono: Icons.category_outlined,
     ruta: Rutas.productos,
     permisos: PermisosDe.productos,
   ),
+  // "Cambiar contraseña" va dentro de Mi perfil, como en el panel (colaboración 7.4.31).
   const EntradaDelMenu(
     titulo: 'Mi perfil',
-    descripcion: 'Tu nombre y el correo con el que entras.',
+    descripcion: 'Tu nombre, tu correo y tu contraseña.',
     icono: Icons.person_outline,
     ruta: Rutas.perfil,
-  ),
-  const EntradaDelMenu(
-    titulo: 'Cambiar contraseña',
-    descripcion: 'Para cambiarla necesitas la actual.',
-    icono: Icons.key_outlined,
-    ruta: Rutas.contrasena,
   ),
 ];
 

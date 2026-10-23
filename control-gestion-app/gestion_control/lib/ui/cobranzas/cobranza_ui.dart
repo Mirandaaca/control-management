@@ -6,6 +6,7 @@ import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/etiqueta_de_estado.dart';
+import '../core/widgets/tarjeta_que_se_toca.dart';
 
 /// El estado de una cobranza, con su texto y su ícono (docs/diseno.md, "Etiquetas de estado").
 class EtiquetaDeCobranza extends StatelessWidget {
@@ -51,37 +52,25 @@ class TarjetaDeCobranza extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = cobranza;
-    return MergeSemantics(
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => context.push(Rutas.cobranza(c.id)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(conCliente ? c.clienteNombre : c.numero, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    EtiquetaDeCobranza(c.estado),
-                  ],
-                ),
-                Text(
-                  [if (conCliente) c.numero, ?c.hojaPedido].join(' · '),
-                  style: const TextStyle(color: textoSecundario),
-                ),
-                const SizedBox(height: 4),
-                Text('Saldo ${formatearMonto(c.saldo)}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(vencimientoDe(c.fechaVencimiento, c.diasDeMora), style: const TextStyle(color: textoSecundario)),
-              ],
-            ),
+    return TarjetaQueSeToca(
+      alTocar: () => context.push(Rutas.cobranza(c.id)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(conCliente ? c.clienteNombre : c.numero, style: const TextStyle(fontWeight: FontWeight.w600)),
+              EtiquetaDeCobranza(c.estado),
+            ],
           ),
-        ),
+          Text([if (conCliente) c.numero, ?c.hojaPedido].join(' · '), style: const TextStyle(color: textoSecundario)),
+          const SizedBox(height: 4),
+          Text('Saldo ${formatearMonto(c.saldo)}', style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(vencimientoDe(c.fechaVencimiento, c.diasDeMora), style: const TextStyle(color: textoSecundario)),
+        ],
       ),
     );
   }

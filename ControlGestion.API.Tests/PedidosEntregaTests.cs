@@ -132,6 +132,37 @@ public class PedidosEntregaTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Sin_stock_el_error_cae_en_la_linea_del_producto_que_no_alcanza()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var conStock = await operador.CrearProductoAsync(12.5m, stockInicial: 100);
+        var sinStock = await operador.CrearProductoAsync(20m, stockInicial: 1);
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
+        var registrado = await operador.PostAsJsonAsync("/api/pedidos", new
+        {
+            clienteId,
+            fechaEntregaEstimada = Ayudantes.MananaEnBolivia(),
+            direccionEntrega = "Calle de entrega de prueba",
+            detalles = new[] { new { productoId = conStock, cantidad = 2m }, new { productoId = sinStock, cantidad = 3m } }
+        });
+        var pedidoId = (await registrado.LeerJsonAsync()).GetProperty("id").GetInt32();
+        (await operador.PostAsJsonAsync("/api/pedidos/asignar", new
+        {
+            pedidoIds = new[] { pedidoId },
+            promotorId = promotor.Id,
+            dia = HoraBolivia.Hoy(TimeProvider.System).AddDays(1).ToString("yyyy-MM-dd")
+        })).EnsureSuccessStatusCode();
+        await AvanzarAsync(operador, pedidoId, 2);
+
+        var problema = await (await EntregarAsync(api.ClienteCon(promotor.Token), pedidoId)).ProblemaAsync(400, "stock_insuficiente");
+
+        // La app pone el error en la línea i del detalle del pedido, que va en el orden en que se guardaron.
+        var errores = problema.GetProperty("errors").EnumerateObject().Select(e => e.Name).ToList();
+        Assert.Equal(["detalles[1].cantidad"], errores);
+    }
+
+    [Fact]
     public async Task Solo_entrega_el_promotor_asignado()
     {
         using var operador = await api.OperadorAsync();

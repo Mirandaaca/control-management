@@ -14,10 +14,18 @@ import '../cobranzas/cobranzas_screen.dart';
 import '../cobranzas/registrar_pago_screen.dart';
 import '../elegir/elegir_cliente_screen.dart';
 import '../elegir/elegir_producto_screen.dart';
+import '../eventos/evento_screen.dart';
+import '../eventos/eventos_screen.dart';
+import '../eventos/formulario_evento_screen.dart';
 import '../hojas_pedido/hoja_pedido_screen.dart';
 import '../hojas_pedido/hojas_pedido_screen.dart';
 import '../hojas_pedido/nueva_hoja_screen.dart';
 import '../menu/menu_screen.dart';
+import '../pedidos/bandeja_screen.dart';
+import '../pedidos/entrega_screen.dart';
+import '../pedidos/nuevo_pedido_screen.dart';
+import '../pedidos/pedido_screen.dart';
+import '../pedidos/pedidos_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../productos/productos_screen.dart';
@@ -31,7 +39,7 @@ abstract final class Rutas {
   static const entrar = '/entrar';
   static const menu = '/';
   static const perfil = '/perfil';
-  static const contrasena = '/contrasena';
+  static const contrasena = '/perfil/contrasena';
   static const productos = '/productos';
   static const clientes = '/clientes';
   static const nuevoCliente = '/clientes/nuevo';
@@ -41,11 +49,23 @@ abstract final class Rutas {
   static const nuevaHoja = '/hojas-pedido/nueva';
   static String hojaPedido(int id) => '/hojas-pedido/$id';
   static const elegirCliente = '/elegir-cliente';
+  // Un evento acepta un cliente inactivo: puede explicar justo por qué quedó inactivo.
+  static const elegirClienteParaEvento = '/elegir-cliente?inactivos=1';
   static const elegirProducto = '/elegir-producto';
   static const cobranzas = '/cobranzas';
   static String cobranzasDe(int clienteId) => '/cobranzas?clienteId=$clienteId';
   static String cobranza(int id) => '/cobranzas/$id';
   static String registrarPago(int cobranzaId) => '/cobranzas/$cobranzaId/pago';
+  static const pedidos = '/pedidos';
+  static const nuevoPedido = '/pedidos/nuevo';
+  static String pedido(int id) => '/pedidos/$id';
+  static const bandeja = '/bandeja';
+  static String pedidoDeLaBandeja(int id) => '/bandeja/$id';
+  static String entrega(int id) => '/bandeja/$id/entrega';
+  static const eventos = '/eventos';
+  static const nuevoEvento = '/eventos/nuevo';
+  static String evento(int id) => '/eventos/$id';
+  static String editarEvento(int id) => '/eventos/$id/editar';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -67,6 +87,30 @@ abstract final class PermisosDe {
 
   // Los de `PANTALLAS.cobranzas` del panel, que son los de GET /cobranzas.
   static final cobranzas = [Permisos.cobranzas.consultarDeudas, Permisos.cobranzas.consultarPagos];
+
+  // Los de `PANTALLAS.pedidos` del panel: quien opera sobre un pedido también tiene que verlo, como en la API.
+  static final pedidos = [
+    Permisos.pedidos.consultarPedidos,
+    Permisos.pedidos.modificarPedido,
+    Permisos.pedidos.anularPedido,
+    Permisos.pedidos.cambiarEstado,
+    Permisos.pedidos.reprogramarEntrega,
+    Permisos.pedidos.asignarPedidos,
+    Permisos.pedidos.registrarEntrega,
+  ];
+
+  // Los de `PANTALLAS.bandeja` del panel, que son los de GET /pedidos/bandeja.
+  static final bandeja = [Permisos.pedidos.verBandeja];
+
+  // Los de `PANTALLAS.eventos` del panel: quien opera sobre un evento también tiene que verlo, como en la API.
+  static final eventos = [
+    Permisos.eventos.consultarEventos,
+    Permisos.eventos.registrarEvento,
+    Permisos.eventos.modificarEvento,
+    Permisos.eventos.resolverEvento,
+    Permisos.eventos.agregarFoto,
+    Permisos.eventos.eliminarFoto,
+  ];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -112,10 +156,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'perfil',
             builder: (context, state) => const ConPermiso(child: PerfilScreen()),
-          ),
-          GoRoute(
-            path: 'contrasena',
-            builder: (context, state) => const ConPermiso(child: CambiarContrasenaScreen()),
+            routes: [
+              GoRoute(
+                path: 'contrasena',
+                builder: (context, state) => const ConPermiso(child: CambiarContrasenaScreen()),
+              ),
+            ],
           ),
           GoRoute(
             path: 'productos',
@@ -170,8 +216,87 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          GoRoute(
+            path: 'bandeja',
+            // Después de una entrega, la bandeja vuelve con su aviso.
+            builder: (context, state) => ConPermiso(
+              permisos: PermisosDe.bandeja,
+              child: BandejaScreen(mensaje: state.extra as String?),
+            ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.bandeja,
+                  child: PedidoScreen(id: int.parse(state.pathParameters['id']!), desdeLaBandeja: true),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'entrega',
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.pedidos.registrarEntrega],
+                      child: EntregaScreen(id: int.parse(state.pathParameters['id']!)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'pedidos',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.pedidos, child: const PedidosScreen()),
+            routes: [
+              // Antes que ':id': si no, "nuevo" se leería como un id.
+              GoRoute(
+                path: 'nuevo',
+                builder: (context, state) =>
+                    ConPermiso(permisos: [Permisos.pedidos.registrarPedido], child: const NuevoPedidoScreen()),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.pedidos,
+                  child: PedidoScreen(id: int.parse(state.pathParameters['id']!), abrir: state.extra as AbrirPedido?),
+                ),
+              ),
+            ],
+          ),
           // Las búsquedas de una venta: vuelven con lo elegido.
-          GoRoute(path: 'elegir-cliente', builder: (context, state) => const ElegirClienteScreen()),
+          GoRoute(
+            path: 'elegir-cliente',
+            builder: (context, state) =>
+                ElegirClienteScreen(aceptaInactivos: state.uri.queryParameters['inactivos'] == '1'),
+          ),
+          GoRoute(
+            path: 'eventos',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.eventos, child: const EventosScreen()),
+            routes: [
+              // Antes que ':id': si no, "nuevo" se leería como un id.
+              GoRoute(
+                path: 'nuevo',
+                builder: (context, state) => ConPermiso(
+                  permisos: [Permisos.eventos.registrarEvento],
+                  child: FormularioEventoScreen(abrir: state.extra as AbrirNuevoEvento?),
+                ),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.eventos,
+                  child: EventoScreen(id: int.parse(state.pathParameters['id']!), abrir: state.extra as AbrirEvento?),
+                ),
+                routes: [
+                  GoRoute(
+                    path: 'editar',
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.eventos.modificarEvento],
+                      child: FormularioEventoScreen(eventoId: int.parse(state.pathParameters['id']!)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           GoRoute(
             path: 'elegir-producto',
             builder: (context, state) => ElegirProductoScreen(productos: state.extra as List<Producto>? ?? const []),

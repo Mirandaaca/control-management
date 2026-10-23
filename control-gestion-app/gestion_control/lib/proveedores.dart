@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'data/repositories/clientes_repository.dart';
 import 'data/repositories/cobranzas_repository.dart';
+import 'data/repositories/eventos_repository.dart';
 import 'data/repositories/hojas_pedido_repository.dart';
+import 'data/repositories/pedidos_repository.dart';
 import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
 import 'data/repositories/sesion_repository.dart';
@@ -60,6 +62,14 @@ final hojasPedidoRepositoryProvider = Provider<HojasPedidoRepository>(
 
 final cobranzasRepositoryProvider = Provider<CobranzasRepository>(
   (ref) => CobranzasRepository(ref.watch(clienteApiProvider)),
+);
+
+final pedidosRepositoryProvider = Provider<PedidosRepository>(
+  (ref) => PedidosRepository(ref.watch(clienteApiProvider)),
+);
+
+final eventosRepositoryProvider = Provider<EventosRepository>(
+  (ref) => EventosRepository(ref.watch(clienteApiProvider)),
 );
 
 final camaraProvider = Provider<Camara>((ref) => CamaraConImagePicker());

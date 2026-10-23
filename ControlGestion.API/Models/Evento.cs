@@ -37,5 +37,9 @@ public class Evento
     // un evento resuelto con datos cambiados después.
     public DateTime VersionConcurrencia { get; set; }
 
+    // La genera la app al registrarlo, como en la HP: si el mismo evento llega dos veces (un reintento con mala señal),
+    // se registra una sola vez.
+    public Guid? ClaveIdempotencia { get; set; }
+
     public ICollection<Evidencia> Evidencias { get; set; } = new List<Evidencia>();
 }

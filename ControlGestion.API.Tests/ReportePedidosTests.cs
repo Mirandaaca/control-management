@@ -46,7 +46,7 @@ public class ReportePedidosTests(ApiDePrueba api)
         var porEstado = reporte.GetProperty("porEstado").EnumerateArray()
             .Select(t => (t.GetProperty("estado").GetString(), t.GetProperty("cantidad").GetInt32(), t.GetProperty("monto").GetDecimal()))
             .ToList();
-        Assert.Equal([("Pendiente", 1, 10m), ("En Proceso", 1, 20m), ("En Ruta", 0, 0m), ("Entregado", 0, 0m), ("Anulado", 1, 30m)],
+        Assert.Equal([("Pendiente", 1, 10m), ("En proceso", 1, 20m), ("En ruta", 0, 0m), ("Entregado", 0, 0m), ("Anulado", 1, 30m)],
             porEstado);
         Assert.Equal(2, reporte.GetProperty("cantidad").GetInt32());
         Assert.Equal(30m, reporte.GetProperty("monto").GetDecimal());

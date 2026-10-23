@@ -8,33 +8,11 @@ import '../../data/services/clave_de_idempotencia.dart';
 import '../../data/services/error_de_api.dart';
 import '../../proveedores.dart';
 import '../core/formato.dart';
+import '../core/lineas/lineas.dart';
 import '../core/ubicacion/captura_de_ubicacion.dart';
 
 /// Lo que hace el botón que se tocó: "Guardar" deja el borrador y "Confirmar venta" la cierra.
 enum QueSeEnvia { guardar, confirmar }
-
-class LineaDelFormulario {
-  const LineaDelFormulario({required this.clave, this.producto, this.cantidad = '', this.descuento = ''});
-
-  /// Distingue la línea aunque se quiten otras: sus campos la siguen.
-  final int clave;
-  final Producto? producto;
-
-  /// Lo escrito, tal cual: así se puede mostrar el error de "1,,".
-  final String cantidad;
-  final String descuento;
-
-  double get cantidadNumero => leerNumero(cantidad) ?? 0;
-  double get descuentoNumero => leerNumero(descuento) ?? 0;
-  double get subtotal => producto == null ? 0 : (producto!.precio - descuentoNumero) * cantidadNumero;
-
-  LineaDelFormulario con({Producto? producto, String? cantidad, String? descuento}) => LineaDelFormulario(
-    clave: clave,
-    producto: producto ?? this.producto,
-    cantidad: cantidad ?? this.cantidad,
-    descuento: descuento ?? this.descuento,
-  );
-}
 
 const _igual = Object();
 
@@ -76,28 +54,12 @@ class EstadoNuevaHoja {
   final ErrorDeApi? errorAlEnviar;
   final bool sinUbicacion;
 
-  double get subtotal => lineas.fold(0, (suma, l) => suma + l.subtotal);
+  double get subtotal => Lineas.subtotal(lineas);
   double get descuentoNumero => leerNumero(descuento) ?? 0;
   double get total => subtotal - descuentoNumero;
 
-  /// Lo que pide la venta de cada producto, sumando sus líneas: el stock se compara con la suma, como en la API.
-  Map<int, double> get pedidoPorProducto {
-    final pedido = <int, double>{};
-    for (final linea in lineas) {
-      final producto = linea.producto;
-      if (producto != null) pedido[producto.id] = (pedido[producto.id] ?? 0) + linea.cantidadNumero;
-    }
-    return pedido;
-  }
-
   /// El aviso en ámbar de una línea que pide más de lo que hay, antes de confirmar.
-  String? avisoDeStock(LineaDelFormulario linea) {
-    final producto = linea.producto;
-    if (producto == null || linea.cantidadNumero <= 0) return null;
-    return (pedidoPorProducto[producto.id] ?? 0) > producto.stock
-        ? 'Solo hay ${formatearCantidad(producto.stock)} en stock.'
-        : null;
-  }
+  String? avisoDeStock(LineaDelFormulario linea) => Lineas.avisoDeStock(lineas, linea);
 
   EstadoNuevaHoja copiar({
     Object? productos = _igual,
@@ -169,7 +131,7 @@ class NuevaHojaViewModel extends Notifier<EstadoNuevaHoja> {
         ...state.lineas,
         LineaDelFormulario(clave: clave),
       ],
-      campos: _sinLineas(),
+      campos: Lineas.sinErroresDeLineas(state.campos),
     );
     return clave;
   }
@@ -179,7 +141,7 @@ class NuevaHojaViewModel extends Notifier<EstadoNuevaHoja> {
       for (final l in state.lineas)
         if (l.clave != clave) l,
     ],
-    campos: _sinLineas(),
+    campos: Lineas.sinErroresDeLineas(state.campos),
   );
 
   void elegirProducto(int clave, Producto producto) => _cambiarLinea(clave, (l) => l.con(producto: producto));
@@ -194,35 +156,16 @@ class NuevaHojaViewModel extends Notifier<EstadoNuevaHoja> {
       state = state.copiar(descuento: texto, campos: _sin(state.campos, ['descuento']));
 
   void _cambiarLinea(int clave, LineaDelFormulario Function(LineaDelFormulario) cambio) {
-    final indice = state.lineas.indexWhere((l) => l.clave == clave);
-    if (indice < 0) return;
-    state = state.copiar(
-      lineas: [for (final l in state.lineas) l.clave == clave ? cambio(l) : l],
-      campos: _sin(state.campos, [
-        'detalles',
-        for (final campo in ['productoId', 'cantidad', 'descuento']) 'detalles[$indice].$campo',
-      ]),
-    );
+    final cambiado = Lineas.cambiar(state.lineas, state.campos, clave, cambio);
+    state = state.copiar(lineas: cambiado.lineas, campos: cambiado.campos);
   }
 
   /// Revisa el formulario con las reglas de la API, antes de pedir la confirmación: cada error va en su campo.
   bool revisar() {
     final errores = <String, String>{
       if (state.cliente == null) 'clienteId': 'Elige el cliente.',
-      if (state.lineas.isEmpty) 'detalles': 'Agrega al menos un producto.',
+      ...Lineas.errores(state.lineas),
     };
-    for (final (i, linea) in state.lineas.indexed) {
-      final producto = linea.producto;
-      final cantidad = leerNumero(linea.cantidad);
-      final descuento = leerNumero(linea.descuento) ?? 0;
-      if (producto == null) errores['detalles[$i].productoId'] = 'Elige el producto.';
-      if (cantidad == null || cantidad <= 0) errores['detalles[$i].cantidad'] = 'La cantidad debe ser mayor que cero.';
-      // Igual al precio se acepta: un producto de regalo (tarea 11).
-      if (producto != null && centavos(descuento) > centavos(producto.precio)) {
-        errores['detalles[$i].descuento'] =
-            'El descuento no puede superar el precio (${formatearMonto(producto.precio)}).';
-      }
-    }
     if (errores.isEmpty && centavos(state.descuentoNumero) >= centavos(state.subtotal)) {
       errores['descuento'] = 'El descuento tiene que ser menor que el subtotal (${formatearMonto(state.subtotal)}).';
     }
@@ -248,10 +191,7 @@ class NuevaHojaViewModel extends Notifier<EstadoNuevaHoja> {
       clienteId: state.cliente!.id,
       tipoVenta: state.tipoVenta,
       descuento: state.descuentoNumero,
-      lineas: [
-        for (final l in state.lineas)
-          (productoId: l.producto!.id, cantidad: l.cantidadNumero, descuento: l.descuentoNumero),
-      ],
+      lineas: Lineas.paraEnviar(state.lineas),
     );
     final repositorio = ref.read(hojasPedidoRepositoryProvider);
     try {
@@ -293,12 +233,6 @@ class NuevaHojaViewModel extends Notifier<EstadoNuevaHoja> {
       debugPrint('No se pudo traer el stock de nuevo. ${e.mensaje}');
     }
   }
-
-  // Al agregar o quitar una línea, los errores por posición ya no corresponden.
-  Map<String, String> _sinLineas() => {
-    for (final e in state.campos.entries)
-      if (!e.key.startsWith('detalles')) e.key: e.value,
-  };
 
   static Map<String, String> _sin(Map<String, String> campos, List<String> claves) =>
       {...campos}..removeWhere((clave, _) => claves.contains(clave));

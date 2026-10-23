@@ -72,11 +72,11 @@ public class EventosEvidenciaTests(ApiDePrueba api)
     public async Task Un_tipo_que_pide_evidencia_no_se_resuelve_sin_una_foto()
     {
         using var operador = await api.OperadorAsync();
-        // T7.10 y T7.11: un evento "Cliente Ausente" sin foto se resolvía igual.
+        // T7.10 y T7.11: un evento "Cliente ausente" sin foto se resolvía igual.
         var eventoId = await EventoAsync(operador, ClienteAusente);
 
         var problema = await (await ResolverAsync(operador, eventoId)).ProblemaAsync(400, "evento_sin_evidencia");
-        Assert.Contains("Cliente Ausente", problema.GetProperty("detail").GetString());
+        Assert.Contains("Cliente ausente", problema.GetProperty("detail").GetString());
 
         await SubirAsync(operador, eventoId);
         Assert.Equal(HttpStatusCode.OK, (await ResolverAsync(operador, eventoId)).StatusCode);

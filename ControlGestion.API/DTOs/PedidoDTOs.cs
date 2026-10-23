@@ -44,6 +44,9 @@ public record RegistrarPedidoDTO : ModificarPedidoDTO
 {
     [Range(1, int.MaxValue, ErrorMessage = "Elige el cliente.")]
     public int ClienteId { get; init; }
+
+    /// <summary>La misma clave devuelve el pedido ya registrado, sin crear otro.</summary>
+    public Guid? ClaveIdempotencia { get; init; }
 }
 
 public record AvanzarPedidoDTO

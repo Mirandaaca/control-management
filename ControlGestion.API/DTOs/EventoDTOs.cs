@@ -38,6 +38,9 @@ public record RegistrarEventoDTO : ModificarEventoDTO
     [Range(-180.0, 180.0, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
     public decimal? Longitud { get; init; }
 
+    /// <summary>La misma clave devuelve el evento ya registrado, sin crear otro.</summary>
+    public Guid? ClaveIdempotencia { get; init; }
+
     // 0,0 es lo que llega cuando nadie tomó la ubicación: un punto en el océano, no un evento real.
     public override IEnumerable<ValidationResult> Validate(ValidationContext contexto)
     {
