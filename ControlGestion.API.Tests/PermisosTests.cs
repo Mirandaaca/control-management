@@ -31,6 +31,23 @@ public class PermisosTests(ApiDePrueba api)
         Assert.Equal(23, porRol[Roles.Promotor]);
     }
 
+    // Una base que ya existe (control, la de Azure) recibe el nombre nuevo de un permiso al arrancar la API, sin migración.
+    // Decisión del 23/10/2026: la clave de los puntos de referencia cubre registrar, modificar y eliminar (7.3.21).
+    [Fact]
+    public async Task Al_sembrar_un_permiso_existente_toma_el_nombre_del_catalogo()
+    {
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        await db.Permisos.Where(p => p.Clave == Permisos.Territorial.RegistrarPuntoReferencia)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Nombre, "Registrar puntos de referencia"));
+
+        await SembradorDeSeguridad.SembrarAsync(db, roles, NullLogger.Instance);
+
+        Assert.Equal("Registrar, modificar y eliminar puntos de referencia", await db.Permisos.AsNoTracking()
+            .Where(p => p.Clave == Permisos.Territorial.RegistrarPuntoReferencia).Select(p => p.Nombre).SingleAsync());
+    }
+
     [Fact]
     public async Task Volver_a_sembrar_no_cambia_nada_ni_revive_un_rol_renombrado()
     {
