@@ -29,6 +29,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Los flavors de Android están en android/app/build.gradle.kts. Sin --flavor, se compila el de desarrollo.
+  default-flavor: desarrollo
 
   # Inter, con los pesos estáticos del tema (400, 500 y 600): Flutter no aplica FontWeight al eje de una fuente
   # variable. Licencia OFL en assets/fuentes/inter/OFL.txt.
