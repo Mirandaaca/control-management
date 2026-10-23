@@ -50,9 +50,13 @@ class SesionRepositoryFalso implements SesionRepository {
   final inicios = <(String, String)>[];
   var pedidosDeYo = 0;
   var cierres = 0;
+  var despertares = 0;
 
   @override
   Future<String?> tokenGuardado() async => token;
+
+  @override
+  Future<void> despertar() async => despertares++;
 
   @override
   Future<Sesion> iniciar(String email, String password) async {

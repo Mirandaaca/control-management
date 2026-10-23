@@ -12,8 +12,9 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: pruebas
       MYSQL_PASSWORD: ${PRUEBAS_PASSWORD}
-    # fsync en vez de O_DIRECT, que tmpfs no soporta; sin binlog, porque nadie lo necesita aquí.
-    command: --innodb-flush-method=fsync --disable-log-bin --innodb-buffer-pool-size=256M
+    # fsync en vez de O_DIRECT, que tmpfs no soporta; sin binlog, porque nadie lo necesita aquí. lower_case_table_names=1,
+    # como el MySQL de Azure (tarea 13b): los nombres de las tablas se comparan sin importar mayúsculas.
+    command: --innodb-flush-method=fsync --disable-log-bin --innodb-buffer-pool-size=256M --lower-case-table-names=1
     ports:
       - "9094:3306"
     tmpfs:

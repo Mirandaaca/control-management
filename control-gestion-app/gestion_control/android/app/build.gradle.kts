@@ -25,11 +25,33 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+    signingConfigs {
+        // La clave del ambiente de pruebas (tarea 13b). El keystore y sus contraseñas llegan por variables de entorno: en CI,
+        // de los secretos de GitHub; en la PC, de la carpeta de los secretos. Nunca están en el repo. Sin ellas, el APK de
+        // lanzamiento de pruebas no compila: nunca cae a la clave de debug.
+        create("pruebas") {
+            System.getenv("ANDROID_KEYSTORE_PATH")?.let { storeFile = file(it) }
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+    // Un flavor por ambiente: la app de pruebas convive con la de desarrollo en el mismo celular, con otro id y otro nombre.
+    // En la tarea 18 se suma el de producción.
+    flavorDimensions += "ambiente"
+    productFlavors {
+        create("desarrollo") {
+            dimension = "ambiente"
+            manifestPlaceholders["nombreDeLaApp"] = "Control de Gestión"
+            // Para `flutter run --release` en la PC.
             signingConfig = signingConfigs.getByName("debug")
+        }
+        create("pruebas") {
+            dimension = "ambiente"
+            applicationIdSuffix = ".pruebas"
+            manifestPlaceholders["nombreDeLaApp"] = "Control de Gestión (pruebas)"
+            signingConfig = signingConfigs.getByName("pruebas")
         }
     }
 }

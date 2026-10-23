@@ -17,6 +17,17 @@ class SesionRepository {
 
   Future<String?> tokenGuardado() => _almacen.cargar();
 
+  /// En el plan gratis de Azure la API se duerme, y despertarla tarda más que la espera de la app (20 s). El inicio de
+  /// sesión la llama al abrirse, sin esperar: despierta mientras el usuario escribe. `/health` está en la raíz del
+  /// servidor, fuera de `/api`.
+  Future<void> despertar() async {
+    try {
+      await _api.get<void>('${_api.options.baseUrl.replaceFirst(RegExp(r'/api$'), '')}/health');
+    } catch (e) {
+      debugPrint('No se pudo despertar la API; el inicio de sesión lo intentará igual. $e');
+    }
+  }
+
   Future<Sesion> iniciar(String email, String password) async {
     try {
       final respuesta = await _api.post<Map<String, dynamic>>(

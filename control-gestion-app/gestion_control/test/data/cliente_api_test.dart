@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/config.dart';
+import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/services/almacen_de_sesion.dart';
 import 'package:gestion_control/data/services/cliente_api.dart';
 import 'package:gestion_control/data/services/conexion.dart';
@@ -188,6 +189,24 @@ void main() {
       await errorDe(() => dio.get('/perfil', options: Options(headers: {'Authorization': 'Bearer viejo'})));
 
       expect(sesionesTerminadas, 0);
+    });
+  });
+
+  group('despertar la API', () {
+    test('pide /health en la raíz del servidor, fuera de /api', () async {
+      final (dio, adaptador) = await cliente((_) => ResponseBody.fromString('Healthy', 200));
+
+      await SesionRepository(dio, almacen).despertar();
+
+      expect(adaptador.pedidos.single.uri.toString(), 'http://api.prueba/health');
+    });
+
+    test('si la API no responde, no lanza: el inicio de sesión lo intentará igual', () async {
+      final (dio, _) = await cliente(
+        (_) => throw DioException.connectionError(requestOptions: RequestOptions(), reason: 'sin servidor'),
+      );
+
+      await SesionRepository(dio, almacen).despertar();
     });
   });
 

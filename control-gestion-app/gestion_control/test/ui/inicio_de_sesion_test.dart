@@ -44,6 +44,13 @@ void main() {
 
   setUp(() => repositorio = SesionRepositoryFalso());
 
+  testWidgets('al abrirse, despierta la API una vez', (tester) async {
+    await abrir(tester);
+    await tester.pump();
+
+    expect(repositorio.despertares, 1);
+  });
+
   testWidgets('con los datos vacíos, los errores van en sus campos y no se envía nada', (tester) async {
     await abrir(tester);
 

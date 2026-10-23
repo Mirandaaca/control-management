@@ -7,7 +7,9 @@ namespace ControlGestion.API.Configuracion;
 /// </summary>
 public static class HoraBolivia
 {
-    private static readonly TimeZoneInfo Zona = TimeZoneInfo.FindSystemTimeZoneById("America/La_Paz");
+    public const string IdDeZona = "America/La_Paz";
+
+    private static readonly TimeZoneInfo Zona = TimeZoneInfo.FindSystemTimeZoneById(IdDeZona);
 
     public static DateTime DesdeUtc(DateTime utc) =>
         TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zona);

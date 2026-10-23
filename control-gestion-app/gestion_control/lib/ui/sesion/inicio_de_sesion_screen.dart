@@ -24,6 +24,12 @@ class _InicioDeSesionScreenState extends ConsumerState<InicioDeSesionScreen> {
   var _verContrasena = false;
 
   @override
+  void initState() {
+    super.initState();
+    ref.read(sesionRepositoryProvider).despertar();
+  }
+
+  @override
   void dispose() {
     _correo.dispose();
     _contrasena.dispose();

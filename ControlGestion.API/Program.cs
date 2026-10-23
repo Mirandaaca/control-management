@@ -129,6 +129,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PuntoReferenciaService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 // Los orígenes que pueden llamar a la API desde un navegador: el panel y, en desarrollo, la app como web. appsettings.json
 // no los lleva, porque .NET combina las listas posición por posición: una lista allá y otra en Development se mezclarían.
@@ -147,6 +148,8 @@ var app = builder.Build();
 // para que una clave faltante o corta detenga la API sin tocar la base.
 _ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
 _ = app.Services.GetRequiredService<IOptions<SesionOptions>>().Value;
+if (ComprobacionRegional.Problema() is { } problemaRegional)
+    throw new InvalidOperationException(problemaRegional);
 if (origenesPermitidos.Length == 0)
     app.Logger.LogWarning("Falta 'Cors:Origenes': ningún navegador podrá llamar a la API. En producción va en las variables " +
         "de entorno Cors__Origenes__0, Cors__Origenes__1…");
@@ -186,6 +189,9 @@ app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Sin sesión: el panel y la app lo piden al abrir el inicio de sesión para despertar la API mientras el usuario escribe.
+// Responde solo "Healthy" o "Unhealthy", sin detalles de la base.
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
 
