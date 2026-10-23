@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/models/cobranza.dart';
-import '../../data/services/error_de_api.dart';
 import '../../domain/permisos.dart';
 import '../core/formato.dart';
 import '../core/router.dart';
@@ -14,6 +13,7 @@ import '../core/widgets/cargando.dart';
 import '../core/widgets/confirmar.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/etiqueta_de_estado.dart';
+import '../core/widgets/visor_de_foto.dart';
 import '../sesion/sesion_notifier.dart';
 import '../../proveedores.dart';
 import 'cobranza_ui.dart';
@@ -272,50 +272,9 @@ class _TarjetaDePago extends StatelessWidget {
 }
 
 /// La foto de un comprobante a pantalla completa, con zoom.
-Future<void> verComprobante(BuildContext context, int evidenciaId) => showDialog<void>(
-  context: context,
-  builder: (contexto) => Dialog.fullscreen(
-    child: Scaffold(
-      appBar: AppBar(
-        title: const Text('Comprobante'),
-        leading: IconButton(
-          tooltip: 'Cerrar',
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(contexto).pop(),
-        ),
-      ),
-      body: Consumer(
-        builder: (context, ref, _) => switch (ref.watch(fotoDeComprobanteProvider(evidenciaId))) {
-          // Ocupa la pantalla: una foto chica, como una captura subida desde el panel, también se ve.
-          AsyncData(:final value) => InteractiveViewer(
-            child: SizedBox.expand(
-              child: Semantics(
-                image: true,
-                label: 'Foto del comprobante',
-                child: Image.memory(
-                  value,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Aviso(
-                        'El archivo del comprobante está dañado o no es una imagen.',
-                        titulo: 'No se pudo mostrar la foto.',
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          AsyncError(:final error) => ErrorConReintento.de(
-            ErrorDeApi.desde(error),
-            alReintentar: () => ref.invalidate(fotoDeComprobanteProvider(evidenciaId)),
-          ),
-          _ => const Cargando('Cargando el comprobante…'),
-        },
-      ),
-    ),
-  ),
+Future<void> verComprobante(BuildContext context, int evidenciaId) => verFoto(
+  context,
+  titulo: 'Comprobante',
+  etiqueta: 'Foto del comprobante',
+  foto: fotoDeComprobanteProvider(evidenciaId),
 );
