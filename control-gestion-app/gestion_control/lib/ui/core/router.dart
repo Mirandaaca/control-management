@@ -18,6 +18,9 @@ import '../hojas_pedido/hoja_pedido_screen.dart';
 import '../hojas_pedido/hojas_pedido_screen.dart';
 import '../hojas_pedido/nueva_hoja_screen.dart';
 import '../menu/menu_screen.dart';
+import '../pedidos/nuevo_pedido_screen.dart';
+import '../pedidos/pedido_screen.dart';
+import '../pedidos/pedidos_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../productos/productos_screen.dart';
@@ -46,6 +49,9 @@ abstract final class Rutas {
   static String cobranzasDe(int clienteId) => '/cobranzas?clienteId=$clienteId';
   static String cobranza(int id) => '/cobranzas/$id';
   static String registrarPago(int cobranzaId) => '/cobranzas/$cobranzaId/pago';
+  static const pedidos = '/pedidos';
+  static const nuevoPedido = '/pedidos/nuevo';
+  static String pedido(int id) => '/pedidos/$id';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -67,6 +73,17 @@ abstract final class PermisosDe {
 
   // Los de `PANTALLAS.cobranzas` del panel, que son los de GET /cobranzas.
   static final cobranzas = [Permisos.cobranzas.consultarDeudas, Permisos.cobranzas.consultarPagos];
+
+  // Los de `PANTALLAS.pedidos` del panel: quien opera sobre un pedido también tiene que verlo, como en la API.
+  static final pedidos = [
+    Permisos.pedidos.consultarPedidos,
+    Permisos.pedidos.modificarPedido,
+    Permisos.pedidos.anularPedido,
+    Permisos.pedidos.cambiarEstado,
+    Permisos.pedidos.reprogramarEntrega,
+    Permisos.pedidos.asignarPedidos,
+    Permisos.pedidos.registrarEntrega,
+  ];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -169,6 +186,25 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'pedidos',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.pedidos, child: const PedidosScreen()),
+            routes: [
+              // Antes que ':id': si no, "nuevo" se leería como un id.
+              GoRoute(
+                path: 'nuevo',
+                builder: (context, state) =>
+                    ConPermiso(permisos: [Permisos.pedidos.registrarPedido], child: const NuevoPedidoScreen()),
+              ),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.pedidos,
+                  child: PedidoScreen(id: int.parse(state.pathParameters['id']!), abrir: state.extra as AbrirPedido?),
+                ),
               ),
             ],
           ),

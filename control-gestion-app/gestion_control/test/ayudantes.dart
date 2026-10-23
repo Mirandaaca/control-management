@@ -11,6 +11,7 @@ import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/cobranza.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pagina.dart';
+import 'package:gestion_control/data/models/pedido.dart';
 import 'package:gestion_control/data/models/perfil.dart';
 import 'package:gestion_control/data/models/producto.dart';
 import 'package:gestion_control/data/models/zona.dart';
@@ -18,6 +19,7 @@ import 'package:gestion_control/data/models/sesion.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/cobranzas_repository.dart';
 import 'package:gestion_control/data/repositories/hojas_pedido_repository.dart';
+import 'package:gestion_control/data/repositories/pedidos_repository.dart';
 import 'package:gestion_control/data/repositories/perfil_repository.dart';
 import 'package:gestion_control/data/repositories/productos_repository.dart';
 import 'package:gestion_control/data/repositories/sesion_repository.dart';
@@ -766,5 +768,197 @@ class CamaraFalsa implements Camara {
   Future<FotoTomada?> tomarFoto() async {
     tomas++;
     return siguiente;
+  }
+}
+
+// Los pedidos de datos-ejemplo.md.
+const estadosDePedido = [
+  EstadoPedido(id: EstadosDePedido.pendiente, nombre: 'Pendiente'),
+  EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
+  EstadoPedido(id: EstadosDePedido.enRuta, nombre: 'En ruta'),
+  EstadoPedido(id: EstadosDePedido.entregado, nombre: 'Entregado'),
+  EstadoPedido(id: EstadosDePedido.anulado, nombre: 'Anulado'),
+];
+
+EstadoPedido estadoDePedido(int id) => estadosDePedido.firstWhere((e) => e.id == id);
+
+/// El PED-2026-00031 de Rosa: 2 arroz = Bs 76,00, con entrega el 30/10/2026 a las 09:00, asignado a Carlos (u1).
+Pedido pedidoDePrueba({
+  int id = 31,
+  String numero = 'PED-2026-00031',
+  int estado = EstadosDePedido.enRuta,
+  String? repartidorId = 'u1',
+  bool conDosLineas = false,
+}) => Pedido(
+  id: id,
+  numero: numero,
+  estado: estadoDePedido(estado),
+  subTotal: conDosLineas ? 142 : 76,
+  descuento: 0,
+  total: conDosLineas ? 142 : 76,
+  fechaRegistro: '2026-10-28T14:00:00',
+  // 13:00 UTC son las 09:00 de Bolivia.
+  fechaEntrega: '2026-10-30T13:00:00',
+  fechaEntregaReal: estado == EstadosDePedido.entregado ? '2026-10-30T13:10:00' : null,
+  direccionEntrega: 'Calle 4 N.º 120, frente al Mercado Norte',
+  recibidoPor: estado == EstadosDePedido.entregado ? 'Doña Rosa' : null,
+  cliente: const Referencia(id: '42', nombre: 'Rosa Quispe Mamani'),
+  registradoPor: 'Lucía Vargas Rojas',
+  repartidor: repartidorId == null ? null : Referencia(id: repartidorId, nombre: 'Carlos Mendoza Flores'),
+  venta: estado == EstadosDePedido.entregado
+      ? const VentaDeLaEntrega(
+          id: 40,
+          numero: 'HP-2026-00040',
+          tipoVenta: TipoVenta.credito,
+          cobranza: CobranzaDeHoja(id: 30, numero: 'COB-2026-00030'),
+        )
+      : null,
+  lineas: [
+    const LineaDePedido(
+      descripcion: 'Arroz grano largo 5 kg',
+      cantidad: 2,
+      precioUnitario: 38,
+      descuento: 0,
+      subtotal: 76,
+    ),
+    if (conDosLineas)
+      const LineaDePedido(
+        descripcion: 'Detergente en polvo 1 kg',
+        cantidad: 4,
+        precioUnitario: 16.5,
+        descuento: 0,
+        subtotal: 66,
+      ),
+  ],
+  historial: [
+    CambioDelPedido(
+      estado: estadoDePedido(EstadosDePedido.pendiente),
+      fecha: '2026-10-28T14:00:00',
+      usuario: 'Lucía Vargas Rojas',
+      observacion: 'Pedido registrado',
+    ),
+    CambioDelPedido(
+      estado: estadoDePedido(EstadosDePedido.pendiente),
+      fecha: '2026-10-29T14:00:00',
+      usuario: 'Lucía Vargas Rojas',
+      observacion: 'Asignado a Carlos Mendoza Flores para el 30/10/2026.',
+    ),
+    if (estado != EstadosDePedido.pendiente)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.enProceso),
+        fecha: '2026-10-30T11:00:00',
+        usuario: 'Lucía Vargas Rojas',
+      ),
+    if (estado == EstadosDePedido.enRuta || estado == EstadosDePedido.entregado)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.enRuta),
+        fecha: '2026-10-30T12:00:00',
+        usuario: 'Lucía Vargas Rojas',
+      ),
+    if (estado == EstadosDePedido.entregado)
+      CambioDelPedido(
+        estado: estadoDePedido(EstadosDePedido.entregado),
+        fecha: '2026-10-30T13:10:00',
+        usuario: 'Carlos Mendoza Flores',
+        observacion: 'Recibió Doña Rosa. Venta HP-2026-00040, a crédito.',
+      ),
+  ],
+);
+
+PedidoResumen resumenDePedido(Pedido pedido) => PedidoResumen(
+  id: pedido.id,
+  numero: pedido.numero,
+  estado: pedido.estado,
+  total: pedido.total,
+  fechaEntrega: pedido.fechaEntrega,
+  direccionEntrega: pedido.direccionEntrega,
+  cliente: pedido.cliente,
+  repartidor: pedido.repartidor,
+);
+
+/// La bandeja del 8.6.10: el 31 y el 32 en ruta, y el 34 en proceso.
+final bandejaDePrueba = [
+  resumenDePedido(pedidoDePrueba()),
+  const PedidoResumen(
+    id: 32,
+    numero: 'PED-2026-00032',
+    estado: EstadoPedido(id: EstadosDePedido.enRuta, nombre: 'En ruta'),
+    total: 104,
+    fechaEntrega: '2026-10-30T14:30:00',
+    direccionEntrega: 'Av. Norte N.º 455, al lado de la farmacia',
+    cliente: Referencia(id: '57', nombre: 'Juan Choque Condori'),
+    repartidor: Referencia(id: 'u1', nombre: 'Carlos Mendoza Flores'),
+  ),
+  const PedidoResumen(
+    id: 34,
+    numero: 'PED-2026-00034',
+    estado: EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
+    total: 66,
+    fechaEntrega: '2026-10-30T19:00:00',
+    direccionEntrega: 'Calle 3 N.º 402',
+    cliente: Referencia(id: '71', nombre: 'Luis Fernández Áñez'),
+    repartidor: Referencia(id: 'u1', nombre: 'Carlos Mendoza Flores'),
+  ),
+];
+
+/// Lo que se le envió al repositorio de pedidos.
+typedef EnvioDePedidoPrueba = ({DatosDePedido datos, String clave});
+typedef EnvioDeEntregaPrueba = ({int id, DatosDeEntrega datos, Posicion ubicacion});
+
+class PedidosRepositoryFalso implements PedidosRepository {
+  Future<Pagina<PedidoResumen>> Function(String buscar, int? estadoId, int? clienteId) alListar = (_, _, _) async =>
+      Pagina(items: [resumenDePedido(pedidoDePrueba())], total: 1, numero: 1, tamano: 25);
+  Future<List<PedidoResumen>> Function() alPedirLaBandeja = () async => bandejaDePrueba;
+  Future<Pedido> Function(int id) alObtener = (_) async => pedidoDePrueba();
+  Future<Pedido> Function(EnvioDePedidoPrueba envio) alRegistrar = (_) async =>
+      pedidoDePrueba(id: 37, numero: 'PED-2026-00037', estado: EstadosDePedido.pendiente, repartidorId: null);
+  Future<Pedido> Function(EnvioDeEntregaPrueba envio) alEntregar = (_) async =>
+      pedidoDePrueba(estado: EstadosDePedido.entregado);
+
+  final listados = <({String buscar, int? estadoId, int? clienteId})>[];
+  final registrados = <EnvioDePedidoPrueba>[];
+  final entregas = <EnvioDeEntregaPrueba>[];
+  var obtenidos = 0;
+  var bandejas = 0;
+
+  @override
+  Future<Pagina<PedidoResumen>> listar({
+    String buscar = '',
+    int? estadoId,
+    int? clienteId,
+    int pagina = 1,
+    int tamano = tamanoDePagina,
+  }) {
+    listados.add((buscar: buscar, estadoId: estadoId, clienteId: clienteId));
+    return alListar(buscar, estadoId, clienteId);
+  }
+
+  @override
+  Future<List<EstadoPedido>> estados() async => estadosDePedido;
+
+  @override
+  Future<List<PedidoResumen>> bandeja() {
+    bandejas++;
+    return alPedirLaBandeja();
+  }
+
+  @override
+  Future<Pedido> obtener(int id) {
+    obtenidos++;
+    return alObtener(id);
+  }
+
+  @override
+  Future<Pedido> registrar(DatosDePedido datos, {required String clave}) {
+    final envio = (datos: datos, clave: clave);
+    registrados.add(envio);
+    return alRegistrar(envio);
+  }
+
+  @override
+  Future<Pedido> entregar(int id, DatosDeEntrega datos, Posicion ubicacion) {
+    final envio = (id: id, datos: datos, ubicacion: ubicacion);
+    entregas.add(envio);
+    return alEntregar(envio);
   }
 }

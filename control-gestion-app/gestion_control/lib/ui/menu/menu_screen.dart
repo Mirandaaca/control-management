@@ -29,6 +29,13 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Pedidos',
+    descripcion: 'Los de tus clientes y los que te asignan: registrarlos y ver su estado.',
+    icono: Icons.shopping_bag_outlined,
+    ruta: Rutas.pedidos,
+    permisos: PermisosDe.pedidos,
+  ),
+  EntradaDelMenu(
     titulo: 'Clientes',
     descripcion: 'Tu cartera: registrarlos, editarlos y ver dónde están.',
     icono: Icons.storefront_outlined,
