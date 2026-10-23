@@ -11,7 +11,7 @@ namespace ControlGestion.API.Services;
 
 /// <summary>Hojas de pedido (2.1): la venta en campo. Cada usuario ve solo las de su cartera, salvo con cartera completa.</summary>
 public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador,
-    InventarioService inventario, CobranzaService cobranzas, TimeProvider reloj)
+    InventarioService inventario, CobranzaService cobranzas, RevisitaService revisitas, TimeProvider reloj)
 {
     private IQueryable<HojaPedido> Visibles => db.HojasPedido.VisiblesPara(usuario);
 
@@ -256,14 +256,8 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         hp.EstadoHP = EstadoHP.Confirmada;
         await inventario.DescontarPorVentaAsync(hp);
 
-        // La venta es una visita (5.2): la próxima se calcula con el parámetro general de días de re-visita (7.1).
-        var cliente = hp.Cliente!;
-        cliente.UltimaVisita = ahora;
-        cliente.ProximaVisita = ahora.AddDays(await db.ConfiguracionesGenerales.DiasAsync(
-            ClavesDeConfiguracion.DiasRevisita, ClavesDeConfiguracion.DiasRevisitaPorDefecto));
-        // Un estado asignado a mano (Inactivo y otros) saca al cliente del ciclo: la venta no lo cambia.
-        if (await db.EstadosCliente.Where(e => e.Id == cliente.EstadoClienteId).Select(e => e.EsDelSistema).FirstAsync())
-            cliente.EstadoClienteId = EstadosDeCliente.Activo;
+        // La venta es una visita (5.2).
+        await revisitas.RegistrarVisitaAsync(hp.Cliente!, ahora);
 
         if (hp.TipoVenta == TipoVenta.Credito)
             await cobranzas.CrearPorVentaAsync(hp);
