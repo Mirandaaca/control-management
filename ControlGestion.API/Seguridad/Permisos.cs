@@ -165,7 +165,7 @@ public static class Permisos
         new(Territorial.SeguirRuta, Territorial.Modulo, "Seguir rutas", [GerenteGeneral]),
         new(Territorial.RecorrerRuta, Territorial.Modulo, "Recorrer su ruta", [Promotor]),
         new(Territorial.DibujarLimites, Territorial.Modulo, "Dibujar los límites de las zonas", [GerenteGeneral]),
-        new(Territorial.RegistrarPuntoReferencia, Territorial.Modulo, "Registrar puntos de referencia", [GerenteGeneral]),
+        new(Territorial.RegistrarPuntoReferencia, Territorial.Modulo, "Registrar, modificar y eliminar puntos de referencia", [GerenteGeneral]),
 
         new(Reportes.VentasPorPromotor, Reportes.Modulo, "Generar el reporte de ventas por promotor", [GerenteGeneral]),
         new(Reportes.VentasPorZona, Reportes.Modulo, "Generar el reporte de ventas por zona", [GerenteGeneral]),
