@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CircleCheck, Eye, Pencil, Plus, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Eye, Pencil, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
@@ -23,12 +23,12 @@ const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
 /**
- * Eventos e incidencias en campo (4.1 y 4.2): la lista, el detalle con las fotos, registrar, editar y resolver. El
- * promotor ve los que registró, los de su cartera y los de sus pedidos asignados; la secretaria, todos.
+ * Eventos e incidencias en campo (4.1 y 4.2): la lista, el detalle con las fotos, editar y resolver. El evento se
+ * registra en la app, con el GPS del celular (7.3.13, paso 2; tarea 15). El promotor ve los que registró, los de su
+ * cartera y los de sus pedidos asignados; la secretaria, todos.
  */
 export default function Eventos() {
   const { usuario: yo, tiene } = useAuth();
-  const puedeRegistrar = tiene(permisos.registrarEvento);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
   const puedeVerPedidos = tiene(...PANTALLAS.pedidos);
@@ -42,7 +42,6 @@ export default function Eventos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [aviso, setAviso] = useState('');
-  const [advertencia, setAdvertencia] = useState('');
   const [errorAccion, setErrorAccion] = useState('');
   const [errorFiltros, setErrorFiltros] = useState('');
 
@@ -50,7 +49,7 @@ export default function Eventos() {
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
   const [detalle, setDetalle] = useState(null);
-  // null: cerrado. { evento: null }: nuevo. { evento }: editar ese evento.
+  // null: cerrado. { evento }: editar ese evento.
   const [formulario, setFormulario] = useState(null);
   const [resolviendo, setResolviendo] = useState(null);
 
@@ -96,27 +95,21 @@ export default function Eventos() {
       .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
-  const limpiarAvisos = () => { setAviso(''); setAdvertencia(''); };
-
-  const abrirFormulario = (evento = null) => {
-    limpiarAvisos();
+  const abrirFormulario = (evento) => {
+    setAviso('');
     setDetalle(null);
     setFormulario({ evento });
   };
 
   const abrirResolver = (evento) => {
-    limpiarAvisos();
+    setAviso('');
     setDetalle(null);
     setResolviendo(evento);
   };
 
-  // Si alguna foto del alta no se subió, el evento igual quedó registrado: se avisa cuál, y se agrega desde el detalle.
-  const alGuardar = (evento, esNuevo, fallidas = []) => {
+  const alGuardar = (evento) => {
     setFormulario(null);
-    setAviso(esNuevo ? `Se registró ${evento.numero}: queda pendiente hasta que se resuelva.` : `${evento.numero} quedó modificado.`);
-    if (fallidas.length > 0) {
-      setAdvertencia(`${fallidas.length === 1 ? 'Una foto no se subió' : `${fallidas.length} fotos no se subieron`} (${fallidas.join(' ')}). Abre ${evento.numero} para agregarlas.`);
-    }
+    setAviso(`${evento.numero} quedó modificado.`);
     cargar();
   };
 
@@ -142,8 +135,7 @@ export default function Eventos() {
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
-    <EstadoVacio titulo="Todavía no hay eventos" icono={TriangleAlert}
-      accion={puedeRegistrar && <Btn size="md" onClick={() => abrirFormulario()}><Plus size={16} aria-hidden="true" />Nuevo evento</Btn>}>
+    <EstadoVacio titulo="Todavía no hay eventos" icono={TriangleAlert}>
       {veCarteraCompleta
         ? 'Las incidencias que registren los promotores aparecen aquí.'
         : 'Las incidencias de tu cartera y las que registres aparecen aquí.'}
@@ -161,16 +153,9 @@ export default function Eventos() {
         subtitle={veCarteraCompleta
           ? 'Las incidencias en campo de todos los clientes, sus fotos y su solución.'
           : 'Las incidencias de tu cartera, sus fotos y su solución.'}
-        action={puedeRegistrar && (
-          <Btn size="md" onClick={() => abrirFormulario()}>
-            <Plus size={16} aria-hidden="true" />
-            Nuevo evento
-          </Btn>
-        )}
       />
 
       {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {advertencia && <Alert type="warning" className="mb-4">{advertencia}</Alert>}
       {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
@@ -273,7 +258,7 @@ export default function Eventos() {
 
       {formulario && (
         <FormularioEvento evento={formulario.evento} puedeVerPedidos={puedeVerPedidos}
-          puedeAgregarFotos={tiene(permisos.agregarFoto)} onCerrar={() => setFormulario(null)} onGuardado={alGuardar} />
+          onCerrar={() => setFormulario(null)} onGuardado={alGuardar} />
       )}
 
       {resolviendo && (

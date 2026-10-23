@@ -15,7 +15,6 @@ import Clientes from './pages/Clientes';
 import HojasPedido from './pages/HojasPedido';
 import Inventario from './pages/Inventario';
 import Pedidos from './pages/Pedidos';
-import BandejaPedidos from './pages/BandejaPedidos';
 import ReportePedidos from './pages/ReportePedidos';
 import ReporteEventos from './pages/ReporteEventos';
 import Eventos from './pages/Eventos';
@@ -38,7 +37,6 @@ export default function App() {
           <Route path="/hojas-pedido" element={<PrivateRoute permisos={PANTALLAS.hojasPedido}><HojasPedido /></PrivateRoute>} />
           <Route path="/inventario" element={<PrivateRoute permisos={PANTALLAS.inventario}><Inventario /></PrivateRoute>} />
           <Route path="/pedidos" element={<PrivateRoute permisos={PANTALLAS.pedidos}><Pedidos /></PrivateRoute>} />
-          <Route path="/pedidos/bandeja" element={<PrivateRoute permisos={PANTALLAS.bandeja}><BandejaPedidos /></PrivateRoute>} />
           <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
           <Route path="/eventos/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaEventos}><MapaEventos /></PrivateRoute>} />
           <Route path="/cobranzas" element={<PrivateRoute permisos={PANTALLAS.cobranzas}><Cobranzas /></PrivateRoute>} />

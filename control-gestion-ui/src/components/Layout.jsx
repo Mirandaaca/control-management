@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Inbox, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
+  Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
   PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
@@ -15,7 +15,6 @@ const modulos = [
   { id: 'inicio', seccion: 'inicio', items: [{ to: '/dashboard', label: 'Inicio', icon: House }] },
   { id: 'pedidos', seccion: 'operacion', nombre: 'Pedidos', icon: Package, items: [
     { to: '/pedidos', label: 'Pedidos', icon: Package, permisos: PANTALLAS.pedidos },
-    { to: '/pedidos/bandeja', label: 'Bandeja del día', icon: Inbox, permisos: PANTALLAS.bandeja },
   ] },
   { id: 'ventas', seccion: 'operacion', nombre: 'Ventas', icon: ShoppingCart, items: [
     { to: '/clientes', label: 'Clientes', icon: Store, permisos: PANTALLAS.clientes },
