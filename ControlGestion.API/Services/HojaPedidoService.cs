@@ -47,6 +47,11 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         await Visibles.Where(h => h.Id == id).Select(HojaPedidoConsultas.ComoDetalle).FirstOrDefaultAsync()
         ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
 
+    /// <summary>La HP para imprimir (6.5): con la cartera, como el detalle; una ajena responde 404.</summary>
+    public async Task<HojaParaImprimirDTO> ParaImprimirAsync(int id) =>
+        await Visibles.Where(h => h.Id == id).Select(HojaPedidoConsultas.ParaImprimir).FirstOrDefaultAsync()
+        ?? throw new NoEncontradoException("No se encontró la hoja de pedido.");
+
     /// <summary>"Guardar" (7.3.5, ext. 3a): la HP queda en borrador y se confirma después.</summary>
     public async Task<HojaPedidoDTO> RegistrarAsync(RegistrarHojaPedidoDTO dto)
     {

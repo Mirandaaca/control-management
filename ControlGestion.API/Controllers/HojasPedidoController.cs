@@ -22,6 +22,12 @@ public class HojasPedidoController(HojaPedidoService hojas) : ControllerBase
     public async Task<ActionResult<HojaPedidoDTO>> GetById(int id) =>
         await hojas.ObtenerAsync(id);
 
+    // La vista para imprimir o guardar en PDF desde el navegador (6.5): el PDF no se genera en el servidor.
+    [HttpGet("{id:int}/impresion")]
+    [Permiso(Permisos.Reportes.ImprimirHp)]
+    public async Task<ActionResult<HojaParaImprimirDTO>> GetParaImprimir(int id) =>
+        await hojas.ParaImprimirAsync(id);
+
     [HttpPost]
     [Permiso(Permisos.Ventas.RegistrarHp)]
     public async Task<ActionResult<HojaPedidoDTO>> Registrar([FromBody] RegistrarHojaPedidoDTO dto)

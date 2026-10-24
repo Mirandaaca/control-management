@@ -137,3 +137,31 @@ public record HojaPedidoDTO(
     UsuarioResumenDTO? AnuladoPor,
     CobranzaReferenciaDTO? Cobranza,
     IReadOnlyList<DetalleHojaPedidoDTO> Detalles);
+
+/// <summary>El cliente como sale en la HP impresa: lo que el promotor anotaba en la hoja de papel (Figura 1 de la tesis).</summary>
+public record ClienteParaImprimirDTO(int Id, string Codigo, string NombreCompleto, string? RazonSocial, string? Nit,
+    string Direccion, string Celular);
+
+/// <summary>La cobranza de una HP a crédito: su número y su vencimiento.</summary>
+public record CobranzaParaImprimirDTO(int Id, string Numero, DateTime FechaVencimiento);
+
+/// <summary>
+/// La HP lista para imprimir o guardar en PDF desde el navegador (6.5, 7.3.26). Anulada, trae la fecha, quién y el motivo.
+/// </summary>
+public record HojaParaImprimirDTO(
+    int Id,
+    string Numero,
+    EstadoHP EstadoHP,
+    TipoVenta TipoVenta,
+    DateTime FechaRegistro,
+    ClienteParaImprimirDTO Cliente,
+    UsuarioResumenDTO Promotor,
+    ZonaResumenDTO Zona,
+    IReadOnlyList<DetalleHojaPedidoDTO> Detalles,
+    decimal SubTotal,
+    decimal Descuento,
+    decimal Total,
+    CobranzaParaImprimirDTO? Cobranza,
+    DateTime? FechaAnulacion,
+    UsuarioResumenDTO? AnuladoPor,
+    string? MotivoAnulacion);
