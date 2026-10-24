@@ -6,7 +6,8 @@ namespace ControlGestion.API.Services;
 /// Corre los procesos diarios al arrancar la API y después cada día a las 00:05 de Bolivia, cuando ya terminó el día de
 /// ayer: las moras (3.2) y los clientes que pasan a disponible para re-visita (5.2). Al arrancar, porque si la API estuvo
 /// apagada a esa hora (en Azure se duerme), esos cambios quedarían sin hacer. Los dos se pueden repetir sin efectos. En la
-/// misma corrida borra las sesiones que terminaron hace más de 30 días.
+/// misma corrida borra las sesiones que terminaron hace más de 30 días y las ubicaciones de los promotores de hace más
+/// de 30 días.
 /// </summary>
 public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<MoraDetectionService> logger)
     : BackgroundService
@@ -18,6 +19,7 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
             await DetectarMorasAsync();
             await PasarADisponiblesAsync();
             await BorrarSesionesTerminadasAsync();
+            await BorrarUbicacionesViejasAsync();
             try
             {
                 await Task.Delay(HastaLaProximaCorrida(), reloj, stoppingToken);
@@ -77,6 +79,20 @@ public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvide
         catch (Exception ex)
         {
             logger.LogError(ex, "Error al borrar las sesiones terminadas.");
+        }
+    }
+
+    private async Task BorrarUbicacionesViejasAsync()
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var borradas = await scope.ServiceProvider.GetRequiredService<RutaService>().BorrarUbicacionesViejasAsync();
+            logger.LogInformation("Ubicaciones: {Cantidad} ubicaciones de promotores de hace más de 30 días borradas.", borradas);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error al borrar las ubicaciones viejas de los promotores.");
         }
     }
 }
