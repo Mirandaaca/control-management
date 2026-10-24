@@ -1,25 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, Plus, Printer } from 'lucide-react';
+import { Ban, ClipboardList, Eye, Printer } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
-import CampoUbicacion from '../components/CampoUbicacion';
 import Layout from '../components/Layout';
-import LineasDeProductos from '../components/LineasDeProductos';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Paginacion, Selector, Combobox,
+  PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
-import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../hooks/useOpcionesDeClientes';
-import { useUbicacionDelNavegador } from '../hooks/useUbicacionDelNavegador';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
-import { totalDe } from '../utils/lineas';
 
 const { ventas, seguridad, reportes } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -38,9 +33,6 @@ const CREDITO = 1;
 const TIPOS = { 0: 'Contado', [CREDITO]: 'Crédito' };
 const ESTADOS_DE_COBRANZA = { 0: 'Pendiente', 1: 'Parcial', 2: 'Pagada', 3: 'Vencida', 4: 'Incobrable', 5: 'Anulada' };
 
-// Errores de la API que pertenecen a un campo del formulario: se muestran junto a él.
-const CAMPO_DEL_ERROR = { cliente_no_existe: 'clienteId', cliente_inactivo: 'clienteId' };
-
 function EstadoHP({ estado }) {
   const { texto, color } = ESTADOS[estado] ?? { texto: 'Desconocido', color: 'gray' };
   return <Badge color={color}>{texto}</Badge>;
@@ -55,10 +47,12 @@ function Dato({ titulo, children }) {
   );
 }
 
+/**
+ * Hojas de pedido (2.1; `frmHojaPedidoPanel`): consultar, anular e imprimir. Registrar y confirmar una venta es del
+ * promotor, en la app, con el GPS del celular (alcance de la 2.1 y 7.3.31, ext. 1a; tarea 17).
+ */
 export default function HojasPedido() {
-  const { usuario: yo, tiene } = useAuth();
-  const puedeRegistrar = tiene(ventas.registrarHp);
-  const puedeConfirmar = tiene(ventas.confirmarHp);
+  const { tiene } = useAuth();
   const puedeAnular = tiene(ventas.anularHp);
   const puedeImprimir = tiene(reportes.imprimirHp);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
@@ -75,17 +69,6 @@ export default function HojasPedido() {
 
   const [detalle, setDetalle] = useState(null);
 
-  const [formulario, setFormulario] = useState(null);
-  const formularioRef = useRef(null);
-  const siguienteLinea = useRef(1);
-  const clientes = useOpcionesDeClientes();
-  const [productos, setProductos] = useState([]);
-  const [erroresCampo, setErroresCampo] = useState({});
-  const [errorFormulario, setErrorFormulario] = useState('');
-  const [guardando, setGuardando] = useState(false);
-  const gps = useUbicacionDelNavegador();
-
-  const [confirmando, setConfirmando] = useState(null);
   const [anulando, setAnulando] = useState(null);
   const anulacionRef = useRef(null);
   const [enviando, setEnviando] = useState(false);
@@ -117,100 +100,7 @@ export default function HojasPedido() {
       .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
   };
 
-  // Solo quien registró la HP la confirma: la API responde hp_de_otro_promotor a cualquier otro.
-  const puedeConfirmarla = (hp) => puedeConfirmar && hp.estadoHP === BORRADOR && hp.promotor.id === yo?.id;
   const puedeAnularla = (hp) => puedeAnular && hp.estadoHP !== ANULADA;
-
-  // El error de un campo se borra en cuanto se cambia: si no, seguiría diciendo "Elige el cliente" con uno elegido.
-  const quitarError = (campo) =>
-    setErroresCampo((e) => Object.fromEntries(Object.entries(e).filter(([clave]) => clave !== campo)));
-  const quitarErrorDeUbicacion = () => quitarError('latitud');
-
-  // La ubicación de la venta la da el GPS del celular (en la app). En el panel se toma del navegador o se marca en el mapa.
-  const tomarUbicacion = () => gps.tomar({
-    onUbicacion: (ubicacion, precisionGPS) => {
-      setFormulario((f) => f && { ...f, ubicacion, precisionGPS });
-      quitarErrorDeUbicacion();
-    },
-    onError: (mensaje) => setErroresCampo((e) => ({ ...e, latitud: mensaje })),
-  });
-
-  const nuevaLinea = () => ({ clave: siguienteLinea.current++, productoId: '', cantidad: '1', descuento: '' });
-
-  const abrirFormulario = () => {
-    setAviso('');
-    setErroresCampo({});
-    setErrorFormulario('');
-    setFormulario({ clienteId: '', tipoVenta: '0', descuento: '', lineas: [nuevaLinea()], ubicacion: null, precisionGPS: null });
-    api.get('/productos/opciones')
-      .then(({ data }) => setProductos(data))
-      .catch((err) => setErrorFormulario(mensajeDeError(err, 'No se pudieron cargar los productos.')));
-    tomarUbicacion();
-  };
-
-  const cambiarLinea = (clave, indice, cambios) => {
-    setFormulario((f) => ({ ...f, lineas: f.lineas.map((l) => (l.clave === clave ? { ...l, ...cambios } : l)) }));
-    Object.keys(cambios).forEach((campo) => quitarError(`detalles[${indice}].${campo}`));
-  };
-
-  const cambiarCampo = (campo, valor) => {
-    setFormulario((f) => ({ ...f, [campo]: valor }));
-    quitarError(campo);
-  };
-
-  const guardar = async () => {
-    setGuardando(true);
-    setErroresCampo({});
-    setErrorFormulario('');
-    const datos = {
-      clienteId: Number(formulario.clienteId) || 0,
-      tipoVenta: Number(formulario.tipoVenta),
-      descuento: Number(formulario.descuento) || 0,
-      latitud: formulario.ubicacion?.latitud ?? null,
-      longitud: formulario.ubicacion?.longitud ?? null,
-      precisionGPS: formulario.precisionGPS,
-      detalles: formulario.lineas.map((l) => ({
-        productoId: Number(l.productoId) || 0,
-        cantidad: Number(l.cantidad) || 0,
-        descuento: Number(l.descuento) || 0,
-      })),
-    };
-    try {
-      const { data } = await api.post('/hojas-pedido', datos);
-      setAviso(`Se registró ${data.numero} por ${formatearMonto(data.total)}. Queda en borrador hasta que la confirmes.`);
-      setFormulario(null);
-      cargar();
-    } catch (err) {
-      const { codigo, detail } = err.response?.data ?? {};
-      flushSync(() => {
-        const campos = erroresPorCampo(err);
-        if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
-        setErroresCampo(campos);
-        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo registrar la hoja de pedido.'));
-      });
-      mostrarPrimerProblema(formularioRef.current);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const confirmar = async () => {
-    setEnviando(true);
-    setConfirmando((c) => ({ ...c, error: '' }));
-    try {
-      const { data } = await api.post(`/hojas-pedido/${confirmando.hp.id}/confirmar`);
-      setAviso(data.cobranza
-        ? `${data.numero} quedó confirmada: se descontó el stock y nació la deuda ${data.cobranza.numero}.`
-        : `${data.numero} quedó confirmada: se descontó el stock.`);
-      setConfirmando(null);
-      setDetalle(null);
-      cargar();
-    } catch (err) {
-      setConfirmando((c) => ({ ...c, error: mensajeDeError(err, 'No se pudo confirmar la hoja de pedido.') }));
-    } finally {
-      setEnviando(false);
-    }
-  };
 
   const anular = async () => {
     setEnviando(true);
@@ -238,7 +128,6 @@ export default function HojasPedido() {
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const hojas = pagina?.items ?? [];
-  const totalFormulario = formulario ? totalDe(formulario.lineas, productos, formulario.descuento) : 0;
 
   let estado = null;
   if (cargando) estado = <Cargando texto="Cargando hojas de pedido…" />;
@@ -246,8 +135,7 @@ export default function HojasPedido() {
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
-    <EstadoVacio titulo="Todavía no hay hojas de pedido" icono={ClipboardList}
-      accion={puedeRegistrar && <Btn size="md" onClick={abrirFormulario}><Plus size={16} aria-hidden="true" />Nueva HP</Btn>}>
+    <EstadoVacio titulo="Todavía no hay hojas de pedido" icono={ClipboardList}>
       {veCarteraCompleta ? 'Las ventas que registran los promotores aparecen aquí.' : 'Las ventas a los clientes de tu cartera aparecen aquí.'}
     </EstadoVacio>
   );
@@ -261,12 +149,6 @@ export default function HojasPedido() {
       <PageHeader
         title="Hojas de pedido"
         subtitle={veCarteraCompleta ? 'Las ventas en campo de todos los promotores.' : 'Las ventas a los clientes de tu cartera.'}
-        action={puedeRegistrar && (
-          <Btn size="md" onClick={abrirFormulario}>
-            <Plus size={16} aria-hidden="true" />
-            Nueva HP
-          </Btn>
-        )}
       />
 
       {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
@@ -325,12 +207,6 @@ export default function HojasPedido() {
                     Imprimir
                   </EnlaceBoton>
                 )}
-                {puedeConfirmarla(hp) && (
-                  <Btn variant="ghost" onClick={() => setConfirmando({ hp, error: '' })} aria-label={`Confirmar ${hp.numero}`}>
-                    <CircleCheck size={14} aria-hidden="true" />
-                    Confirmar
-                  </Btn>
-                )}
                 {puedeAnularla(hp) && (
                   <Btn variant="ghost" onClick={() => setAnulando({ hp, motivo: '', error: '', errorMotivo: '' })} aria-label={`Anular ${hp.numero}`}>
                     <Ban size={14} aria-hidden="true" />
@@ -360,11 +236,6 @@ export default function HojasPedido() {
             {detalle && puedeAnularla(detalle) && (
               <Btn variant="danger" size="md" onClick={() => { setAnulando({ hp: detalle, motivo: '', error: '', errorMotivo: '' }); setDetalle(null); }}>
                 <Ban size={16} aria-hidden="true" />Anular
-              </Btn>
-            )}
-            {detalle && puedeConfirmarla(detalle) && (
-              <Btn size="md" onClick={() => { setConfirmando({ hp: detalle, error: '' }); setDetalle(null); }}>
-                <CircleCheck size={16} aria-hidden="true" />Confirmar
               </Btn>
             )}
           </>
@@ -420,99 +291,6 @@ export default function HojasPedido() {
           </div>
         )}
       </Modal>
-
-      {/* Nueva HP */}
-      <Modal
-        abierto={formulario !== null}
-        onCerrar={() => setFormulario(null)}
-        ancho="lg"
-        titulo="Nueva hoja de pedido"
-        descripcion="Queda en borrador: el stock se descuenta y la deuda nace recién al confirmarla. La zona es la del cliente."
-        pie={(
-          <>
-            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
-            <Btn type="submit" form="formulario-hp" size="md" disabled={guardando}>
-              {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
-              {guardando ? 'Registrando…' : 'Registrar HP'}
-            </Btn>
-          </>
-        )}
-      >
-        {formulario && (
-          <form id="formulario-hp" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
-            {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
-            <div className="grid gap-4 md:grid-cols-2">
-              <Combobox label="Cliente" placeholder="Elige el cliente" placeholderBusqueda="Nombre, código o celular…"
-                value={formulario.clienteId} error={erroresCampo.clienteId}
-                opciones={clientes.opciones} onBuscar={clientes.buscar} cargando={clientes.cargando} errorBusqueda={clientes.error}
-                limite={LIMITE_DE_CLIENTES} onChange={(clienteId) => cambiarCampo('clienteId', clienteId)} />
-              <Selector label="Tipo de venta" value={formulario.tipoVenta} error={erroresCampo.tipoVenta}
-                opciones={Object.entries(TIPOS).map(([valor, texto]) => ({ valor, texto }))}
-                ayuda={Number(formulario.tipoVenta) === CREDITO ? 'Al confirmarla nace la deuda, que vence en 30 días.' : undefined}
-                onChange={(tipoVenta) => cambiarCampo('tipoVenta', tipoVenta)} />
-            </div>
-
-            <LineasDeProductos
-              lineas={formulario.lineas}
-              productos={productos}
-              errores={erroresCampo}
-              sinStock="con esta cantidad no se podrá confirmar."
-              onCambiar={cambiarLinea}
-              onQuitar={(clave) => setFormulario((f) => ({ ...f, lineas: f.lineas.filter((l) => l.clave !== clave) }))}
-              onAgregar={() => setFormulario((f) => ({ ...f, lineas: [...f.lineas, nuevaLinea()] }))}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
-              <Input label="Descuento sobre el total (Bs, opcional)" type="number" inputMode="decimal" min="0" step="0.01"
-                value={formulario.descuento} placeholder="0,00" autoComplete="off" error={erroresCampo.descuento}
-                onChange={(e) => cambiarCampo('descuento', e.target.value)} />
-              <p className="text-right text-base font-semibold text-slate-900 tabular-nums sm:pb-2" aria-live="polite">
-                Total: {formatearMonto(totalFormulario)}
-              </p>
-            </div>
-
-            <CampoUbicacion
-              titulo="Ubicación de la venta"
-              valor={formulario.ubicacion}
-              precision={formulario.precisionGPS}
-              buscando={gps.buscando}
-              error={erroresCampo.latitud}
-              etiquetaMapa="Mapa: haz clic donde se hace la venta para marcar la ubicación"
-              sinPunto="Haz clic en el mapa donde se hace la venta."
-              onMarcar={(ubicacion) => {
-                setFormulario((f) => ({ ...f, ubicacion, precisionGPS: null }));
-                quitarErrorDeUbicacion();
-              }}
-              onUsarMiUbicacion={tomarUbicacion}
-            />
-          </form>
-        )}
-      </Modal>
-
-      <Confirmar
-        abierto={confirmando !== null}
-        titulo={`¿Confirmar ${confirmando?.hp.numero ?? ''}?`}
-        textoAccion="Confirmar venta"
-        variante="primary"
-        enviando={enviando}
-        error={confirmando?.error}
-        onConfirmar={confirmar}
-        onCancelar={() => setConfirmando(null)}
-      >
-        {confirmando && (
-          <>
-            <p>
-              Venta {confirmando.hp.tipoVenta === CREDITO ? 'a crédito' : 'al contado'} de{' '}
-              <span className="font-semibold tabular-nums">{formatearMonto(confirmando.hp.total)}</span> a {confirmando.hp.cliente.nombreCompleto}.
-            </p>
-            <p>
-              Se descuenta el stock de sus productos
-              {confirmando.hp.tipoVenta === CREDITO ? ' y nace la deuda, que vence en 30 días' : ''}.
-              No se puede deshacer: si hay un error, la secretaria tendrá que anularla.
-            </p>
-          </>
-        )}
-      </Confirmar>
 
       <Confirmar
         abierto={anulando !== null}
