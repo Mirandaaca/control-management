@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
 
 const { eventos: permisos, seguridad } = PERMISOS;
@@ -35,8 +36,7 @@ export default function Eventos() {
   const acciones = (evento) => accionesDelEvento(evento, { tiene, permisos, veCarteraCompleta, yo });
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);

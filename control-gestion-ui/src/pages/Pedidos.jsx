@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 
 const { pedidos: permisos, seguridad } = PERMISOS;
@@ -36,8 +37,7 @@ export default function Pedidos() {
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);

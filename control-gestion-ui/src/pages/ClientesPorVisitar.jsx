@@ -13,6 +13,7 @@ import { textoDelAtraso } from '../components/clientes/visitas';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { diaEnBolivia, formatearDia, formatearFecha } from '../utils/formato';
 
 const TAMANO_PAGINA = 25;
@@ -39,8 +40,7 @@ export default function ClientesPorVisitar() {
   const puedePlanificar = tiene(PERMISOS.territorial.planificarRuta);
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);

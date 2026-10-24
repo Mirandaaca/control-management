@@ -10,6 +10,7 @@ import {
   Alert, BarraDeFiltros, Btn, Cargando, ErrorDeCarga, EstadoVacio, Indicador, Input, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' };
@@ -20,8 +21,7 @@ const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' }
  */
 export default function ReportePedidos() {
   const [reporte, setReporte] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');

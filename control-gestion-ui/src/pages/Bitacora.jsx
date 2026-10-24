@@ -7,6 +7,7 @@ import BotonExportar from '../components/reportes/BotonExportar';
 import { Table, Td, Tr } from '../components/Table';
 import { Alert, BarraDeFiltros, EstadoVacio, Input, PageHeader, Paginacion, Selector } from '../components/ui';
 import { useExportar, useReporte } from '../hooks/useReporte';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
 
 const TAMANO_PAGINA = 25;
@@ -17,8 +18,7 @@ const SIN_FILTROS = { usuario: '', modulo: '', desde: '', hasta: '' };
  * al más antiguo. Solo se consulta y se exporta: los registros no se modifican ni se eliminan.
  */
 export default function Bitacora() {
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
-  const [numeroPagina, setNumeroPagina] = useState(1);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [opciones, setOpciones] = useState({ usuarios: [], modulos: [] });
   const [errorOpciones, setErrorOpciones] = useState('');
 
