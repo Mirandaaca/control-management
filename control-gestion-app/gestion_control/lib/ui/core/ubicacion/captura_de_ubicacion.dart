@@ -20,6 +20,7 @@ enum QueSeRegistra {
   cliente('el cliente'),
   entrega('la entrega'),
   evento('el evento'),
+  visita('la visita'),
 
   /// Una foto que se agrega a un evento ya registrado: no tiene tarjeta, y si no hay lectura se sube sin el lugar.
   foto('la foto');

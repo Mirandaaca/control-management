@@ -214,3 +214,16 @@ final class _Seguridad {
     verCarteraCompleta,
   ];
 }
+
+/// Quien puede pedir la lista de promotores (`GET /usuarios/promotores`), como `ELIGEN_PROMOTOR` del panel.
+final eligenPromotor = [
+  Permisos.pedidos.asignarPedidos,
+  Permisos.parametros.registrarZona,
+  Permisos.parametros.modificarZona,
+  Permisos.territorial.planificarRuta,
+  Permisos.pedidos.generarReporte,
+  Permisos.cobranzas.generarReporte,
+  Permisos.reportes.ventasPorPromotor,
+  Permisos.eventos.verMapa,
+  Permisos.eventos.generarReporte,
+];

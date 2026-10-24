@@ -409,6 +409,20 @@ class ClientesRepositoryFalso implements ClientesRepository {
   @override
   Future<Cliente> obtener(int id) => alObtener(id);
 
+  Future<List<ClienteEnElMapa>> Function() alPedirMapa = () async => const [];
+  Future<Pagina<ClientePorVisitar>> Function(String buscar, int? zonaId, String? promotorId, int pagina) alPorVisitar =
+      (_, _, _, _) async => const Pagina(items: [], total: 0, numero: 1, tamano: 25);
+  final pedidosPorVisitar = <({String buscar, int? zonaId, String? promotorId, int pagina})>[];
+
+  @override
+  Future<List<ClienteEnElMapa>> mapa() => alPedirMapa();
+
+  @override
+  Future<Pagina<ClientePorVisitar>> porVisitar({String buscar = '', int? zonaId, String? promotorId, int pagina = 1}) {
+    pedidosPorVisitar.add((buscar: buscar, zonaId: zonaId, promotorId: promotorId, pagina: pagina));
+    return alPorVisitar(buscar, zonaId, promotorId, pagina);
+  }
+
   @override
   Future<Cliente> registrar(
     DatosDeCliente datos,
@@ -445,8 +459,16 @@ class ClientesRepositoryFalso implements ClientesRepository {
 class ZonasRepositoryFalso implements ZonasRepository {
   Future<List<Zona>> Function() alListar = () async => const [zonaNorte, zonaDeOtro];
 
+  Future<List<PuntoDeReferencia>> Function(int? zonaId) alPedirPuntos = (_) async => const [];
+
   @override
   Future<List<Zona>> listar() => alListar();
+
+  @override
+  Future<Zona> obtener(int id) async => (await alListar()).firstWhere((z) => z.id == id);
+
+  @override
+  Future<List<PuntoDeReferencia>> puntos({int? zonaId}) => alPedirPuntos(zonaId);
 }
 
 /// Una sesión de promotor con esos permisos.
