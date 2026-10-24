@@ -324,12 +324,12 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
       <DialogContent
         className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}
         onPointerDownOutside={(e) => e.preventDefault()}
+        // Sin descripción, Radix pide aria-describedby={undefined}: así el lector de pantalla no lee el título dos veces.
+        {...(descripcion ? {} : { 'aria-describedby': undefined })}
       >
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
-          {descripcion
-            ? <DialogDescription>{descripcion}</DialogDescription>
-            : <DialogDescription className="sr-only">{titulo}</DialogDescription>}
+          {descripcion && <DialogDescription>{descripcion}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto -mx-6 px-6">{children}</div>
         {pie && <DialogFooter>{pie}</DialogFooter>}
