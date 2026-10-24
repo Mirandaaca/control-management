@@ -32,6 +32,7 @@ public class HojasPedidoController(HojaPedidoService hojas) : ControllerBase
 
     // "Confirmar venta" sin guardarla antes: registra y confirma en un paso. Dos atributos: hacen falta los dos permisos.
     [HttpPost("confirmadas")]
+    [Bitacora("Registrar y confirmar hojas de pedido")]
     [Permiso(Permisos.Ventas.RegistrarHp)]
     [Permiso(Permisos.Ventas.ConfirmarHp)]
     public async Task<ActionResult<HojaPedidoDTO>> RegistrarConfirmada([FromBody] RegistrarHojaPedidoDTO dto)

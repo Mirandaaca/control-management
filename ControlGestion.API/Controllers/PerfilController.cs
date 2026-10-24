@@ -1,5 +1,6 @@
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,10 +17,12 @@ public class PerfilController(PerfilService perfil) : ControllerBase
         await perfil.ObtenerAsync();
 
     [HttpPut]
+    [Bitacora("Editar su perfil")]
     public async Task<ActionResult<PerfilDTO>> Editar([FromBody] EditarPerfilDTO dto) =>
         await perfil.EditarAsync(dto);
 
     [HttpPut("contrasena")]
+    [Bitacora("Cambiar su contraseña")]
     public async Task<IActionResult> CambiarContrasena([FromBody] CambiarContrasenaDTO dto)
     {
         await perfil.CambiarContrasenaAsync(dto);

@@ -257,24 +257,6 @@ public class ReportesController : ControllerBase
         return Ok(resultado);
     }
 
-    // ─── Auditoría ────────────────────────────────────────────────────────────
-
-    [HttpGet("auditoria")]
-    [Permiso(Permisos.Seguridad.ConsultarBitacora)]
-    public async Task<IActionResult> Auditoria(
-        [FromQuery] DateTime? desde,
-        [FromQuery] DateTime? hasta,
-        [FromQuery] string? modulo)
-    {
-        var hastaFin = hasta.HasValue ? hasta.Value.Date.AddDays(1).AddTicks(-1) : DateTime.UtcNow;
-        var query = _db.AuditoriaLogs.AsQueryable();
-        if (desde.HasValue) query = query.Where(a => a.Fecha >= desde.Value);
-        query = query.Where(a => a.Fecha <= hastaFin);
-        if (!string.IsNullOrEmpty(modulo)) query = query.Where(a => a.Modulo == modulo);
-
-        return Ok(await query.OrderByDescending(a => a.Fecha).Take(500).ToListAsync());
-    }
-
     // ─── Exportar Excel ───────────────────────────────────────────────────────
 
     [HttpGet("export/ventas")]
