@@ -78,7 +78,7 @@ public class EventosResolucionTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         async Task<int> PendientesAsync() =>
-            (await (await operador.GetAsync("/api/reportes/dashboard")).LeerJsonAsync()).GetProperty("eventosAbiertos").GetInt32();
+            (await (await operador.GetAsync("/api/reportes/tablero")).LeerJsonAsync()).GetProperty("eventosPendientes").GetInt32();
         var antes = await PendientesAsync();
 
         var eventoId = await operador.CrearEventoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync()));
