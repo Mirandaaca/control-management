@@ -1,8 +1,13 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ControlGestion.API.Data;
+using ControlGestion.API.Models;
 using ControlGestion.API.Tests.Infraestructura;
 using ControlGestion.API.Seguridad;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using MySqlConnector;
 
 namespace ControlGestion.API.Tests;
 
@@ -12,6 +17,27 @@ public class CobranzasTests(ApiDePrueba api)
     private record Escenario(HttpClient Operador, int ZonaId, int ProductoId) : IDisposable
     {
         public void Dispose() => Operador.Dispose();
+    }
+
+    [Fact]
+    public async Task Una_HP_tiene_a_lo_sumo_una_cobranza()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var cobranzaId = await operador.CrearCobranzaAsync(clienteId, await operador.CrearProductoAsync(10m), 1);
+
+        // La API nunca crea una segunda: el índice único lo garantiza también en la base (7.3.5, paso 3.4).
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var primera = await db.Cobranzas.AsNoTracking().SingleAsync(c => c.Id == cobranzaId);
+        db.Cobranzas.Add(new Cobranza
+        {
+            Numero = Ayudantes.Unico("COB"), ClienteId = primera.ClienteId, HojaPedidoId = primera.HojaPedidoId,
+            PromotorId = primera.PromotorId, MontoTotal = 1m, FechaEmision = DateTime.UtcNow, FechaVencimiento = DateTime.UtcNow
+        });
+
+        var error = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.Equal(MySqlErrorCode.DuplicateKeyEntry, Assert.IsType<MySqlException>(error.InnerException).ErrorCode);
     }
 
     private async Task<Escenario> PrepararAsync(decimal precio = 10m)

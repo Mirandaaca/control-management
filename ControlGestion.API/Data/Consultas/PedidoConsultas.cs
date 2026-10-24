@@ -94,7 +94,8 @@ public static class PedidoConsultas
         new ZonaResumenDTO(p.Zona!.Id, p.Zona.Nombre),
         p.HojaPedido == null ? null : new HojaDeLaEntregaDTO(p.HojaPedido.Id, p.HojaPedido.Numero, p.HojaPedido.EstadoHP,
             p.HojaPedido.TipoVenta,
-            p.HojaPedido.Cobranzas.Select(c => new CobranzaReferenciaDTO(c.Id, c.Numero, c.Estado)).FirstOrDefault()),
+            p.HojaPedido.Cobranza == null ? null
+                : new CobranzaReferenciaDTO(p.HojaPedido.Cobranza.Id, p.HojaPedido.Cobranza.Numero, p.HojaPedido.Cobranza.Estado)),
         p.Detalles
             .OrderBy(d => d.Id)
             .Select(d => new DetallePedidoDTO(d.Id, d.ProductoId, d.Producto!.SKU, d.Producto.Descripcion,

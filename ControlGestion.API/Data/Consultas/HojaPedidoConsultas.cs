@@ -55,7 +55,7 @@ public static class HojaPedidoConsultas
         h.ObservacionesAnulacion,
         h.FechaAnulacion,
         h.AnuladoPor == null ? null : new UsuarioResumenDTO(h.AnuladoPor.Id, h.AnuladoPor.NombreCompleto),
-        h.Cobranzas.Select(c => new CobranzaReferenciaDTO(c.Id, c.Numero, c.Estado)).FirstOrDefault(),
+        h.Cobranza == null ? null : new CobranzaReferenciaDTO(h.Cobranza.Id, h.Cobranza.Numero, h.Cobranza.Estado),
         h.Detalles
             .OrderBy(d => d.Id)
             .Select(d => new DetalleHojaPedidoDTO(d.Id, d.ProductoId, d.Producto!.SKU, d.Producto.Descripcion,
@@ -80,7 +80,7 @@ public static class HojaPedidoConsultas
         h.SubTotal,
         h.Descuento,
         h.Total,
-        h.Cobranzas.Select(c => new CobranzaParaImprimirDTO(c.Id, c.Numero, c.FechaVencimiento)).FirstOrDefault(),
+        h.Cobranza == null ? null : new CobranzaParaImprimirDTO(h.Cobranza.Id, h.Cobranza.Numero, h.Cobranza.FechaVencimiento),
         h.FechaAnulacion,
         h.AnuladoPor == null ? null : new UsuarioResumenDTO(h.AnuladoPor.Id, h.AnuladoPor.NombreCompleto),
         h.ObservacionesAnulacion);
