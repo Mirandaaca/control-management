@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -79,8 +81,50 @@ class ServicioConGeolocator implements ServicioDeUbicacion {
     }
   }
 
+  /// Un solo flujo del GPS para toda la app: el seguimiento de la ruta y la tarjeta de un formulario escuchan las mismas
+  /// lecturas. Quien se suma recibe enseguida la última, si tiene menos de [frescura]: en la web, un segundo
+  /// `watchPosition` no recibe nada hasta que el punto cambia, y en Android esperaría la lectura siguiente.
+  ServicioConGeolocator({Stream<Posicion> Function()? fuente, DateTime Function()? ahora})
+    : _fuente = fuente ?? _delGps,
+      _ahora = ahora ?? DateTime.now;
+
+  final Stream<Posicion> Function() _fuente;
+  final DateTime Function() _ahora;
+
+  /// Hasta cuándo sirve la última lectura para quien recién se suma.
+  static const frescura = Duration(seconds: 15);
+
+  late final _compartido = StreamController<Posicion>.broadcast(onListen: _encender, onCancel: _apagar);
+  StreamSubscription<Posicion>? _origen;
+  (Posicion, DateTime)? _ultima;
+
   @override
-  Stream<Posicion> lecturas() {
+  Stream<Posicion> lecturas() => Stream.multi((oyente) {
+    if (_ultima case (final lectura, final cuando) when _ahora().difference(cuando) < frescura) oyente.add(lectura);
+    final suscripcion = _compartido.stream.listen(oyente.add, onError: oyente.addError);
+    // Si el flujo del GPS se cortó (por ejemplo, se apagó el GPS) y todavía hay quien escucha, se vuelve a abrir.
+    if (_origen == null) _encender();
+    oyente.onCancel = suscripcion.cancel;
+  });
+
+  void _encender() {
+    if (_origen != null) return;
+    _origen = _fuente().listen(
+      (lectura) {
+        _ultima = (lectura, _ahora());
+        _compartido.add(lectura);
+      },
+      onError: _compartido.addError,
+      onDone: () => _origen = null,
+    );
+  }
+
+  void _apagar() {
+    _origen?.cancel();
+    _origen = null;
+  }
+
+  static Stream<Posicion> _delGps() {
     final ajustes = !kIsWeb && defaultTargetPlatform == TargetPlatform.android
         ? AndroidSettings(accuracy: LocationAccuracy.high, intervalDuration: const Duration(seconds: 1))
         : const LocationSettings(accuracy: LocationAccuracy.high);

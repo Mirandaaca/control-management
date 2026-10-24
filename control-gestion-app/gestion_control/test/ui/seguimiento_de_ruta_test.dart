@@ -152,6 +152,34 @@ void main() {
     });
   });
 
+  test('un error cualquiera del GPS no lo corta: sigue leyendo y mandando (en la web pasa)', () {
+    fakeAsync((reloj) {
+      final c = arrancar(reloj);
+      gps.leer(-17.77, -63.17, 5);
+      reloj.flushMicrotasks();
+
+      gps.fallar(Exception('Something went wrong while listening for position updates'));
+      gps.leer(-17.78, -63.18, 5);
+      reloj.elapse(intervaloDelSeguimiento);
+
+      expect(c.read(seguimientoDeRutaProvider).problema, isNull);
+      expect(rutas.ubicaciones.map((u) => u.$2.latitud), [-17.77, -17.78]);
+    });
+  });
+
+  test('con el GPS apagado en medio de la ruta, lo avisa', () {
+    fakeAsync((reloj) {
+      final c = arrancar(reloj);
+      gps.leer(-17.77, -63.17, 5);
+      reloj.flushMicrotasks();
+
+      gps.fallar(const GpsApagado());
+      reloj.flushMicrotasks();
+
+      expect(c.read(seguimientoDeRutaProvider).problema, ProblemaDelGps.desactivado);
+    });
+  });
+
   test('si la API dice que la ruta ya no está en curso, se detiene', () {
     fakeAsync((reloj) {
       rutas.alEnviar = (_, _) async => throw rutaNoEnCurso;

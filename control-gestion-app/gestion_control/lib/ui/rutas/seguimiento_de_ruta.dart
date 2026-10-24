@@ -150,22 +150,24 @@ class SeguimientoDeRuta extends Notifier<EstadoDelSeguimiento> {
         if (!_yaEnvio) _enviar();
       },
       onError: (Object error) {
-        _lecturas?.cancel();
-        _lecturas = null;
         final problema = switch (error) {
           GpsApagado() => ProblemaDelGps.desactivado,
           SinPermisoDeUbicacion() => ProblemaDelGps.sinPermiso,
           _ => null,
         };
-        if (problema == null) debugPrint('El GPS del seguimiento falló. $error');
+        // Un error cualquiera no corta el flujo: en la web, el GPS manda uno de vez en cuando y sigue leyendo.
+        if (problema == null) return debugPrint('El GPS del seguimiento falló. $error');
+        _lecturas?.cancel();
+        _lecturas = null;
         state = EstadoDelSeguimiento(rutaId: state.rutaId, ultima: state.ultima, problema: problema);
       },
     );
   }
 
   Future<void> _cadaVuelta() async {
-    if (_lecturas != null) return _enviar();
-    // Sin lecturas (el GPS estaba apagado o falló): lo vuelve a intentar, sin pedir el permiso.
+    await _enviar();
+    if (_lecturas != null) return;
+    // Sin lecturas (el GPS estaba apagado o sin permiso): lo vuelve a intentar, sin pedir el permiso.
     final vuelta = _vuelta;
     final ProblemaDelGps? problema;
     try {
