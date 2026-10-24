@@ -205,3 +205,97 @@ class DatosDeCliente {
     };
   }
 }
+
+/// Un cliente del mapa de clientes (`ClienteMapaDTO`, 5.1 y 5.2): dónde está, su estado y sus visitas.
+class ClienteEnElMapa {
+  const ClienteEnElMapa({
+    required this.id,
+    required this.codigo,
+    required this.nombreCompleto,
+    required this.latitud,
+    required this.longitud,
+    required this.telefono,
+    required this.direccion,
+    required this.zonaId,
+    required this.estado,
+    this.ultimaVisita,
+    this.proximaVisita,
+  });
+
+  factory ClienteEnElMapa.fromJson(Map<String, dynamic> json) => ClienteEnElMapa(
+    id: json['id'] as int,
+    codigo: json['codigo'] as String,
+    nombreCompleto: json['nombreCompleto'] as String,
+    latitud: (json['latitud'] as num).toDouble(),
+    longitud: (json['longitud'] as num).toDouble(),
+    telefono: json['telefono'] as String,
+    direccion: json['direccionTexto'] as String,
+    zonaId: json['zonaId'] as int,
+    estado: EstadoCliente.fromJson(json['estado'] as Map<String, dynamic>),
+    ultimaVisita: json['ultimaVisita'] as String?,
+    proximaVisita: json['proximaVisita'] as String?,
+  );
+
+  final int id;
+  final String codigo;
+  final String nombreCompleto;
+  final double latitud;
+  final double longitud;
+  final String telefono;
+  final String direccion;
+  final int zonaId;
+  final EstadoCliente estado;
+
+  /// En UTC y sin "Z".
+  final String? ultimaVisita;
+  final String? proximaVisita;
+}
+
+/// Un cliente de la lista por visitar (`ClientePorVisitarDTO`, 5.3).
+class ClientePorVisitar {
+  const ClientePorVisitar({
+    required this.id,
+    required this.codigo,
+    required this.nombreCompleto,
+    required this.direccion,
+    required this.latitud,
+    required this.longitud,
+    required this.zona,
+    this.promotor,
+    this.ultimaVisita,
+    this.proximaVisita,
+    this.diasDeAtraso,
+  });
+
+  factory ClientePorVisitar.fromJson(Map<String, dynamic> json) => ClientePorVisitar(
+    id: json['id'] as int,
+    codigo: json['codigo'] as String,
+    nombreCompleto: json['nombreCompleto'] as String,
+    direccion: json['direccionTexto'] as String,
+    latitud: (json['latitud'] as num).toDouble(),
+    longitud: (json['longitud'] as num).toDouble(),
+    zona: ZonaResumen.fromJson(json['zona'] as Map<String, dynamic>),
+    promotor: (json['promotor'] as Map<String, dynamic>?)?['nombreCompleto'] as String?,
+    ultimaVisita: json['ultimaVisita'] as String?,
+    proximaVisita: json['proximaVisita'] as String?,
+    diasDeAtraso: json['diasDeAtraso'] as int?,
+  );
+
+  final int id;
+  final String codigo;
+  final String nombreCompleto;
+  final String direccion;
+  final double latitud;
+  final double longitud;
+  final ZonaResumen zona;
+
+  /// El nombre de su promotor.
+  final String? promotor;
+
+  /// En UTC y sin "Z".
+  final String? ultimaVisita;
+  final String? proximaVisita;
+
+  /// Hoy menos el día de su próxima visita, en días de Bolivia: 0 si le toca hoy, null si nunca se visitó.
+  final int? diasDeAtraso;
+}

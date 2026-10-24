@@ -57,6 +57,41 @@ class ClientesRepository {
     return null;
   }
 
+  /// Los clientes con ubicación de su cartera, con su estado y sus visitas (5.1 y 5.2). Los de un estado asignado a
+  /// mano también: se ven con su color (7.3.18, ext. \*c).
+  Future<List<ClienteEnElMapa>> mapa() async {
+    try {
+      final respuesta = await _api.get<List<dynamic>>('/clientes/mapa');
+      return [for (final c in respuesta.data!) ClienteEnElMapa.fromJson(c as Map<String, dynamic>)];
+    } catch (e) {
+      throw ErrorDeApi.desde(e, porDefecto: 'No se pudo cargar el mapa de clientes.');
+    }
+  }
+
+  /// Los clientes por visitar (5.3): primero los que nunca se visitaron y después del más atrasado al más reciente.
+  Future<Pagina<ClientePorVisitar>> porVisitar({
+    String buscar = '',
+    int? zonaId,
+    String? promotorId,
+    int pagina = 1,
+  }) async {
+    try {
+      final respuesta = await _api.get<Map<String, dynamic>>(
+        '/clientes/por-visitar',
+        queryParameters: {
+          if (buscar.trim().isNotEmpty) 'buscar': buscar.trim(),
+          'zonaId': ?zonaId,
+          'promotorId': ?promotorId,
+          'pagina': pagina,
+          'tamano': tamanoDePagina,
+        },
+      );
+      return Pagina.fromJson(respuesta.data!, ClientePorVisitar.fromJson);
+    } catch (e) {
+      throw ErrorDeApi.desde(e, porDefecto: 'No se pudieron cargar los clientes por visitar.');
+    }
+  }
+
   Future<Cliente> obtener(int id) async {
     try {
       final respuesta = await _api.get<Map<String, dynamic>>('/clientes/$id');

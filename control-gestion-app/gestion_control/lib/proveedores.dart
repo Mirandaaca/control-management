@@ -8,7 +8,9 @@ import 'data/repositories/hojas_pedido_repository.dart';
 import 'data/repositories/pedidos_repository.dart';
 import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
+import 'data/repositories/rutas_repository.dart';
 import 'data/repositories/sesion_repository.dart';
+import 'data/repositories/usuarios_repository.dart';
 import 'data/repositories/zonas_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
 import 'data/services/camara.dart';
@@ -70,6 +72,12 @@ final pedidosRepositoryProvider = Provider<PedidosRepository>(
 
 final eventosRepositoryProvider = Provider<EventosRepository>(
   (ref) => EventosRepository(ref.watch(clienteApiProvider)),
+);
+
+final rutasRepositoryProvider = Provider<RutasRepository>((ref) => RutasRepository(ref.watch(clienteApiProvider)));
+
+final usuariosRepositoryProvider = Provider<UsuariosRepository>(
+  (ref) => UsuariosRepository(ref.watch(clienteApiProvider)),
 );
 
 final camaraProvider = Provider<Camara>((ref) => CamaraConImagePicker());

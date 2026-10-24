@@ -29,6 +29,13 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Ruta del día',
+    descripcion: 'Los clientes que visitas hoy, en orden: iniciarla, marcar cada visita y terminarla.',
+    icono: Icons.route_outlined,
+    ruta: Rutas.ruta,
+    permisos: PermisosDe.ruta,
+  ),
+  EntradaDelMenu(
     titulo: 'Bandeja del día',
     descripcion: 'Los pedidos que tienes que entregar hoy.',
     icono: Icons.inbox_outlined,
@@ -48,6 +55,20 @@ final entradasDelMenu = [
     icono: Icons.storefront_outlined,
     ruta: Rutas.clientes,
     permisos: PermisosDe.clientes,
+  ),
+  EntradaDelMenu(
+    titulo: 'Mapa de clientes',
+    descripcion: 'Tus clientes en el mapa, con el color de su estado.',
+    icono: Icons.map_outlined,
+    ruta: Rutas.mapaDeClientes,
+    permisos: PermisosDe.mapaClientes,
+  ),
+  EntradaDelMenu(
+    titulo: 'Clientes por visitar',
+    descripcion: 'Los clientes a los que ya les toca visita, del más atrasado al más reciente.',
+    icono: Icons.event_repeat_outlined,
+    ruta: Rutas.porVisitar,
+    permisos: PermisosDe.porVisitar,
   ),
   EntradaDelMenu(
     titulo: 'Hojas de pedido',

@@ -29,7 +29,10 @@ import '../pedidos/pedidos_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../productos/productos_screen.dart';
+import '../rutas/ruta_del_dia_screen.dart';
 import '../sesion/arranque_screen.dart';
+import '../territorio/mapa_de_clientes_screen.dart';
+import '../territorio/por_visitar_screen.dart';
 import '../sesion/inicio_de_sesion_screen.dart';
 import '../sesion/sesion_notifier.dart';
 import 'widgets/sin_acceso.dart';
@@ -66,6 +69,9 @@ abstract final class Rutas {
   static const nuevoEvento = '/eventos/nuevo';
   static String evento(int id) => '/eventos/$id';
   static String editarEvento(int id) => '/eventos/$id/editar';
+  static const ruta = '/ruta';
+  static const mapaDeClientes = '/mapa-de-clientes';
+  static const porVisitar = '/por-visitar';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -111,6 +117,13 @@ abstract final class PermisosDe {
     Permisos.eventos.agregarFoto,
     Permisos.eventos.eliminarFoto,
   ];
+
+  // Los de `PANTALLAS` del panel: la ruta del día es de quien la recorre (`frmRutaMovil`).
+  static final ruta = [Permisos.territorial.recorrerRuta];
+
+  // Los de `PANTALLAS.mapaClientes` y `PANTALLAS.porVisitar` del panel.
+  static final mapaClientes = [Permisos.territorial.verMapaClientes];
+  static final porVisitar = [Permisos.territorial.verClientesPorVisitar];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -215,6 +228,19 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: 'ruta',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.ruta, child: const RutaDelDiaScreen()),
+          ),
+          GoRoute(
+            path: 'mapa-de-clientes',
+            builder: (context, state) =>
+                ConPermiso(permisos: PermisosDe.mapaClientes, child: const MapaDeClientesScreen()),
+          ),
+          GoRoute(
+            path: 'por-visitar',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.porVisitar, child: const PorVisitarScreen()),
           ),
           GoRoute(
             path: 'bandeja',

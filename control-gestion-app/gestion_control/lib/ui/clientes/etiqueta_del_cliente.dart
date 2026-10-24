@@ -8,7 +8,8 @@ import '../core/widgets/etiqueta_de_estado.dart';
 // cambia allá, cambia aquí. Rojo y verde quedan para Activo y Disponible; cada color lleva texto blanco con 4,5:1 o más.
 const _paleta = {'#475569', '#1E293B', '#1D4ED8', '#0369A1', '#4338CA', '#6D28D9'};
 
-Color? _colorDePaleta(String valor) {
+/// El color de un estado asignado a mano, si es de la paleta; si no, null (la API solo acepta los de la paleta).
+Color? colorDePaleta(String valor) {
   final hex = valor.trim().toUpperCase();
   if (!_paleta.contains(hex)) return null;
   return Color(int.parse('FF${hex.substring(1)}', radix: 16));
@@ -29,6 +30,21 @@ class EtiquetaDelCliente extends StatelessWidget {
       icono: Icons.place_outlined,
       color: ColorDeEstado.verde,
     ),
-    _ => EtiquetaDeEstado(estado.nombre, icono: null, color: ColorDeEstado.gris, fondo: _colorDePaleta(estado.color)),
+    _ => EtiquetaDeEstado(estado.nombre, icono: null, color: ColorDeEstado.gris, fondo: colorDePaleta(estado.color)),
   };
 }
+
+/// El color de un cliente en el mapa (docs/diseno.md, sección 2): rojo-600 activo, verde-700 disponible y los manuales
+/// con el de la paleta (Pizarra si llegara otro).
+Color colorDelEstado(EstadoCliente estado) => switch (estado.id) {
+  EstadoCliente.idActivo => const Color(0xFFDC2626),
+  EstadoCliente.idDisponible => const Color(0xFF15803D),
+  _ => colorDePaleta(estado.color) ?? const Color(0xFF475569),
+};
+
+/// El ícono de un estado del cliente: el reloj para Activo y el pin para Disponible. Los manuales no llevan.
+IconData? iconoDelEstado(EstadoCliente estado) => switch (estado.id) {
+  EstadoCliente.idActivo => Icons.schedule,
+  EstadoCliente.idDisponible => Icons.place_outlined,
+  _ => null,
+};

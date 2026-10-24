@@ -79,6 +79,37 @@ void main() {
       expect(find.text('Bandeja del día'), findsOneWidget);
     });
 
+    testWidgets('la ruta, el mapa de clientes y los clientes por visitar, cada uno con su permiso (tarea 17)', (
+      tester,
+    ) async {
+      await abrir(tester, const MenuScreen());
+      expect(find.text('Ruta del día'), findsNothing);
+      expect(find.text('Mapa de clientes'), findsNothing);
+      expect(find.text('Clientes por visitar'), findsNothing);
+    });
+
+    testWidgets('con los tres permisos del promotor, las tres entradas', (tester) async {
+      await abrir(
+        tester,
+        const MenuScreen(),
+        sesion: Sesion(
+          id: 'u1',
+          email: 'a@test.local',
+          nombreCompleto: 'Pablo Promotor',
+          rol: 'Promotor',
+          permisos: {
+            Permisos.territorial.recorrerRuta,
+            Permisos.territorial.verMapaClientes,
+            Permisos.territorial.verClientesPorVisitar,
+          },
+        ),
+      );
+
+      expect(find.text('Ruta del día'), findsOneWidget);
+      expect(find.text('Mapa de clientes'), findsOneWidget);
+      expect(find.text('Clientes por visitar'), findsOneWidget);
+    });
+
     testWidgets('cerrar sesión llama a la API y deja la app sin sesión', (tester) async {
       await abrir(tester, const MenuScreen());
 

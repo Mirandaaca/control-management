@@ -19,9 +19,18 @@ class Accion {
 /// con una secundaria, las dos lado a lado. Arriba de los botones van, si hay, el total o el aviso de un envío que
 /// falló: así se ven donde está quien tocó el botón.
 class BarraDeAcciones extends StatelessWidget {
-  const BarraDeAcciones({super.key, required this.principal, this.secundaria, this.arriba = const []});
+  const BarraDeAcciones({
+    super.key,
+    required this.principal,
+    this.secundaria,
+    this.arriba = const [],
+    this.conEstiloSecundario = false,
+  });
 
   final Accion principal;
+
+  /// Una sola acción con el estilo secundario: "Terminar ruta" mientras quedan visitas sin marcar (8.6.9).
+  final bool conEstiloSecundario;
   final Accion? secundaria;
   final List<Widget> arriba;
 
@@ -42,7 +51,12 @@ class BarraDeAcciones extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final widget in arriba) ...[widget, const SizedBox(height: 12)],
-                if (secundaria == null) _Principal(principal) else _DosAcciones(principal, secundaria!),
+                if (secundaria != null)
+                  _DosAcciones(principal, secundaria!)
+                else if (conEstiloSecundario)
+                  _Secundaria(principal)
+                else
+                  _Principal(principal),
               ],
             ),
           ),

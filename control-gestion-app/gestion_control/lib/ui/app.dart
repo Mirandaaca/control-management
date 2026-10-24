@@ -3,17 +3,42 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
+import 'rutas/seguimiento_de_ruta.dart';
 import 'core/tema.dart';
 import 'core/widgets/aviso.dart';
 
 // En español también los textos que trae Flutter, como el botón "Atrás" que lee el lector de pantalla.
 const _espanol = Locale('es', 'BO');
 
-class App extends ConsumerWidget {
+class App extends ConsumerStatefulWidget {
   const App({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<App> createState() => _AppState();
+}
+
+class _AppState extends ConsumerState<App> {
+  // El seguimiento de la ruta se detiene con la app en segundo plano y sigue al volver (7.3.20, paso 4.3).
+  late final _ciclo = AppLifecycleListener(
+    onStateChange: (ciclo) => ref.read(seguimientoDeRutaProvider.notifier).alCambiarElCiclo(ciclo),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _ciclo;
+  }
+
+  @override
+  void dispose() {
+    _ciclo.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Escucharlo lo mantiene vivo mientras la app está abierta, sin reconstruir la app con cada lectura del GPS.
+    ref.listen(seguimientoDeRutaProvider, (_, _) {});
     return MaterialApp.router(
       title: 'Control de Gestión',
       debugShowCheckedModeBanner: false,

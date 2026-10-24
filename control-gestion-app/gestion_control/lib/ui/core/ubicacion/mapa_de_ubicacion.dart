@@ -42,12 +42,7 @@ class MapaDeUbicacion extends ConsumerWidget {
               interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
             ),
             children: [
-              if (ref.watch(mosaicosDelMapaProvider))
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  // La política de uso de los mosaicos pide que la app se identifique.
-                  userAgentPackageName: 'com.delcampo.controlgestion',
-                ),
+              const MosaicosDeOpenStreetMap(),
               CircleLayer(
                 circles: [
                   CircleMarker(
@@ -59,20 +54,50 @@ class MapaDeUbicacion extends ConsumerWidget {
                   ),
                 ],
               ),
-              const Align(
-                alignment: Alignment.bottomRight,
-                child: ColoredBox(
-                  color: Color(0xE6FFFFFF),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Text('© OpenStreetMap', style: TextStyle(fontSize: 14, color: Color(0xFF0369A1))),
-                  ),
-                ),
-              ),
+              const AtribucionDeOpenStreetMap(),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Los mosaicos de OpenStreetMap, salvo en las pruebas ([mosaicosDelMapaProvider]).
+class MosaicosDeOpenStreetMap extends ConsumerWidget {
+  const MosaicosDeOpenStreetMap({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(mosaicosDelMapaProvider)) return const SizedBox.shrink();
+    return TileLayer(
+      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      // La política de uso de los mosaicos pide que la app se identifique.
+      userAgentPackageName: 'com.delcampo.controlgestion',
+    );
+  }
+}
+
+/// "© OpenStreetMap", que la licencia de los mosaicos pide visible. [alineacion]: la esquina donde va. Con la letra al
+/// 200 % tapaba una franja del mapa: crece hasta 1,3 veces, y sigue legible.
+class AtribucionDeOpenStreetMap extends StatelessWidget {
+  const AtribucionDeOpenStreetMap({super.key, this.alineacion = Alignment.bottomRight});
+
+  final Alignment alineacion;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: alineacion,
+    child: ColoredBox(
+      color: const Color(0xE6FFFFFF),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          '© OpenStreetMap',
+          textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF0369A1)),
+        ),
+      ),
+    ),
+  );
 }
