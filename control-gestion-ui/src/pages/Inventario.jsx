@@ -13,7 +13,7 @@ import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { mostrarPrimerProblema } from '../utils/foco';
-import { formatearCantidad, formatearFecha } from '../utils/formato';
+import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 
 const { ventas } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -132,7 +132,7 @@ export default function Inventario() {
   );
 
   const encabezados = [
-    'Producto', 'Categoría', { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }, 'Último movimiento',
+    'Producto', 'Categoría', { texto: 'Precio', derecha: true }, { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }, 'Último movimiento',
     ...(hayAcciones ? [''] : []),
   ];
 
@@ -183,6 +183,7 @@ export default function Inventario() {
               <p className="text-xs text-slate-600 font-mono">{item.sku}</p>
             </Td>
             <Td>{item.categoria ?? <span className="text-slate-600">Sin categoría</span>}</Td>
+            <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(item.precioVenta)}</Td>
             <Td className="text-right">
               <span className="font-semibold tabular-nums">{formatearCantidad(item.stockActual)}</span>
               {item.bajoMinimo && (
