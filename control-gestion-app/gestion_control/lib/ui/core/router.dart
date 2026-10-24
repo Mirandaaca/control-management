@@ -29,6 +29,7 @@ import '../pedidos/pedidos_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../productos/productos_screen.dart';
+import '../rutas/ruta_del_dia_screen.dart';
 import '../sesion/arranque_screen.dart';
 import '../sesion/inicio_de_sesion_screen.dart';
 import '../sesion/sesion_notifier.dart';
@@ -66,6 +67,7 @@ abstract final class Rutas {
   static const nuevoEvento = '/eventos/nuevo';
   static String evento(int id) => '/eventos/$id';
   static String editarEvento(int id) => '/eventos/$id/editar';
+  static const ruta = '/ruta';
 }
 
 /// Los permisos que abren cada pantalla, como `PANTALLAS` del panel: el menú y las rutas usan la misma lista, así nunca
@@ -111,6 +113,9 @@ abstract final class PermisosDe {
     Permisos.eventos.agregarFoto,
     Permisos.eventos.eliminarFoto,
   ];
+
+  // Los de `PANTALLAS` del panel: la ruta del día es de quien la recorre (`frmRutaMovil`).
+  static final ruta = [Permisos.territorial.recorrerRuta];
 }
 
 /// A dónde va la app según la sesión, o null si se queda donde está.
@@ -215,6 +220,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ],
               ),
             ],
+          ),
+          GoRoute(
+            path: 'ruta',
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.ruta, child: const RutaDelDiaScreen()),
           ),
           GoRoute(
             path: 'bandeja',

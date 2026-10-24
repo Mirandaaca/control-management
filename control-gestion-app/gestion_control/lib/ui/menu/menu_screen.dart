@@ -29,6 +29,13 @@ class EntradaDelMenu {
 
 final entradasDelMenu = [
   EntradaDelMenu(
+    titulo: 'Ruta del día',
+    descripcion: 'Los clientes que visitas hoy, en orden: iniciarla, marcar cada visita y terminarla.',
+    icono: Icons.route_outlined,
+    ruta: Rutas.ruta,
+    permisos: PermisosDe.ruta,
+  ),
+  EntradaDelMenu(
     titulo: 'Bandeja del día',
     descripcion: 'Los pedidos que tienes que entregar hoy.',
     icono: Icons.inbox_outlined,
