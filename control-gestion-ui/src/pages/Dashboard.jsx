@@ -1,121 +1,168 @@
-import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Boxes, ClipboardList, House, Store, TrendingUp, TriangleAlert, Wallet } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert } from '../components/ui';
+import { Card, Cargando, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import { useAuth } from '../context/auth';
+import { PANTALLAS, PERMISOS } from '../context/permisos';
+import { ahoraEnBolivia, formatearCantidad, formatearDia, formatearMonto } from '../utils/formato';
 
+// Los colores de los gráficos, como en Reportes (docs/diseno.md): la barra en marca-600 y la grilla y los ejes en gris.
+const COLOR_BARRA = '#2a5899';
+const COLOR_EJE = '#475569';
+const COLOR_GRILLA = '#e2e8f0';
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+  'noviembre', 'diciembre'];
+
+const { cobranzas, reportes, seguridad } = PERMISOS;
+const montoCorto = new Intl.NumberFormat('es-BO', { notation: 'compact', maximumFractionDigits: 1 });
+
+/**
+ * Inicio (7.3.31, paso 2.4): el mes en curso de Bolivia, con la cartera del usuario (GET /reportes/tablero). Cada
+ * indicador se ve si el usuario puede abrir una pantalla con ese dato, y al tocarlo la abre; quien no ve ninguno (el
+ * administrador del sistema) no pide el tablero.
+ */
 export default function Dashboard() {
-  // El mes en curso de Bolivia y la cartera del usuario. Su aspecto se rehace en la tarea 18.
+  const { tiene } = useAuth();
   const [tablero, setTablero] = useState(null);
   const [error, setError] = useState('');
+  const [reintentando, setReintentando] = useState(false);
 
-  useEffect(() => {
-    api.get('/reportes/tablero')
-      .then(r => setTablero(r.data))
-      .catch((err) => setError(mensajeDeError(err, 'No se pudieron cargar los datos del tablero.')));
-  }, []);
-  const kpis = tablero;
-  const ventas = tablero;
+  // La primera pantalla de la lista que el usuario puede abrir, o undefined si no puede abrir ninguna.
+  const destino = (...opciones) => opciones.find(([, permisos]) => tiene(...permisos))?.[0];
+  // Reportes, en la pestaña de ese dato; si no, la lista.
+  const ventas = destino(['/reportes', [reportes.ventasPorZona]], ['/reportes?pestana=promotores', [reportes.ventasPorPromotor]],
+    ['/hojas-pedido', PANTALLAS.hojasPedido]);
+  const indicadores = [
+    { etiqueta: 'Clientes activos', icono: Store, valor: (t) => formatearCantidad(t.clientesActivos),
+      a: destino(['/clientes', PANTALLAS.clientes], ['/clientes/mapa', PANTALLAS.mapaClientes]) },
+    { etiqueta: 'Hojas de pedido del mes', icono: ClipboardList, valor: (t) => formatearCantidad(t.hojasDelMes), a: ventas },
+    { etiqueta: 'Ventas del mes', icono: TrendingUp, valor: (t) => formatearMonto(t.ventasDelMes), a: ventas },
+    { etiqueta: 'Por cobrar', icono: Wallet, valor: (t) => formatearMonto(t.porCobrar),
+      a: destino(['/cobranzas', PANTALLAS.cobranzas], ['/reportes?pestana=cobranzas', [cobranzas.generarReporte]]) },
+    { etiqueta: 'Eventos pendientes', icono: TriangleAlert, valor: (t) => formatearCantidad(t.eventosPendientes),
+      a: destino(['/eventos', PANTALLAS.eventos], ['/eventos/mapa', PANTALLAS.mapaEventos],
+        ['/reportes/eventos', PANTALLAS.reporteEventos]) },
+    { etiqueta: 'Productos bajo el mínimo', icono: Boxes, valor: (t) => formatearCantidad(t.stockBajo),
+      a: destino(['/inventario', PANTALLAS.inventario], ['/reportes?pestana=inventario', [reportes.inventario]]) },
+  ].filter((i) => i.a);
+  const hayIndicadores = indicadores.length > 0;
+  const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
+
+  const pedir = useCallback(() => api.get('/reportes/tablero')
+    .then(({ data }) => { setTablero(data); setError(''); })
+    .catch((err) => setError(mensajeDeError(err, 'No se pudo cargar el resumen del mes.')))
+    .finally(() => setReintentando(false)), []);
+
+  useEffect(() => { if (hayIndicadores) pedir(); }, [hayIndicadores, pedir]);
+
+  const [anio, mes] = ahoraEnBolivia().split('-').map(Number);
+  const subtitulo = `Las ventas y los pendientes de ${MESES[mes - 1]} de ${anio}${veCarteraCompleta ? '' : ', de tu cartera'}.`;
+
+  if (!hayIndicadores) return (
+    <Layout>
+      <PageHeader title="Inicio" />
+      <Card><EstadoVacio titulo="Elige una opción del menú para empezar." icono={House} /></Card>
+    </Layout>
+  );
+
+  let contenido;
+  if (!tablero && error) contenido = (
+    <Card className="p-0!">
+      <ErrorDeCarga mensaje={error} reintentando={reintentando} onReintentar={() => { setReintentando(true); pedir(); }} />
+    </Card>
+  );
+  else if (!tablero) contenido = <Card><Cargando texto="Cargando el resumen…" /></Card>;
+  else contenido = (
+    <>
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 mb-6">
+        {indicadores.map(({ etiqueta, icono: Icono, valor, a }) => (
+          <li key={etiqueta}>
+            <Link to={a}
+              className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-tarjeta transition-colors hover:border-marca-300 hover:bg-marca-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-marca-50 text-marca-600">
+                <Icono size={20} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm text-slate-600">{etiqueta}</span>
+                <span className="block text-2xl font-semibold text-slate-900 tabular-nums">{valor(tablero)}</span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {ventas && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {veCarteraCompleta && (
+            <Grafico titulo="Ventas por promotor" datos={tablero.porPromotor} nombre="promotor" horizontal />
+          )}
+          <Grafico titulo="Productos más vendidos" datos={tablero.porProducto} nombre="producto" horizontal />
+          <Grafico titulo="Ventas por día" datos={tablero.porDia.map((d) => ({ ...d, dia: formatearDia(d.fecha).slice(0, 5) }))}
+            nombre="dia" />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold text-slate-900">Inicio</h2>
-        <p className="text-slate-500 text-sm mt-1">Resumen general del sistema</p>
-      </div>
-
-      {error && <div className="mb-6"><Alert type="error">{error}</Alert></div>}
-
-      {/* KPIs principales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <KpiCard label="Clientes activos"   value={kpis?.clientesActivos ?? '—'}     color="blue" />
-        <KpiCard label="HPs este mes"       value={kpis?.hojasDelMes ?? '—'}         color="emerald" />
-        <KpiCard label="Ventas del mes"     value={kpis ? `Bs ${kpis.ventasDelMes?.toFixed(0)}` : '—'} color="amber" />
-        <KpiCard label="Por cobrar"         value={kpis ? `Bs ${kpis.porCobrar?.toFixed(0)}` : '—'} color="red" />
-        <KpiCard label="Eventos pendientes" value={kpis?.eventosPendientes ?? '—'}    color="purple" />
-        <KpiCard label="Stock bajo mínimo"  value={kpis?.stockBajo ?? '—'}          color="orange" />
-      </div>
-
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 gap-6 mb-6">
-        {/* Ventas por promotor */}
-        <ChartCard title="Ventas por Promotor (mes actual)">
-          {ventas?.porPromotor?.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={ventas.porPromotor} margin={{ left: -10 }}>
-                <XAxis dataKey="promotor" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => `Bs ${v.toFixed(2)}`} />
-                <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Total" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart />}
-        </ChartCard>
-      </div>
-
-      {/* Top productos + ventas por día */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Top productos más vendidos (mes actual)">
-          {ventas?.porProducto?.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={ventas.porProducto.slice(0, 8)} layout="vertical" margin={{ left: 10 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis dataKey="producto" type="category" tick={{ fontSize: 10 }} width={110} />
-                <Tooltip formatter={(v) => `Bs ${v.toFixed(2)}`} />
-                <Bar dataKey="total" fill="#10b981" radius={[0, 4, 4, 0]} name="Total" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart />}
-        </ChartCard>
-
-        <ChartCard title="Tendencia de ventas (mes actual)">
-          {ventas?.porDia?.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={ventas.porDia} margin={{ left: -10 }}>
-                <XAxis dataKey="fecha" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => `Bs ${v.toFixed(2)}`} />
-                <Bar dataKey="total" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="Ventas" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <EmptyChart />}
-        </ChartCard>
-      </div>
+      <PageHeader title="Inicio" subtitle={subtitulo} />
+      {contenido}
     </Layout>
   );
 }
 
-function KpiCard({ label, value, color }) {
-  const styles = {
-    blue:   'bg-blue-50   border-blue-100   text-blue-700',
-    emerald:'bg-emerald-50 border-emerald-100 text-emerald-700',
-    amber:  'bg-amber-50  border-amber-100  text-amber-700',
-    red:    'bg-red-50    border-red-100    text-red-700',
-    purple: 'bg-purple-50 border-purple-100 text-purple-700',
-    orange: 'bg-orange-50 border-orange-100 text-orange-700',
-  };
+function Globo({ active, payload, nombre }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
   return (
-    <div className={`rounded-xl border p-4 ${styles[color]}`}>
-      <p className="text-xs font-medium uppercase tracking-wide opacity-60 leading-tight mb-1">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-tarjeta">
+      <p className="font-medium text-slate-900">{d[nombre]}</p>
+      <p className="tabular-nums text-slate-700">{formatearMonto(d.total)}</p>
     </div>
   );
 }
 
-function ChartCard({ title, children }) {
+/** Un gráfico de barras de una sola serie (el total vendido), con su lista para el lector de pantalla. */
+function Grafico({ titulo, datos, nombre, horizontal = false }) {
+  const eje = { tick: { fontSize: 12, fill: COLOR_EJE }, axisLine: false, tickLine: false };
+  const monto = { tickFormatter: (v) => `Bs ${montoCorto.format(v)}` };
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
-      <h3 className="text-sm font-semibold text-slate-700 mb-4">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function EmptyChart() {
-  return (
-    <div className="h-[220px] flex items-center justify-center text-slate-400 text-sm">
-      Sin datos disponibles
-    </div>
+    <Card>
+      <h3 className="text-sm font-semibold text-slate-900 mb-4">{titulo}</h3>
+      {datos.length === 0 ? (
+        <p className="py-16 text-center text-sm text-slate-600">Todavía no hay ventas este mes.</p>
+      ) : (
+        <figure aria-label={titulo}>
+          <div aria-hidden="true">
+            <ResponsiveContainer width="100%" height={horizontal ? Math.max(220, datos.length * 40) : 240}>
+              {horizontal ? (
+                <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }} barCategoryGap={8}>
+                  <CartesianGrid horizontal={false} stroke={COLOR_GRILLA} />
+                  <XAxis type="number" {...eje} {...monto} />
+                  <YAxis type="category" dataKey={nombre} width={140} {...eje} />
+                  <Tooltip content={<Globo nombre={nombre} />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="total" fill={COLOR_BARRA} radius={[0, 4, 4, 0]} maxBarSize={28} />
+                </BarChart>
+              ) : (
+                <BarChart data={datos} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+                  <CartesianGrid vertical={false} stroke={COLOR_GRILLA} />
+                  <XAxis dataKey={nombre} interval="preserveStartEnd" {...eje} />
+                  <YAxis width={72} {...eje} {...monto} />
+                  <Tooltip content={<Globo nombre={nombre} />} cursor={{ fill: '#f1f5f9' }} />
+                  <Bar dataKey="total" fill={COLOR_BARRA} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+          <ul className="sr-only">
+            {datos.map((d) => <li key={d[nombre]}>{d[nombre]}: {formatearMonto(d.total)}</li>)}
+          </ul>
+        </figure>
+      )}
+    </Card>
   );
 }
