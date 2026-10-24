@@ -78,7 +78,8 @@ class MosaicosDeOpenStreetMap extends ConsumerWidget {
   }
 }
 
-/// "© OpenStreetMap", que la licencia de los mosaicos pide visible. [alineacion]: la esquina donde va.
+/// "© OpenStreetMap", que la licencia de los mosaicos pide visible. [alineacion]: la esquina donde va. Con la letra al
+/// 200 % tapaba una franja del mapa: crece hasta 1,3 veces, y sigue legible.
 class AtribucionDeOpenStreetMap extends StatelessWidget {
   const AtribucionDeOpenStreetMap({super.key, this.alineacion = Alignment.bottomRight});
 
@@ -87,11 +88,15 @@ class AtribucionDeOpenStreetMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Align(
     alignment: alineacion,
-    child: const ColoredBox(
-      color: Color(0xE6FFFFFF),
+    child: ColoredBox(
+      color: const Color(0xE6FFFFFF),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text('© OpenStreetMap', style: TextStyle(fontSize: 14, color: Color(0xFF0369A1))),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          '© OpenStreetMap',
+          textScaler: MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 1.3),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF0369A1)),
+        ),
       ),
     ),
   );
