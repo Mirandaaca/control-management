@@ -9,7 +9,7 @@ namespace ControlGestion.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CobranzasController(CobranzaService cobranzas) : ControllerBase
+public class CobranzasController(CobranzaService cobranzas, ReporteCobranzasService reporte) : ControllerBase
 {
     [HttpGet]
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
@@ -20,6 +20,19 @@ public class CobranzasController(CobranzaService cobranzas) : ControllerBase
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
     public async Task<ActionResult<ResumenCobranzasDTO>> GetResumen([FromQuery] FiltrosCobranzaDTO filtros) =>
         await cobranzas.ResumenAsync(filtros);
+
+    [HttpGet("reporte")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
+    public async Task<ActionResult<ReporteCobranzasDTO>> GetReporte([FromQuery] FiltrosCobranzaDTO filtros) =>
+        await reporte.GenerarAsync(filtros);
+
+    [HttpGet("reporte/excel")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
+    public async Task<IActionResult> GetReporteExcel([FromQuery] FiltrosCobranzaDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.ExcelAsync(filtros);
+        return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
+    }
 
     [HttpGet("{id}")]
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]

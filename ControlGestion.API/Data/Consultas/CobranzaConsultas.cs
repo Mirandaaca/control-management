@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using ControlGestion.API.Configuracion;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
@@ -22,6 +23,38 @@ public static class CobranzaConsultas
         var t = texto.Trim();
         return cobranzas.Where(c => c.Numero.Contains(t) || c.Cliente!.NombreCompleto.Contains(t) || c.Cliente.Codigo.Contains(t));
     }
+
+    /// <summary>Las que todavía se deben: reciben pagos y cuentan en el saldo del cliente.</summary>
+    public static readonly EstadoCobranza[] Abiertas = [EstadoCobranza.Pendiente, EstadoCobranza.Parcial, EstadoCobranza.Vencida];
+
+    /// <summary>Los filtros de la lista (3.2) y del reporte (3.3). Las fechas son de emisión, por día de Bolivia.</summary>
+    public static IQueryable<Cobranza> Filtrar(this IQueryable<Cobranza> cobranzas, FiltrosCobranzaDTO filtros)
+    {
+        var consulta = cobranzas.Buscar(filtros.Buscar);
+
+        if (filtros.ClienteId.HasValue) consulta = consulta.Where(c => c.ClienteId == filtros.ClienteId);
+        if (filtros.Estado.HasValue) consulta = consulta.Where(c => c.Estado == filtros.Estado);
+        if (filtros.PorCobrar) consulta = consulta.Where(c => Abiertas.Contains(c.Estado));
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
+        if (filtros.Desde is { } desde)
+        {
+            var inicio = HoraBolivia.InicioDelDiaUtc(desde);
+            consulta = consulta.Where(c => c.FechaEmision >= inicio);
+        }
+        if (filtros.Hasta is { } hasta)
+        {
+            var fin = HoraBolivia.FinDelDiaUtc(hasta);
+            consulta = consulta.Where(c => c.FechaEmision < fin);
+        }
+        return consulta;
+    }
+
+    /// <summary>
+    /// Días de calendario de Bolivia desde el día del vencimiento, como "diasDesdeHoy" del panel: una deuda que venció
+    /// ayer a las 23:30 lleva 1 día de mora. Solo una Vencida tiene mora.
+    /// </summary>
+    public static int? DiasDeMora(EstadoCobranza estado, DateTime vencimientoUtc, DateOnly hoy) =>
+        estado == EstadoCobranza.Vencida ? hoy.DayNumber - HoraBolivia.DiaDe(vencimientoUtc).DayNumber : null;
 
     // Las proyecciones se traducen a SQL: la base devuelve solo estas columnas, no la entidad completa.
     public static readonly Expression<Func<Cobranza, CobranzaResumenDTO>> ComoResumen = c => new CobranzaResumenDTO(

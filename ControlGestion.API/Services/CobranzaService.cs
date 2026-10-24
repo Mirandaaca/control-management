@@ -30,45 +30,20 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
         return new Pagina<CobranzaResumenDTO>(conMora, total, filtros.Pagina, filtros.Tamano);
     }
 
-    /// <summary>
-    /// Días de calendario de Bolivia desde el día del vencimiento, como "diasDesdeHoy" del panel: una deuda que venció
-    /// ayer a las 23:30 lleva 1 día de mora. Solo una Vencida tiene mora.
-    /// </summary>
     private int? DiasDeMora(EstadoCobranza estado, DateTime vencimientoUtc) =>
-        estado == EstadoCobranza.Vencida
-            ? HoraBolivia.Hoy(reloj).DayNumber - HoraBolivia.DiaDe(vencimientoUtc).DayNumber
-            : null;
+        CobranzaConsultas.DiasDeMora(estado, vencimientoUtc, HoraBolivia.Hoy(reloj));
 
     /// <summary>Los indicadores de la pantalla (3.2), con los mismos filtros que la lista.</summary>
     public async Task<ResumenCobranzasDTO> ResumenAsync(FiltrosCobranzaDTO filtros)
     {
-        var abiertas = Filtrar(filtros).Where(c => EstadosAbiertos.Contains(c.Estado));
+        var abiertas = Filtrar(filtros).Where(c => CobranzaConsultas.Abiertas.Contains(c.Estado));
         return new ResumenCobranzasDTO(
             await abiertas.SumAsync(c => c.MontoTotal - c.MontoPagado),
             await abiertas.CountAsync(c => c.Estado != EstadoCobranza.Vencida),
             await abiertas.CountAsync(c => c.Estado == EstadoCobranza.Vencida));
     }
 
-    private IQueryable<Cobranza> Filtrar(FiltrosCobranzaDTO filtros)
-    {
-        var consulta = db.Cobranzas.VisiblesPara(usuario).Buscar(filtros.Buscar);
-
-        if (filtros.ClienteId.HasValue) consulta = consulta.Where(c => c.ClienteId == filtros.ClienteId);
-        if (filtros.Estado.HasValue) consulta = consulta.Where(c => c.Estado == filtros.Estado);
-        if (filtros.PorCobrar) consulta = consulta.Where(c => EstadosAbiertos.Contains(c.Estado));
-        if (!string.IsNullOrEmpty(filtros.PromotorId)) consulta = consulta.Where(c => c.PromotorId == filtros.PromotorId);
-        if (filtros.Desde is { } desde)
-        {
-            var inicio = HoraBolivia.InicioDelDiaUtc(desde);
-            consulta = consulta.Where(c => c.FechaEmision >= inicio);
-        }
-        if (filtros.Hasta is { } hasta)
-        {
-            var fin = HoraBolivia.FinDelDiaUtc(hasta);
-            consulta = consulta.Where(c => c.FechaEmision < fin);
-        }
-        return consulta;
-    }
+    private IQueryable<Cobranza> Filtrar(FiltrosCobranzaDTO filtros) => db.Cobranzas.VisiblesPara(usuario).Filtrar(filtros);
 
     public async Task<CobranzaDetalleDTO> ObtenerAsync(int id)
     {
@@ -307,9 +282,9 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
     private async Task RecalcularSaldoDelClienteAsync(Cobranza cambiada)
     {
         var deLasOtras = await db.Cobranzas
-            .Where(c => c.ClienteId == cambiada.ClienteId && c.Id != cambiada.Id && EstadosAbiertos.Contains(c.Estado))
+            .Where(c => c.ClienteId == cambiada.ClienteId && c.Id != cambiada.Id && CobranzaConsultas.Abiertas.Contains(c.Estado))
             .SumAsync(c => c.MontoTotal - c.MontoPagado);
-        var deEsta = EstadosAbiertos.Contains(cambiada.Estado) ? cambiada.MontoTotal - cambiada.MontoPagado : 0m;
+        var deEsta = CobranzaConsultas.Abiertas.Contains(cambiada.Estado) ? cambiada.MontoTotal - cambiada.MontoPagado : 0m;
 
         cambiada.Cliente!.SaldoPendiente = deLasOtras + deEsta;
     }
@@ -317,9 +292,6 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
     // Lleva su código y, además, el campo: así el error sale debajo del monto (8.6.12), como el del descuento.
     private static ReglaDeNegocioException MontoInvalido(string mensaje) =>
         new("monto_invalido", mensaje, new Dictionary<string, string[]> { ["monto"] = [mensaje] });
-
-    private static readonly EstadoCobranza[] EstadosAbiertos =
-        [EstadoCobranza.Pendiente, EstadoCobranza.Parcial, EstadoCobranza.Vencida];
 
     // Devuelve el pago si la clave ya se usó en esta cobranza, null si es nueva, y 409 si se usó en otra.
     private async Task<PagoRegistradoDTO?> PagoYaRegistradoAsync(int cobranzaId, Guid clave)

@@ -114,59 +114,6 @@ public class ReportesController : ControllerBase
         });
     }
 
-    // ─── Cobranzas resumen ────────────────────────────────────────────────────
-
-    [HttpGet("cobranzas")]
-    [Permiso(Permisos.Cobranzas.GenerarReporte)]
-    public async Task<IActionResult> ResumenCobranzas(
-        [FromQuery] DateTime? desde,
-        [FromQuery] DateTime? hasta)
-    {
-        desde ??= DateTime.UtcNow.AddMonths(-3);
-        hasta = (hasta ?? DateTime.UtcNow).Date.AddDays(1).AddTicks(-1);
-
-        var cobranzas = await _db.Cobranzas
-            .Include(c => c.Cliente)
-            .Include(c => c.Promotor)
-            .Where(c => c.FechaEmision >= desde && c.FechaEmision <= hasta)
-            .ToListAsync();
-
-        var porEstado = cobranzas
-            .GroupBy(c => c.Estado)
-            .Select(g => new
-            {
-                Estado = g.Key.ToString(),
-                Cantidad = g.Count(),
-                Monto = g.Sum(c => c.MontoTotal),
-                Pendiente = g.Sum(c => c.MontoTotal - c.MontoPagado)
-            })
-            .ToList();
-
-        var vencidas = cobranzas
-            .Where(c => c.Estado == EstadoCobranza.Vencida)
-            .Select(c => new
-            {
-                c.Id, c.Numero,
-                Cliente = c.Cliente?.NombreCompleto,
-                Promotor = c.Promotor?.NombreCompleto,
-                c.MontoTotal,
-                SaldoPendiente = c.MontoTotal - c.MontoPagado,
-                c.FechaVencimiento,
-                DiasVencida = (int)(DateTime.UtcNow - c.FechaVencimiento).TotalDays
-            })
-            .OrderByDescending(c => c.DiasVencida)
-            .ToList();
-
-        return Ok(new
-        {
-            totalEmitido = cobranzas.Sum(c => c.MontoTotal),
-            totalCobrado = cobranzas.Sum(c => c.MontoPagado),
-            totalPendiente = cobranzas.Sum(c => c.MontoTotal - c.MontoPagado),
-            porEstado,
-            vencidas
-        });
-    }
-
     // ─── Inventario ───────────────────────────────────────────────────────────
 
     [HttpGet("inventario")]
@@ -351,76 +298,6 @@ public class ReportesController : ControllerBase
         ms.Seek(0, SeekOrigin.Begin);
 
         var fileName = $"ventas_{desde:yyyyMMdd}_{hasta:yyyyMMdd}.xlsx";
-        return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-    }
-
-    [HttpGet("export/cobranzas")]
-    [Permiso(Permisos.Cobranzas.GenerarReporte)]
-    public async Task<IActionResult> ExportCobranzas(
-        [FromQuery] DateTime? desde,
-        [FromQuery] DateTime? hasta)
-    {
-        desde ??= DateTime.UtcNow.AddMonths(-3);
-        hasta ??= DateTime.UtcNow;
-
-        hasta = (hasta ?? DateTime.UtcNow).Date.AddDays(1).AddTicks(-1);
-
-        var cobranzas = await _db.Cobranzas
-            .Include(c => c.Cliente)
-            .Include(c => c.Promotor)
-            .Include(c => c.Pagos)
-            .Where(c => c.FechaEmision >= desde && c.FechaEmision <= hasta)
-            .OrderByDescending(c => c.FechaEmision)
-            .ToListAsync();
-
-        using var wb = new XLWorkbook();
-        var ws = wb.Worksheets.Add("Cobranzas");
-
-        var headers = new[] { "Número", "Fecha Emisión", "Vencimiento", "Cliente", "Promotor", "Monto Total", "Pagado", "Saldo", "Estado", "Días Vencida" };
-        for (int i = 0; i < headers.Length; i++)
-        {
-            ws.Cell(1, i + 1).Value = headers[i];
-            ws.Cell(1, i + 1).Style.Font.Bold = true;
-            ws.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1e3a5f");
-            ws.Cell(1, i + 1).Style.Font.FontColor = XLColor.White;
-        }
-
-        int row = 2;
-        foreach (var c in cobranzas)
-        {
-            var saldo = c.MontoTotal - c.MontoPagado;
-            var diasVencida = c.Estado == EstadoCobranza.Vencida
-                ? (int)(DateTime.UtcNow - c.FechaVencimiento).TotalDays : 0;
-
-            ws.Cell(row, 1).Value = c.Numero;
-            ws.Cell(row, 2).Value = c.FechaEmision.ToLocalTime().ToString("dd/MM/yyyy");
-            ws.Cell(row, 3).Value = c.FechaVencimiento.ToLocalTime().ToString("dd/MM/yyyy");
-            ws.Cell(row, 4).Value = c.Cliente?.NombreCompleto ?? "—";
-            ws.Cell(row, 5).Value = c.Promotor?.NombreCompleto ?? "—";
-            ws.Cell(row, 6).Value = c.MontoTotal;
-            ws.Cell(row, 7).Value = c.MontoPagado;
-            ws.Cell(row, 8).Value = saldo;
-            ws.Cell(row, 9).Value = c.Estado.ToString();
-            ws.Cell(row, 10).Value = diasVencida;
-
-            for (int col = 6; col <= 8; col++)
-                ws.Cell(row, col).Style.NumberFormat.Format = "#,##0.00";
-
-            if (c.Estado == EstadoCobranza.Vencida)
-                for (int col = 1; col <= 10; col++)
-                    ws.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#fef2f2");
-            else if (row % 2 == 0)
-                for (int col = 1; col <= 10; col++)
-                    ws.Cell(row, col).Style.Fill.BackgroundColor = XLColor.FromHtml("#f8fafc");
-
-            row++;
-        }
-        ws.Columns().AdjustToContents();
-
-        using var ms = new MemoryStream();
-        wb.SaveAs(ms);
-
-        var fileName = $"cobranzas_{desde:yyyyMMdd}_{hasta:yyyyMMdd}.xlsx";
         return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 }

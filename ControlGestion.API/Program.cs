@@ -111,6 +111,7 @@ builder.Services.AddScoped<RegistroDeBitacora>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
 builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteCobranzasService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
