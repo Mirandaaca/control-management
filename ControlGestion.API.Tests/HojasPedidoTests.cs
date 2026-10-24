@@ -23,6 +23,23 @@ public class HojasPedidoTests(ApiDePrueba api)
             detalles = new[] { new { productoId, cantidad = 1 } }
         });
 
+    [Fact]
+    public async Task Una_HP_con_el_total_en_cero_o_menos_no_se_guarda_y_lo_dice_en_Bs()
+    {
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var productoId = await operador.CrearProductoAsync(8m);
+
+        var problema = await (await operador.PostAsJsonAsync("/api/hojas-pedido", new
+        {
+            clienteId, latitud = -17.7833m, longitud = -63.1821m, tipoVenta = 0, descuento = 1000m,
+            detalles = new[] { new { productoId, cantidad = 4 } }
+        })).ProblemaAsync(400, "total_invalido");
+
+        Assert.Equal("El total de la hoja de pedido debe ser mayor a cero: el subtotal es Bs 32,00 y el descuento, Bs 1.000,00.",
+            problema.GetProperty("detail").GetString());
+    }
+
     /// <summary>Dos promotores, cada uno con una zona, un cliente y una HP de ese cliente.</summary>
     private async Task<(UsuarioDePrueba PromotorA, int HojaDeA, int HojaDeB)> DosCarterasAsync(HttpClient operador)
     {

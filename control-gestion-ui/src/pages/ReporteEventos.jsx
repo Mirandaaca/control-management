@@ -11,6 +11,7 @@ import {
   Alert, BarraDeFiltros, Btn, Cargando, ErrorDeCarga, EstadoVacio, Indicador, Input, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { diaEnBolivia, formatearFecha } from '../utils/formato';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
@@ -23,8 +24,7 @@ const cuantos = (n) => (n === 1 ? '1 evento' : `${n} eventos`);
  */
 export default function ReporteEventos() {
   const [reporte, setReporte] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');

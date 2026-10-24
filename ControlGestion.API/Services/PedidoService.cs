@@ -158,7 +158,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         pedido.Total = pedido.SubTotal - pedido.Descuento;
         if (pedido.Total <= 0)
             throw new ReglaDeNegocioException("total_invalido",
-                $"El total del pedido debe ser mayor a cero. Subtotal: {pedido.SubTotal:F2}, Descuento: {pedido.Descuento:F2}, Total: {pedido.Total:F2}");
+                $"El total del pedido debe ser mayor a cero: el subtotal es {FormatoBolivia.Monto(pedido.SubTotal)} y el descuento, {FormatoBolivia.Monto(pedido.Descuento)}.");
 
         pedido.FechaEntregaEstimada = entrega;
         pedido.DireccionEntrega = dto.DireccionEntrega.Trim();

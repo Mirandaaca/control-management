@@ -175,7 +175,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
         hp.Total = hp.SubTotal - hp.Descuento;
         if (hp.Total <= 0)
             throw new ReglaDeNegocioException("total_invalido",
-                $"El total de la HP debe ser mayor a cero. Subtotal: {hp.SubTotal:F2}, Descuento: {hp.Descuento:F2}, Total: {hp.Total:F2}");
+                $"El total de la hoja de pedido debe ser mayor a cero: el subtotal es {FormatoBolivia.Monto(hp.SubTotal)} y el descuento, {FormatoBolivia.Monto(hp.Descuento)}.");
         return hp;
     }
 

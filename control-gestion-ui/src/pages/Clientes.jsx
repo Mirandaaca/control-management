@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { diasDesdeHoy, formatearFecha, formatearMonto } from '../utils/formato';
 
@@ -59,10 +60,12 @@ export default function Clientes() {
   const puedeEditar = tiene(ventas.editarCliente);
   const puedeAsignarEstado = tiene(ventas.asignarEstadoCliente);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
+  // La ubicación de un cliente que ya existe la actualiza el promotor desde la app (7.3.6, ext. 3.1b; 7.3.8, paso 3).
+  // Al registrar, la secretaria sí la marca en el mapa (7.3.6, ext. 2.1a).
+  const puedeCambiarUbicacion = tiene(ventas.capturarUbicacion);
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [zonas, setZonas] = useState([]);
   const [estados, setEstados] = useState([]);
@@ -384,7 +387,9 @@ export default function Clientes() {
         onCerrar={() => setFormulario(null)}
         ancho="lg"
         titulo={formulario?.id ? 'Editar cliente' : 'Nuevo cliente'}
-        descripcion="El promotor del cliente es el de su zona. Sin la ubicación marcada no se puede guardar."
+        descripcion={formulario?.id && !puedeCambiarUbicacion
+          ? 'El promotor del cliente es el de su zona.'
+          : 'El promotor del cliente es el de su zona. Sin la ubicación marcada no se puede guardar.'}
         pie={(
           <>
             <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
@@ -430,29 +435,37 @@ export default function Clientes() {
             <Input label="Dirección" value={formulario.direccionTexto} error={erroresCampo.direccionTexto} autoComplete="off"
               placeholder="Calle, número y una referencia…"
               onChange={(e) => setFormulario({ ...formulario, direccionTexto: e.target.value })} />
-            <div>
-              <p className="text-sm font-medium text-slate-700 mb-1">Ubicación</p>
-              <MapaUbicacion
-                valor={formulario.ubicacion}
-                etiqueta="Mapa: haz clic donde está el cliente para marcar su ubicación"
-                onCambiar={(ubicacion) => {
-                  setFormulario((f) => ({ ...f, ubicacion }));
-                  quitarErrorDeUbicacion();
-                }}
-              />
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-slate-600 tabular-nums" aria-live="polite">
-                  {formulario.ubicacion
-                    ? `Marcada en ${Number(formulario.ubicacion.latitud).toFixed(6)}, ${Number(formulario.ubicacion.longitud).toFixed(6)}.`
-                    : 'Haz clic en el mapa donde está el cliente.'}
-                </p>
-                <Btn variant="outline" onClick={usarMiUbicacion} disabled={buscandoGps}>
-                  {buscandoGps ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <LocateFixed size={14} aria-hidden="true" />}
-                  Usar mi ubicación
-                </Btn>
+            {formulario.id && !puedeCambiarUbicacion ? (
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">Ubicación</p>
+                <MapaUbicacion valor={formulario.ubicacion} />
+                <p className="mt-2 text-sm text-slate-600">La ubicación la actualiza el promotor desde la app.</p>
               </div>
-              {erroresCampo.latitud && <Alert type="error" className="mt-2">{erroresCampo.latitud}</Alert>}
-            </div>
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-1">Ubicación</p>
+                <MapaUbicacion
+                  valor={formulario.ubicacion}
+                  etiqueta="Mapa: haz clic donde está el cliente para marcar su ubicación"
+                  onCambiar={(ubicacion) => {
+                    setFormulario((f) => ({ ...f, ubicacion }));
+                    quitarErrorDeUbicacion();
+                  }}
+                />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-slate-600 tabular-nums" aria-live="polite">
+                    {formulario.ubicacion
+                      ? `Marcada en ${Number(formulario.ubicacion.latitud).toFixed(6)}, ${Number(formulario.ubicacion.longitud).toFixed(6)}.`
+                      : 'Haz clic en el mapa donde está el cliente.'}
+                  </p>
+                  <Btn variant="outline" onClick={usarMiUbicacion} disabled={buscandoGps}>
+                    {buscandoGps ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <LocateFixed size={14} aria-hidden="true" />}
+                    Usar mi ubicación
+                  </Btn>
+                </div>
+                {erroresCampo.latitud && <Alert type="error" className="mt-2">{erroresCampo.latitud}</Alert>}
+              </div>
+            )}
           </form>
         )}
       </Modal>

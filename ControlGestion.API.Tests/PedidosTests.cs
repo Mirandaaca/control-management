@@ -243,8 +243,11 @@ public class PedidosTests(ApiDePrueba api)
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
 
         // T6.10: un descuento de 1000 sobre 32 dejaba el total en −968.
-        await (await RegistrarAsync(operador, clienteId, Linea(await operador.CrearProductoAsync(8m), cantidad: 4), descuento: 1000))
-            .ProblemaAsync(400, "total_invalido");
+        var problema = await (await RegistrarAsync(operador, clienteId, Linea(await operador.CrearProductoAsync(8m), cantidad: 4),
+            descuento: 1000)).ProblemaAsync(400, "total_invalido");
+        // En Bs y con coma, como los demás errores (aviso de la tarea 13b).
+        Assert.Equal("El total del pedido debe ser mayor a cero: el subtotal es Bs 32,00 y el descuento, Bs 1.000,00.",
+            problema.GetProperty("detail").GetString());
     }
 
     [Fact]

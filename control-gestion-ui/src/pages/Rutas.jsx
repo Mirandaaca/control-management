@@ -87,7 +87,9 @@ function Seguimiento({ ruta, zona, puntos, onEliminar }) {
           {ruta.visitas.map((v) => (
             <li key={v.id} className="flex items-center gap-2.5 text-sm">
               <Pastilla orden={v.orden} resultado={v.resultado} ancho />
-              <span className="min-w-0 flex-1 truncate text-slate-900">{v.cliente.nombreCompleto}</span>
+              <span className="min-w-0 flex-1 line-clamp-2 wrap-break-word text-slate-900" title={v.cliente.nombreCompleto}>
+                {v.cliente.nombreCompleto}
+              </span>
               <span className="shrink-0 text-slate-600 tabular-nums">{resultadoDeLaVisita(v)}</span>
             </li>
           ))}

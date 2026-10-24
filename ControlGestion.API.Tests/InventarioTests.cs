@@ -31,6 +31,8 @@ public class InventarioTests(ApiDePrueba api)
         var item = pagina.GetProperty("items")[0];
         Assert.Equal(productoId, item.GetProperty("productoId").GetInt32());
         Assert.Equal(0m, item.GetProperty("stockActual").GetDecimal());
+        // La secretaria ve el precio de venta al buscar productos (7.3.7, paso 2.2).
+        Assert.Equal(10m, item.GetProperty("precioVenta").GetDecimal());
         // Un stock igual al mínimo ya cuenta como bajo el mínimo.
         Assert.True(item.GetProperty("bajoMinimo").GetBoolean());
     }

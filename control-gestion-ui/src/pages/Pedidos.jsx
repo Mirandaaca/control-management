@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 
 const { pedidos: permisos, seguridad } = PERMISOS;
@@ -36,8 +37,7 @@ export default function Pedidos() {
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -248,12 +248,22 @@ export default function Pedidos() {
               </Td>
             )}
             <Td mono>{p.numero}</Td>
-            <Td><span className="font-medium">{p.cliente.nombreCompleto}</span></Td>
-            {veCarteraCompleta && <Td>{p.promotor?.nombreCompleto ?? '—'}</Td>}
+            <Td className="min-w-40">
+              <span className="font-medium line-clamp-2" title={p.cliente.nombreCompleto}>{p.cliente.nombreCompleto}</span>
+            </Td>
+            {veCarteraCompleta && (
+              <Td className="min-w-36">
+                <span className="line-clamp-2" title={p.promotor?.nombreCompleto}>{p.promotor?.nombreCompleto ?? '—'}</span>
+              </Td>
+            )}
             <Td className="whitespace-nowrap tabular-nums">{formatearFecha(p.fechaEntregaEstimada, { hora: true })}</Td>
-            <Td>{p.repartidor?.nombreCompleto ?? <span className="text-slate-600">Sin asignar</span>}</Td>
+            <Td className="min-w-36">
+              {p.repartidor
+                ? <span className="line-clamp-2" title={p.repartidor.nombreCompleto}>{p.repartidor.nombreCompleto}</span>
+                : <span className="text-slate-600 whitespace-nowrap">Sin asignar</span>}
+            </Td>
             <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(p.total)}</Td>
-            <Td><EstadoPedido estado={p.estado} /></Td>
+            <Td className="whitespace-nowrap"><EstadoPedido estado={p.estado} /></Td>
             <Td>
               <div className="flex items-center justify-end gap-1">
                 <Btn variant="ghost" onClick={() => abrirPedido(p.id, setDetalle)} aria-label={`Ver ${p.numero}`}>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Pestanas from '../components/reportes/Pestanas';
 import ReporteClientes from '../components/reportes/ReporteClientes';
@@ -27,16 +28,19 @@ const PESTANAS = [
 
 /**
  * Reportes (8.6.4). Cada pestaña se carga la primera vez que se abre y después queda montada, escondida: al volver a
- * ella, sus filtros siguen como estaban.
+ * ella, sus filtros siguen como estaban. La pestaña activa va en la URL ("?pestana=cobranzas"), como los filtros de las
+ * listas: al recargar o al volver atrás, sigue abierta.
  */
 export default function Reportes() {
   const { tiene } = useAuth();
   const visibles = PESTANAS.filter((p) => tiene(p.permiso));
-  const [activa, setActiva] = useState(() => visibles[0]?.id);
-  const [abiertas, setAbiertas] = useState(() => [visibles[0]?.id]);
+  const [parametros, setParametros] = useSearchParams();
+  // Una pestaña que no existe o que el usuario no puede abrir vuelve a la primera.
+  const activa = visibles.some((p) => p.id === parametros.get('pestana')) ? parametros.get('pestana') : visibles[0]?.id;
+  const [abiertas, setAbiertas] = useState(() => [activa]);
 
   const cambiar = (id) => {
-    setActiva(id);
+    setParametros(id === visibles[0]?.id ? {} : { pestana: id }, { replace: true });
     setAbiertas((a) => (a.includes(id) ? a : [...a, id]));
   };
   const barra = (accion) => <Pestanas pestanas={visibles} activa={activa} onCambiar={cambiar} accion={accion} />;
@@ -44,7 +48,7 @@ export default function Reportes() {
   return (
     <Layout>
       <PageHeader title="Reportes" subtitle="Análisis y exportación de datos" />
-      {visibles.filter((p) => abiertas.includes(p.id)).map(({ id, Reporte }) => (
+      {visibles.filter((p) => p.id === activa || abiertas.includes(p.id)).map(({ id, Reporte }) => (
         <div key={id} hidden={id !== activa}>
           {/* Solo la pestaña activa dibuja la barra: los botones llevan id. */}
           <Reporte barra={id === activa ? barra : () => null} panel={propsDelPanel(id)} />

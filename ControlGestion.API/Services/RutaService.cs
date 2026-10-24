@@ -17,7 +17,19 @@ namespace ControlGestion.API.Services;
 public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, RevisitaService revisitas,
     TimeProvider reloj)
 {
+    private static readonly TimeSpan DiasDeUbicaciones = TimeSpan.FromDays(30);
+
     private IQueryable<Ruta> Visibles => db.Rutas.VisiblesPara(usuario);
+
+    /// <summary>
+    /// Borra las ubicaciones del promotor de hace más de 30 días: el seguimiento solo usa la última de una ruta en curso
+    /// (7.3.20, paso 6.1), y son unas 3.000 filas al día con tres promotores. La llama el proceso diario.
+    /// </summary>
+    public Task<int> BorrarUbicacionesViejasAsync()
+    {
+        var antesDe = reloj.GetUtcNow().UtcDateTime - DiasDeUbicaciones;
+        return db.UbicacionesPromotor.Where(u => u.Fecha < antesDe).ExecuteDeleteAsync();
+    }
 
     public Task<List<RutaListaDTO>> ListarAsync(FiltrosRutaDTO filtros)
     {

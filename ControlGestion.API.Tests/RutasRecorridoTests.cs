@@ -4,6 +4,7 @@ using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services;
 using ControlGestion.API.Tests.Infraestructura;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,28 @@ namespace ControlGestion.API.Tests;
 public class RutasRecorridoTests(ApiDePrueba api)
 {
     private static readonly DateOnly Hoy = HoraBolivia.Hoy(TimeProvider.System);
+
+    [Fact]
+    public async Task El_proceso_diario_borra_las_ubicaciones_de_hace_mas_de_30_dias()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var ahora = DateTime.UtcNow;
+        UbicacionPromotor En(DateTime fecha) => new() { PromotorId = promotor.Id, Latitud = -17.78m, Longitud = -63.18m, Fecha = fecha };
+        var hace31 = En(ahora.AddDays(-31));
+        var hace29 = En(ahora.AddDays(-29));
+        var hoy = En(ahora.AddMinutes(-1));
+
+        using var scope = api.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.UbicacionesPromotor.AddRange(hace31, hace29, hoy);
+        await db.SaveChangesAsync();
+
+        await ActivatorUtilities.CreateInstance<RutaService>(scope.ServiceProvider, new RelojFijo(new DateTimeOffset(ahora)))
+            .BorrarUbicacionesViejasAsync();
+
+        var quedan = await db.UbicacionesPromotor.AsNoTracking().Where(u => u.PromotorId == promotor.Id).Select(u => u.Id).ToListAsync();
+        Assert.Equal(new[] { hace29.Id, hoy.Id }.Order(), quedan.Order());
+    }
 
     private sealed record Escenario(UsuarioDePrueba Promotor, HttpClient ComoPromotor, int RutaId, int[] Visitas, int[] Clientes)
         : IDisposable

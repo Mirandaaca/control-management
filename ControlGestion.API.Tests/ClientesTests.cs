@@ -69,6 +69,38 @@ public class ClientesTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task Cambiar_la_ubicacion_de_un_cliente_pide_capturar_la_ubicacion()
+    {
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
+        using var operador = await api.OperadorAsync();
+        using var admin = await api.AdminAsync();
+        var zonaId = await operador.CrearZonaAsync(promotor.Id);
+        var id = await operador.CrearClienteAsync(zonaId);
+        object Datos(decimal latitud) => new
+        {
+            nombreCompleto = "Cliente con ubicación", telefono = "77712345", direccionTexto = "Calle 1",
+            latitud, longitud = -63.1821m, zonaId
+        };
+
+        // La secretaria corrige los datos, pero la ubicación la actualiza el promotor (7.3.6, ext. 3.1b; 7.3.8, paso 3).
+        using var comoSecretaria = api.ClienteCon(secretaria.Token);
+        var problema = await (await comoSecretaria.PutAsJsonAsync($"/api/clientes/{id}", Datos(-17.7900m))).ProblemaAsync(403, "sin_permiso");
+        Assert.Equal("No tienes permiso para cambiar la ubicación del cliente.", problema.GetProperty("detail").GetString());
+        (await comoSecretaria.PutAsJsonAsync($"/api/clientes/{id}", Datos(-17.7833m))).EnsureSuccessStatusCode();
+
+        using var comoPromotor = api.ClienteCon(promotor.Token);
+        (await comoPromotor.PutAsJsonAsync($"/api/clientes/{id}", Datos(-17.7900m))).EnsureSuccessStatusCode();
+        Assert.Equal(-17.79m, (await (await operador.GetAsync($"/api/clientes/{id}")).LeerJsonAsync()).GetProperty("latitud").GetDecimal());
+
+        // Lo que cuenta es el permiso, no el rol.
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Ventas.EditarCliente, Permisos.Ventas.CapturarUbicacion,
+            Permisos.Seguridad.VerCarteraCompleta);
+        using var conPermiso = api.ClienteCon((await api.CrearUsuarioAsync(rol)).Token);
+        (await conPermiso.PutAsJsonAsync($"/api/clientes/{id}", Datos(-17.7950m))).EnsureSuccessStatusCode();
+    }
+
+    [Fact]
     public async Task Al_cambiar_el_promotor_de_una_zona_sus_clientes_pasan_al_nuevo()
     {
         var anterior = await api.CrearUsuarioAsync(Roles.Promotor);

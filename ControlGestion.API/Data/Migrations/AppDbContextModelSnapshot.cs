@@ -281,7 +281,8 @@ namespace ControlGestion.API.Data.Migrations
 
                     b.HasIndex("ClienteId");
 
-                    b.HasIndex("HojaPedidoId");
+                    b.HasIndex("HojaPedidoId")
+                        .IsUnique();
 
                     b.HasIndex("Numero")
                         .IsUnique();
@@ -1663,8 +1664,8 @@ namespace ControlGestion.API.Data.Migrations
                         .IsRequired();
 
                     b.HasOne("ControlGestion.API.Models.HojaPedido", "HojaPedido")
-                        .WithMany("Cobranzas")
-                        .HasForeignKey("HojaPedidoId")
+                        .WithOne("Cobranza")
+                        .HasForeignKey("ControlGestion.API.Models.Cobranza", "HojaPedidoId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("ControlGestion.API.Models.ApplicationUser", "Promotor")
@@ -2118,7 +2119,7 @@ namespace ControlGestion.API.Data.Migrations
 
             modelBuilder.Entity("ControlGestion.API.Models.HojaPedido", b =>
                 {
-                    b.Navigation("Cobranzas");
+                    b.Navigation("Cobranza");
 
                     b.Navigation("Detalles");
                 });

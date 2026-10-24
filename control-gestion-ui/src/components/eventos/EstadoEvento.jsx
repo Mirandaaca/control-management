@@ -1,4 +1,4 @@
-import { CircleCheck, Clock } from 'lucide-react';
+import { CircleCheck, Hourglass } from 'lucide-react';
 import { Badge } from '../ui';
 import { ESTADOS, RESUELTO } from './estados';
 
@@ -8,7 +8,7 @@ import { ESTADOS, RESUELTO } from './estados';
  */
 export default function EstadoEvento({ estado }) {
   const resuelto = estado === RESUELTO;
-  const Icono = resuelto ? CircleCheck : Clock;
+  const Icono = resuelto ? CircleCheck : Hourglass;
   return (
     <Badge color={resuelto ? 'blue' : 'yellow'}>
       <Icono size={12} aria-hidden="true" />

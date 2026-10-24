@@ -1,9 +1,23 @@
+import { Ban, CircleCheck, Hourglass, Package, Route } from 'lucide-react';
 import { Badge } from '../ui';
 import { ANULADO, EN_PROCESO, EN_RUTA, ENTREGADO, PENDIENTE } from './estados';
 
-const COLORES = { [PENDIENTE]: 'yellow', [EN_PROCESO]: 'blue', [EN_RUTA]: 'purple', [ENTREGADO]: 'green', [ANULADO]: 'red' };
+// El color y el ícono de cada estado, con la tabla de docs/diseno.md ("Etiquetas de estado").
+const ESTILOS = {
+  [PENDIENTE]: { color: 'yellow', icono: Hourglass },
+  [EN_PROCESO]: { color: 'blue', icono: Package },
+  [EN_RUTA]: { color: 'purple', icono: Route },
+  [ENTREGADO]: { color: 'green', icono: CircleCheck },
+  [ANULADO]: { color: 'red', icono: Ban },
+};
 
-/** El estado de un pedido, siempre con su nombre: el color solo acompaña. */
+/** El estado de un pedido, siempre con su nombre y su ícono: el color solo acompaña. */
 export default function EstadoPedido({ estado }) {
-  return <Badge color={COLORES[estado.id] ?? 'gray'}>{estado.nombre}</Badge>;
+  const { color, icono: Icono } = ESTILOS[estado.id] ?? { color: 'gray' };
+  return (
+    <Badge color={color}>
+      {Icono && <Icono size={12} aria-hidden="true" />}
+      {estado.nombre}
+    </Badge>
+  );
 }
