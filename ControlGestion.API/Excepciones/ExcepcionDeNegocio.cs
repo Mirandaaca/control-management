@@ -39,6 +39,13 @@ public class ValidacionException(IReadOnlyDictionary<string, string[]> errores)
     public override IReadOnlyDictionary<string, string[]> Errores { get; } = errores;
 }
 
+/// <summary>
+/// Una parte de la operación pide otro permiso, que el atributo [Permiso] no puede revisar porque depende de los datos
+/// (cambiar la ubicación al editar un cliente). Responde como el 403 del pipeline, con su propio mensaje.
+/// </summary>
+public class SinPermisoException(string mensaje)
+    : ExcepcionDeNegocio(StatusCodes.Status403Forbidden, "sin_permiso", "Sin permiso", mensaje);
+
 public class ConflictoException(string codigo, string mensaje)
     : ExcepcionDeNegocio(StatusCodes.Status409Conflict, codigo, "Conflicto", mensaje);
 

@@ -139,6 +139,11 @@ public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorSe
         // Solo se avisa si el celular cambió: si no, editar otro dato avisaría cada vez.
         if (cliente.Telefono != dto.Telefono.Trim())
             await AvisarSiElTelefonoSeRepiteAsync(dto, idPropio: id);
+        // La ubicación de un cliente que ya existe la actualiza el promotor en su negocio, con el GPS (7.3.6, ext. 3.1b, y
+        // 7.3.8, paso 3). Registrar no lo pide: la secretaria marca en el mapa la del cliente nuevo (7.3.6, ext. 2.1a).
+        if ((cliente.Latitud != dto.Latitud || cliente.Longitud != dto.Longitud)
+            && !usuario.Tiene(Permisos.Ventas.CapturarUbicacion))
+            throw new SinPermisoException("No tienes permiso para cambiar la ubicación del cliente.");
         // Editar no toca el estado: antes lo devolvía a "Activo" sin avisar.
         Copiar(dto, cliente, await PromotorDeLaZonaAsync(dto.ZonaId));
         await db.SaveChangesAsync();
