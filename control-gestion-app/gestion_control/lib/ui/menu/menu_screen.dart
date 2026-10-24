@@ -57,6 +57,20 @@ final entradasDelMenu = [
     permisos: PermisosDe.clientes,
   ),
   EntradaDelMenu(
+    titulo: 'Mapa de clientes',
+    descripcion: 'Tus clientes en el mapa, con el color de su estado.',
+    icono: Icons.map_outlined,
+    ruta: Rutas.mapaDeClientes,
+    permisos: PermisosDe.mapaClientes,
+  ),
+  EntradaDelMenu(
+    titulo: 'Clientes por visitar',
+    descripcion: 'Los clientes a los que ya les toca visita, del más atrasado al más reciente.',
+    icono: Icons.event_repeat_outlined,
+    ruta: Rutas.porVisitar,
+    permisos: PermisosDe.porVisitar,
+  ),
+  EntradaDelMenu(
     titulo: 'Hojas de pedido',
     descripcion: 'Tus ventas: registrarlas, confirmarlas y verlas.',
     icono: Icons.receipt_long_outlined,

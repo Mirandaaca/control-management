@@ -30,21 +30,19 @@ class MarcadorDeCliente extends StatelessWidget {
   Widget build(BuildContext context) {
     final lado = elegido ? 36.0 : 28.0;
     final icono = iconoDelEstado(estado);
-    return Center(
-      child: Container(
-        width: lado,
-        height: lado,
-        decoration: BoxDecoration(
-          color: colorDelEstado(estado),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow: [
-            if (elegido) const BoxShadow(color: marca900, spreadRadius: 3),
-            const BoxShadow(color: Color(0x730F172A), blurRadius: 3, offset: Offset(0, 1)),
-          ],
-        ),
-        child: icono == null ? null : Icon(icono, size: elegido ? 18 : 14, color: Colors.white),
+    return Container(
+      width: lado,
+      height: lado,
+      decoration: BoxDecoration(
+        color: colorDelEstado(estado),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: [
+          if (elegido) const BoxShadow(color: marca900, spreadRadius: 3),
+          const BoxShadow(color: Color(0x730F172A), blurRadius: 3, offset: Offset(0, 1)),
+        ],
       ),
+      child: icono == null ? null : Icon(icono, size: elegido ? 18 : 14, color: Colors.white),
     );
   }
 }
@@ -56,18 +54,16 @@ class MarcadorDePunto extends StatelessWidget {
   final double lado;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      width: lado,
-      height: lado,
-      decoration: BoxDecoration(
-        color: marca900,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: const [BoxShadow(color: Color(0x730F172A), blurRadius: 3, offset: Offset(0, 1))],
-      ),
-      child: Icon(Icons.account_balance, size: lado / 2, color: Colors.white),
+  Widget build(BuildContext context) => Container(
+    width: lado,
+    height: lado,
+    decoration: BoxDecoration(
+      color: marca900,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: Colors.white, width: 2),
+      boxShadow: const [BoxShadow(color: Color(0x730F172A), blurRadius: 3, offset: Offset(0, 1))],
     ),
+    child: Icon(Icons.account_balance, size: lado / 2, color: Colors.white),
   );
 }
 
@@ -78,7 +74,10 @@ List<Marker> marcadoresDePuntos(Iterable<PuntoDeReferencia> puntos) => [
       point: puntoDe(p.latitud, p.longitud),
       width: 32,
       height: 32,
-      child: Semantics(label: 'Punto de referencia: ${p.nombre}', child: const MarcadorDePunto()),
+      child: Semantics(
+        label: 'Punto de referencia: ${p.nombre}',
+        child: const Center(child: MarcadorDePunto()),
+      ),
     ),
 ];
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/ruta.dart';
+import 'package:gestion_control/data/models/zona.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
@@ -145,10 +146,17 @@ void main() {
       expect(gps.ajustesDeUbicacion, 1);
     });
 
-    testWidgets('con la letra al 200 % cumple las guías', (tester) async {
-      gps.leer(-17.7725, -63.1712, 6);
+    testWidgets('con la letra al 200 % cumple las guías, con "Tú" y los puntos de referencia', (tester) async {
+      zonas.alPedirPuntos = (_) async => const [
+        PuntoDeReferencia(id: 1, zonaId: 1, nombre: 'Mercado Norte', latitud: -17.772, longitud: -63.177),
+      ];
       await abrir(tester, letra: 2, alto: 4000);
+      gps.leer(-17.7725, -63.1712, 6);
+      await esperar(tester);
 
+      expect(find.text('Punto de referencia'), findsOneWidget);
+      expect(find.text('Tú'), findsNWidgets(2)); // En el mapa y en la leyenda.
+      expect(find.byTooltip('Centrar el mapa en tu ubicación'), findsOneWidget);
       await cumpleLasGuias(tester);
     });
   });
