@@ -72,7 +72,8 @@ resource sitio 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: plan.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|9.0'
+      // .NET 10 (LTS, con soporte hasta el 14/11/2028). La imagen solo trae ese runtime: una API de otra versión no arranca.
+      linuxFxVersion: 'DOTNETCORE|10.0'
       // El F1 no tiene Always On.
       alwaysOn: false
       ftpsState: 'Disabled'
