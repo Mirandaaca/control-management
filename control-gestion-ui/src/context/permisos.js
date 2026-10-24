@@ -113,11 +113,15 @@ export const PANTALLAS = {
   estadosCliente: [parametros.registrarEstadoCliente, parametros.modificarEstadoCliente, parametros.eliminarEstadoCliente],
   usuarios: [seguridad.crearUsuario, seguridad.editarUsuario, seguridad.activarUsuario],
   roles: [seguridad.crearRol, seguridad.editarRol, seguridad.eliminarRol],
-  reportes: [reportes.ventasPorPromotor, reportes.ventasPorZona, cobranzas.generarReporte, reportes.inventario,
-    seguridad.consultarBitacora],
+  // Las pestañas de Reportes (8.6.4): Ventas (6.2), Cobranzas (3.3), Inventario (6.4), Promotores (6.1) y Clientes (6.3).
+  reportes: [reportes.ventasPorZona, cobranzas.generarReporte, reportes.inventario, reportes.ventasPorPromotor,
+    reportes.clientesNuevosRecurrentes],
+  imprimirHp: [reportes.imprimirHp],
+  bitacora: [seguridad.consultarBitacora],
 };
 
-// Quien asigna pedidos, zonas o rutas, o filtra el reporte de pedidos, el mapa de eventos o el reporte de incidencias,
-// puede pedir la lista de promotores (GET /usuarios/promotores).
+// Quien asigna pedidos, zonas o rutas, o filtra el reporte de pedidos, el de cobranzas, el de ventas por promotor, el
+// mapa de eventos o el reporte de incidencias, puede pedir la lista de promotores (GET /usuarios/promotores).
 export const ELIGEN_PROMOTOR = [pedidos.asignarPedidos, parametros.registrarZona, parametros.modificarZona,
-  territorial.planificarRuta, pedidos.generarReporte, eventos.verMapa, eventos.generarReporte];
+  territorial.planificarRuta, pedidos.generarReporte, cobranzas.generarReporte, reportes.ventasPorPromotor, eventos.verMapa,
+  eventos.generarReporte];
