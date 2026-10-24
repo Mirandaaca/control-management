@@ -2,9 +2,11 @@
  * Tabla dentro de su tarjeta. "barra" va arriba (buscador y filtros) y "pie" abajo (paginación); "estado" reemplaza a
  * las filas mientras carga, si no hay datos o si hubo un error. Un encabezado puede ser un texto o
  * { texto, derecha: true }, para las columnas de montos y cantidades, o { texto, oculto: true }, para una columna que
- * se entiende sin título (como las casillas para elegir filas) pero que el lector de pantalla tiene que nombrar.
+ * se entiende sin título (como las casillas para elegir filas) pero que el lector de pantalla tiene que nombrar. Con
+ * { texto, segundo }, el encabezado va en dos renglones, como "Cliente / Promotor" del 8.6.4.
+ * "compacta" deja las celdas con 12 px a cada lado: así una tabla ancha entra junto al menú (8.6.4).
  */
-export function Table({ headers, children, empty = 'Sin registros.', barra, estado, pie }) {
+export function Table({ headers, children, empty = 'Sin registros.', barra, estado, pie, compacta = false, titulo }) {
   const sinFilas = !children || (Array.isArray(children) && children.length === 0);
   return (
     <div className="bg-white rounded-xl shadow-tarjeta border border-slate-200 overflow-hidden">
@@ -14,15 +16,16 @@ export function Table({ headers, children, empty = 'Sin registros.', barra, esta
           {/* relative: el título oculto de una columna (sr-only, absoluto) se queda dentro del desplazamiento; si no,
               ensancha la página en el celular. */}
           <div className="relative overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className={`w-full text-sm ${compacta ? '[&_td]:px-3 [&_th]:px-3' : ''}`} aria-label={titulo}>
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   {headers.map((h) => {
-                    const { texto, derecha, oculto } = typeof h === 'string' ? { texto: h } : h;
+                    const { texto, derecha, oculto, segundo } = typeof h === 'string' ? { texto: h } : h;
                     return (
                       <th key={texto} scope="col"
                         className={`px-4 py-3 ${derecha ? 'text-right' : 'text-left'} text-xs font-semibold text-slate-600 uppercase tracking-wide whitespace-nowrap`}>
-                        {oculto ? <span className="sr-only">{texto}</span> : texto}
+                        {oculto && <span className="sr-only">{texto}</span>}
+                        {!oculto && (segundo ? <><span className="block">{texto}</span><span className="block">{segundo}</span></> : texto)}
                       </th>
                     );
                   })}

@@ -43,23 +43,38 @@ export function Badge({ children, color = 'gray' }) {
 
 const foco = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2';
 
+const tamanosDeBoton = {
+  sm: 'h-8 px-3 text-xs',
+  md: 'h-10 px-4 text-sm',
+  lg: 'h-11 px-5 text-sm',
+};
+const variantesDeBoton = {
+  primary: 'bg-marca-600 hover:bg-marca-700 text-white',
+  danger: 'bg-red-600 hover:bg-red-700 text-white',
+  ghost: 'bg-transparent hover:bg-slate-100 text-slate-700',
+  outline: 'bg-white border border-borde-control hover:bg-slate-50 text-slate-800',
+};
+const clasesDeBoton = (variant, size) =>
+  `inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${foco} ${tamanosDeBoton[size]} ${variantesDeBoton[variant]}`;
+
 export function Btn({ children, onClick, variant = 'primary', size = 'sm', type = 'button', disabled = false, ...props }) {
-  const base = `inline-flex items-center justify-center gap-1.5 font-medium rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${foco}`;
-  const sizes = {
-    sm: 'h-8 px-3 text-xs',
-    md: 'h-10 px-4 text-sm',
-    lg: 'h-11 px-5 text-sm',
-  };
-  const variants = {
-    primary: 'bg-marca-600 hover:bg-marca-700 text-white',
-    danger: 'bg-red-600 hover:bg-red-700 text-white',
-    ghost: 'bg-transparent hover:bg-slate-100 text-slate-700',
-    outline: 'bg-white border border-borde-control hover:bg-slate-50 text-slate-800',
-  };
   return (
-    <button {...props} type={type} onClick={onClick} disabled={disabled} className={`${base} ${sizes[size]} ${variants[variant]}`}>
+    <button {...props} type={type} onClick={onClick} disabled={disabled} className={clasesDeBoton(variant, size)}>
       {children}
     </button>
+  );
+}
+
+/**
+ * Un enlace con la forma de un botón: para lo que lleva a otra página, como la HP para imprimir, que se abre en una
+ * pestaña nueva. La navegación va en un <a>, no en un <button>.
+ */
+export function EnlaceBoton({ children, href, variant = 'outline', size = 'sm', nuevaPestana = false, ...props }) {
+  return (
+    <a {...props} href={href} className={clasesDeBoton(variant, size)}
+      {...(nuevaPestana ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+      {children}
+    </a>
   );
 }
 

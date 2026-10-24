@@ -107,9 +107,15 @@ builder.Services.AddControllers(options =>
     });
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUsuarioActual, UsuarioActual>();
+builder.Services.AddScoped<RegistroDeBitacora>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ControlGestion.API.Services.NumeradorService>();
 builder.Services.AddScoped<ControlGestion.API.Services.CobranzaService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteCobranzasService>();
+builder.Services.AddScoped<ControlGestion.API.Services.TableroService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteVentasService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteClientesService>();
+builder.Services.AddScoped<ControlGestion.API.Services.ReporteInventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.InventarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.UsuarioService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PerfilService>();
@@ -130,6 +136,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.ConfiguracionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PuntoReferenciaService>();
+builder.Services.AddScoped<ControlGestion.API.Services.BitacoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 

@@ -10,5 +10,12 @@ public sealed class PermisoAttribute : AuthorizeAttribute
 {
     public const string Prefijo = "permiso:";
 
-    public PermisoAttribute(params string[] claves) => Policy = Prefijo + string.Join(',', claves);
+    public PermisoAttribute(params string[] claves)
+    {
+        Claves = claves;
+        Policy = Prefijo + string.Join(',', claves);
+    }
+
+    /// <summary>La bitácora toma de aquí el módulo y el nombre de la operación.</summary>
+    public IReadOnlyList<string> Claves { get; }
 }

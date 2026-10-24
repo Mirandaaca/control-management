@@ -25,6 +25,8 @@ import MapaClientes from './pages/MapaClientes';
 import ClientesPorVisitar from './pages/ClientesPorVisitar';
 import Roles from './pages/Roles';
 import Perfil from './pages/Perfil';
+import Bitacora from './pages/Bitacora';
+import HojaParaImprimir from './pages/HojaParaImprimir';
 
 export default function App() {
   return (
@@ -35,6 +37,7 @@ export default function App() {
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/clientes" element={<PrivateRoute permisos={PANTALLAS.clientes}><Clientes /></PrivateRoute>} />
           <Route path="/hojas-pedido" element={<PrivateRoute permisos={PANTALLAS.hojasPedido}><HojasPedido /></PrivateRoute>} />
+          <Route path="/hojas-pedido/:id/imprimir" element={<PrivateRoute permisos={PANTALLAS.imprimirHp}><HojaParaImprimir /></PrivateRoute>} />
           <Route path="/inventario" element={<PrivateRoute permisos={PANTALLAS.inventario}><Inventario /></PrivateRoute>} />
           <Route path="/pedidos" element={<PrivateRoute permisos={PANTALLAS.pedidos}><Pedidos /></PrivateRoute>} />
           <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
@@ -45,6 +48,7 @@ export default function App() {
           <Route path="/rutas" element={<PrivateRoute permisos={PANTALLAS.rutas}><Rutas /></PrivateRoute>} />
           <Route path="/usuarios" element={<PrivateRoute permisos={PANTALLAS.usuarios}><Usuarios /></PrivateRoute>} />
           <Route path="/roles" element={<PrivateRoute permisos={PANTALLAS.roles}><Roles /></PrivateRoute>} />
+          <Route path="/bitacora" element={<PrivateRoute permisos={PANTALLAS.bitacora}><Bitacora /></PrivateRoute>} />
           <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
           <Route path="/zonas/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaZonas}><MapaZonas /></PrivateRoute>} />
           <Route path="/zonas" element={<PrivateRoute permisos={PANTALLAS.zonas}><Zonas /></PrivateRoute>} />

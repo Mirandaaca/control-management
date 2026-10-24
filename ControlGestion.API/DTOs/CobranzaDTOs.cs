@@ -137,3 +137,16 @@ public record CobranzaDetalleDTO(
     IReadOnlyList<PagoDTO> Pagos,
     /// <summary>Días de calendario de Bolivia desde el vencimiento. Solo en una cobranza Vencida; en las demás, null.</summary>
     int? DiasDeMora);
+
+/// <summary>Lo emitido, lo cobrado y lo que falta cobrar de un grupo de cobranzas (7.3.12, paso 2.3).</summary>
+public record TotalCobranzasDTO(int Cantidad, decimal Emitido, decimal Cobrado, decimal Saldo);
+
+public record TotalCobranzasPorEstadoDTO(EstadoCobranza Estado, string Nombre, int Cantidad, decimal Emitido, decimal Cobrado,
+    decimal Saldo);
+
+/// <summary>
+/// El reporte de cobranzas (3.3): los estados que tienen cobranzas, el total sin las incobrables ni las anuladas (ya no se
+/// cobran) y las cobranzas, de la que vence primero a la última.
+/// </summary>
+public record ReporteCobranzasDTO(IReadOnlyList<TotalCobranzasPorEstadoDTO> PorEstado, TotalCobranzasDTO Total,
+    Pagina<CobranzaResumenDTO> Cobranzas);

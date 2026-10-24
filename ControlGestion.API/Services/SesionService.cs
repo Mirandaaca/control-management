@@ -25,6 +25,7 @@ public class SesionService(
     IUsuarioActual actual,
     IOptions<JwtOptions> jwt,
     IOptions<SesionOptions> opciones,
+    RegistroDeBitacora bitacora,
     TimeProvider reloj)
 {
     // Una sesión terminada se guarda 30 días más y después la borra el proceso diario.
@@ -33,11 +34,22 @@ public class SesionService(
     public async Task<LoginRespuestaDTO> IniciarAsync(LoginDTO dto)
     {
         var usuario = await usuarios.FindByEmailAsync(dto.Email);
-        if (usuario == null || !await usuarios.CheckPasswordAsync(usuario, dto.Password))
+        if (usuario == null)
             throw new NoAutenticadoException("credenciales_incorrectas", "Credenciales incorrectas.");
 
+        if (!await usuarios.CheckPasswordAsync(usuario, dto.Password))
+        {
+            bitacora.FallaElInicio(usuario.Id);
+            throw new NoAutenticadoException("credenciales_incorrectas", "Credenciales incorrectas.");
+        }
+
         if (!usuario.Activo)
+        {
+            bitacora.FallaElInicio(usuario.Id);
             throw new NoAutenticadoException("usuario_inactivo", "Usuario inactivo.");
+        }
+
+        bitacora.IniciaSesion(usuario.Id);
 
         var ahora = reloj.GetUtcNow().UtcDateTime;
         var sesion = new Sesion

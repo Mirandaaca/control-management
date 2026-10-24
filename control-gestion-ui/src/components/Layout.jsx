@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
-  PanelLeftOpen, Route, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
+  PanelLeftOpen, Route, ScrollText, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
@@ -48,6 +48,7 @@ const modulos = [
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [
     { to: '/usuarios', label: 'Usuarios', icon: Users, permisos: PANTALLAS.usuarios },
     { to: '/roles', label: 'Roles y permisos', icon: ShieldCheck, permisos: PANTALLAS.roles },
+    { to: '/bitacora', label: 'Bitácora', icon: ScrollText, permisos: PANTALLAS.bitacora },
   ] },
 ];
 

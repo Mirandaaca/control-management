@@ -106,3 +106,9 @@ body {
     animation-delay: 0ms !important;
   }
 }
+
+/* La HP impresa (6.5): una hoja carta con márgenes de 12 mm. Los botones llevan print:hidden. */
+@page {
+  size: letter;
+  margin: 12mm;
+}

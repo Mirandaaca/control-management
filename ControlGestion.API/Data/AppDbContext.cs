@@ -160,6 +160,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<InventarioProducto>()
             .Property(i => i.StockMaximo).HasPrecision(10, 3);
 
+        // AuditoriaLog: la bitácora se lee del más reciente al más antiguo.
+        builder.Entity<AuditoriaLog>()
+            .HasOne(a => a.Usuario).WithMany().HasForeignKey(a => a.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<AuditoriaLog>().HasIndex(a => a.Fecha);
+
         // MovimientoInventario
         builder.Entity<MovimientoInventario>()
             .HasOne(m => m.Producto).WithMany().HasForeignKey(m => m.ProductoId).OnDelete(DeleteBehavior.Restrict);

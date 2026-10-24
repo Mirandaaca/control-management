@@ -6,16 +6,17 @@ import Layout from '../components/Layout';
 import { Alert } from '../components/ui';
 
 export default function Dashboard() {
-  const [kpis, setKpis] = useState(null);
-  const [ventas, setVentas] = useState(null);
+  // El mes en curso de Bolivia y la cartera del usuario. Su aspecto se rehace en la tarea 18.
+  const [tablero, setTablero] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const avisarError = (err) =>
-      setError(mensajeDeError(err, 'No se pudieron cargar algunos datos del tablero.'));
-    api.get('/reportes/dashboard').then(r => setKpis(r.data)).catch(avisarError);
-    api.get('/reportes/ventas').then(r => setVentas(r.data)).catch(avisarError);
+    api.get('/reportes/tablero')
+      .then(r => setTablero(r.data))
+      .catch((err) => setError(mensajeDeError(err, 'No se pudieron cargar los datos del tablero.')));
   }, []);
+  const kpis = tablero;
+  const ventas = tablero;
 
   return (
     <Layout>
@@ -28,11 +29,11 @@ export default function Dashboard() {
 
       {/* KPIs principales */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <KpiCard label="Clientes activos"   value={kpis?.totalClientes ?? '—'}     color="blue" />
-        <KpiCard label="HPs este mes"       value={kpis?.pedidosMes ?? '—'}         color="emerald" />
-        <KpiCard label="Ventas del mes"     value={kpis ? `Bs ${kpis.ventasMes?.toFixed(0)}` : '—'} color="amber" />
-        <KpiCard label="Por cobrar"         value={kpis ? `Bs ${kpis.cobranzasPendientes?.toFixed(0)}` : '—'} color="red" />
-        <KpiCard label="Eventos pendientes" value={kpis?.eventosAbiertos ?? '—'}    color="purple" />
+        <KpiCard label="Clientes activos"   value={kpis?.clientesActivos ?? '—'}     color="blue" />
+        <KpiCard label="HPs este mes"       value={kpis?.hojasDelMes ?? '—'}         color="emerald" />
+        <KpiCard label="Ventas del mes"     value={kpis ? `Bs ${kpis.ventasDelMes?.toFixed(0)}` : '—'} color="amber" />
+        <KpiCard label="Por cobrar"         value={kpis ? `Bs ${kpis.porCobrar?.toFixed(0)}` : '—'} color="red" />
+        <KpiCard label="Eventos pendientes" value={kpis?.eventosPendientes ?? '—'}    color="purple" />
         <KpiCard label="Stock bajo mínimo"  value={kpis?.stockBajo ?? '—'}          color="orange" />
       </div>
 
@@ -55,7 +56,7 @@ export default function Dashboard() {
 
       {/* Top productos + ventas por día */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Top productos más vendidos">
+        <ChartCard title="Top productos más vendidos (mes actual)">
           {ventas?.porProducto?.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={ventas.porProducto.slice(0, 8)} layout="vertical" margin={{ left: 10 }}>
@@ -68,7 +69,7 @@ export default function Dashboard() {
           ) : <EmptyChart />}
         </ChartCard>
 
-        <ChartCard title="Tendencia de ventas (30 días)">
+        <ChartCard title="Tendencia de ventas (mes actual)">
           {ventas?.porDia?.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={ventas.porDia} margin={{ left: -10 }}>

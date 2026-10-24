@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, Plus } from 'lucide-react';
+import { Ban, CircleCheck, ClipboardList, Eye, LoaderCircle, Plus, Printer } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import CampoUbicacion from '../components/CampoUbicacion';
@@ -9,7 +9,7 @@ import LineasDeProductos from '../components/LineasDeProductos';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion, Selector, Combobox,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
@@ -21,7 +21,7 @@ import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 import { totalDe } from '../utils/lineas';
 
-const { ventas, seguridad } = PERMISOS;
+const { ventas, seguridad, reportes } = PERMISOS;
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', tipo: '', desde: '', hasta: '' };
 
@@ -60,6 +60,7 @@ export default function HojasPedido() {
   const puedeRegistrar = tiene(ventas.registrarHp);
   const puedeConfirmar = tiene(ventas.confirmarHp);
   const puedeAnular = tiene(ventas.anularHp);
+  const puedeImprimir = tiene(reportes.imprimirHp);
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
 
   const [pagina, setPagina] = useState(null);
@@ -318,6 +319,12 @@ export default function HojasPedido() {
                   <Eye size={14} aria-hidden="true" />
                   Ver
                 </Btn>
+                {puedeImprimir && (
+                  <EnlaceBoton variant="ghost" href={`/hojas-pedido/${hp.id}/imprimir`} nuevaPestana aria-label={`Imprimir ${hp.numero}`}>
+                    <Printer size={14} aria-hidden="true" />
+                    Imprimir
+                  </EnlaceBoton>
+                )}
                 {puedeConfirmarla(hp) && (
                   <Btn variant="ghost" onClick={() => setConfirmando({ hp, error: '' })} aria-label={`Confirmar ${hp.numero}`}>
                     <CircleCheck size={14} aria-hidden="true" />
@@ -345,6 +352,11 @@ export default function HojasPedido() {
         pie={(
           <>
             <Btn variant="outline" size="md" onClick={() => setDetalle(null)}>Cerrar</Btn>
+            {detalle && puedeImprimir && (
+              <EnlaceBoton size="md" href={`/hojas-pedido/${detalle.id}/imprimir`} nuevaPestana>
+                <Printer size={16} aria-hidden="true" />Imprimir
+              </EnlaceBoton>
+            )}
             {detalle && puedeAnularla(detalle) && (
               <Btn variant="danger" size="md" onClick={() => { setAnulando({ hp: detalle, motivo: '', error: '', errorMotivo: '' }); setDetalle(null); }}>
                 <Ban size={16} aria-hidden="true" />Anular

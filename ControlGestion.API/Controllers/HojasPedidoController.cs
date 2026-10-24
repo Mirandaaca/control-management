@@ -22,6 +22,12 @@ public class HojasPedidoController(HojaPedidoService hojas) : ControllerBase
     public async Task<ActionResult<HojaPedidoDTO>> GetById(int id) =>
         await hojas.ObtenerAsync(id);
 
+    // La vista para imprimir o guardar en PDF desde el navegador (6.5): el PDF no se genera en el servidor.
+    [HttpGet("{id:int}/impresion")]
+    [Permiso(Permisos.Reportes.ImprimirHp)]
+    public async Task<ActionResult<HojaParaImprimirDTO>> GetParaImprimir(int id) =>
+        await hojas.ParaImprimirAsync(id);
+
     [HttpPost]
     [Permiso(Permisos.Ventas.RegistrarHp)]
     public async Task<ActionResult<HojaPedidoDTO>> Registrar([FromBody] RegistrarHojaPedidoDTO dto)
@@ -32,6 +38,7 @@ public class HojasPedidoController(HojaPedidoService hojas) : ControllerBase
 
     // "Confirmar venta" sin guardarla antes: registra y confirma en un paso. Dos atributos: hacen falta los dos permisos.
     [HttpPost("confirmadas")]
+    [Bitacora("Registrar y confirmar hojas de pedido")]
     [Permiso(Permisos.Ventas.RegistrarHp)]
     [Permiso(Permisos.Ventas.ConfirmarHp)]
     public async Task<ActionResult<HojaPedidoDTO>> RegistrarConfirmada([FromBody] RegistrarHojaPedidoDTO dto)

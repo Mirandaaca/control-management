@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
+using ControlGestion.API.Data;
 using ControlGestion.API.Tests.Infraestructura;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ControlGestion.API.Tests;
@@ -100,8 +102,12 @@ public class AutenticacionTests(ApiDePrueba api)
 
         using (var scope = api.Services.CreateScope())
         {
+            // Desde la tarea 16, la bitácora (FK Restrict) no deja borrar a un usuario con registros: quien lo borre en la
+            // base tiene que sacar antes los suyos.
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().AuditoriaLogs
+                .Where(a => a.UsuarioId == promotor.Id).ExecuteDeleteAsync();
             var usuarios = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            await usuarios.DeleteAsync((await usuarios.FindByIdAsync(promotor.Id))!);
+            Assert.True((await usuarios.DeleteAsync((await usuarios.FindByIdAsync(promotor.Id))!)).Succeeded);
         }
 
         await (await cliente.GetAsync("/api/clientes")).ProblemaAsync(401, "sesion_terminada");

@@ -5,6 +5,8 @@ import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import { subirComprobante } from '../api/fotos';
 import BotonDeFoto from '../components/BotonDeFoto';
+import EstadoCobranza from '../components/cobranzas/EstadoCobranza';
+import { ESTADOS_DE_COBRANZA, textoDeMora } from '../components/cobranzas/estados';
 import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
@@ -22,29 +24,13 @@ const { cobranzas: permisos, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', desde: '', hasta: '' };
 
-// EstadoCobranza de la API. Las abiertas son las que todavía se deben: reciben pagos y cuentan en el saldo.
-const ESTADOS = {
-  0: { texto: 'Pendiente', color: 'yellow' },
-  1: { texto: 'Parcial', color: 'blue' },
-  2: { texto: 'Pagada', color: 'green' },
-  3: { texto: 'Vencida', color: 'red' },
-  4: { texto: 'Incobrable', color: 'purple' },
-  5: { texto: 'Anulada', color: 'gray' },
-};
+// Las abiertas son las que todavía se deben: reciben pagos y cuentan en el saldo.
 const ABIERTAS = [0, 1, 3];
 const QR = 1;
 const METODOS = { 0: 'Efectivo', [QR]: 'QR' };
 
 // Errores de la API que pertenecen a un campo del formulario de pago: se muestran junto a él.
 const CAMPO_DEL_ERROR = { monto_invalido: 'monto' };
-
-function EstadoCobranza({ estado }) {
-  const { texto, color } = ESTADOS[estado] ?? { texto: 'Desconocido', color: 'gray' };
-  return <Badge color={color}>{texto}</Badge>;
-}
-
-// La API solo los manda en una cobranza vencida: días de calendario de Bolivia desde el vencimiento.
-const textoDeMora = (dias) => (dias === 1 ? '1 día de mora' : `${dias} días de mora`);
 
 function Dato({ titulo, children }) {
   return (
@@ -299,7 +285,7 @@ export default function Cobranzas() {
             <Buscador label="Buscar" placeholder="Número, cliente o código…" value={filtros.texto} onChange={(texto) => filtrar({ texto })} />
             <div className="w-full sm:w-40">
               <Selector label="Estado" todos="Todos" value={filtros.estado}
-                opciones={Object.entries(ESTADOS).map(([valor, e]) => ({ valor, texto: e.texto }))}
+                opciones={Object.entries(ESTADOS_DE_COBRANZA).map(([valor, e]) => ({ valor, texto: e.texto }))}
                 onChange={(valor) => filtrar({ estado: valor })} />
             </div>
             <div className="w-full sm:w-40">

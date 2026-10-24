@@ -61,6 +61,8 @@ public class RutasController(RutaService rutas) : ControllerBase
         await rutas.MarcarVisitaAsync(id, visitaId, dto);
 
     [HttpPost("{id:int}/ubicaciones")]
+    // La app la manda sola cada 30 s con la ruta en curso: no es una operación del usuario.
+    [SinBitacora]
     [Permiso(Permisos.Territorial.RecorrerRuta)]
     public async Task<IActionResult> RegistrarUbicacion(int id, [FromBody] RegistrarUbicacionDTO dto)
     {

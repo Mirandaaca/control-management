@@ -63,7 +63,7 @@ public class DespliegueTests(ApiDePrueba api)
         Assert.Equal("https", respuesta.Headers.Location?.Scheme);
         using var scope = api.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        Assert.True(await db.AuditoriaLogs.AnyAsync(l => l.Modulo == "productos" && l.DireccionIp == ip));
+        Assert.True(await db.AuditoriaLogs.AnyAsync(l => l.Modulo == "Parámetros y Configuraciones" && l.DireccionIp == ip));
     }
 
     // En el plan F1 la API se duerme: al despertar, el proceso arranca de nuevo. Las vencidas se marcan al arrancar, sin

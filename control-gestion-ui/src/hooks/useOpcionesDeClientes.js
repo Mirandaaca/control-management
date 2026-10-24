@@ -14,8 +14,9 @@ const comoOpcion = (c) => ({ valor: String(c.id), texto: c.nombreCompleto, detal
  * coinciden (por nombre, código, celular, razón social o NIT) y descarta una respuesta que llega después de otra
  * búsqueda. Se usa así:
  * <Combobox opciones={opciones} onBuscar={buscar} cargando={cargando} errorBusqueda={error} limite={LIMITE_DE_CLIENTES} />
+ * Con incluirInactivos, trae también los inactivos: para un filtro de reporte, porque un cliente inactivo puede deber.
  */
-export function useOpcionesDeClientes() {
+export function useOpcionesDeClientes({ incluirInactivos = false } = {}) {
   // null hasta que se abre el selector: no se pide nada antes.
   const [texto, setTexto] = useState(null);
   const demorado = useDemorado(texto, 300);
@@ -24,13 +25,15 @@ export function useOpcionesDeClientes() {
   useEffect(() => {
     if (demorado === null) return undefined;
     let vigente = true;
-    api.get('/clientes/opciones', { params: { buscar: demorado || undefined, limite: LIMITE_DE_CLIENTES } })
+    api.get('/clientes/opciones', {
+      params: { buscar: demorado || undefined, limite: LIMITE_DE_CLIENTES, incluirInactivos: incluirInactivos || undefined },
+    })
       .then(({ data }) => { if (vigente) setResultado({ de: demorado, clientes: data, error: '' }); })
       .catch((err) => {
         if (vigente) setResultado({ de: demorado, clientes: [], error: mensajeDeError(err, 'No se pudieron buscar los clientes.') });
       });
     return () => { vigente = false; };
-  }, [demorado]);
+  }, [demorado, incluirInactivos]);
 
   return {
     opciones: resultado.clientes.map(comoOpcion),

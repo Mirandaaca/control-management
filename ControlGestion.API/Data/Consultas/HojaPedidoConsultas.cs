@@ -61,4 +61,27 @@ public static class HojaPedidoConsultas
             .Select(d => new DetalleHojaPedidoDTO(d.Id, d.ProductoId, d.Producto!.SKU, d.Producto.Descripcion,
                 d.Cantidad, d.PrecioUnitario, d.Descuento, d.Subtotal))
             .ToList());
+
+    public static readonly Expression<Func<HojaPedido, HojaParaImprimirDTO>> ParaImprimir = h => new HojaParaImprimirDTO(
+        h.Id,
+        h.Numero,
+        h.EstadoHP,
+        h.TipoVenta,
+        h.FechaRegistro,
+        new ClienteParaImprimirDTO(h.Cliente!.Id, h.Cliente.Codigo, h.Cliente.NombreCompleto, h.Cliente.RazonSocial, h.Cliente.NIT,
+            h.Cliente.DireccionTexto, h.Cliente.Telefono),
+        new UsuarioResumenDTO(h.Promotor!.Id, h.Promotor.NombreCompleto),
+        new ZonaResumenDTO(h.Zona!.Id, h.Zona.Nombre),
+        h.Detalles
+            .OrderBy(d => d.Id)
+            .Select(d => new DetalleHojaPedidoDTO(d.Id, d.ProductoId, d.Producto!.SKU, d.Producto.Descripcion,
+                d.Cantidad, d.PrecioUnitario, d.Descuento, d.Subtotal))
+            .ToList(),
+        h.SubTotal,
+        h.Descuento,
+        h.Total,
+        h.Cobranzas.Select(c => new CobranzaParaImprimirDTO(c.Id, c.Numero, c.FechaVencimiento)).FirstOrDefault(),
+        h.FechaAnulacion,
+        h.AnuladoPor == null ? null : new UsuarioResumenDTO(h.AnuladoPor.Id, h.AnuladoPor.NombreCompleto),
+        h.ObservacionesAnulacion);
 }

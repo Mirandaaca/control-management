@@ -119,10 +119,13 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("UsuarioId")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Fecha");
+
+                    b.HasIndex("UsuarioId");
 
                     b.ToTable("AuditoriaLogs");
                 });
@@ -1606,6 +1609,16 @@ namespace ControlGestion.API.Data.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.AuditoriaLog", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.ApplicationUser", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Cliente", b =>

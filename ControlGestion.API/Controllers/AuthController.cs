@@ -1,5 +1,6 @@
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Services;
+using ControlGestion.API.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,7 @@ public class AuthController(SesionService sesiones, PerfilService perfil) : Cont
     // Único endpoint sin sesión: los demás quedan protegidos por la FallbackPolicy de Program.cs.
     [HttpPost("login")]
     [AllowAnonymous]
+    [Bitacora("Iniciar sesión")]
     public async Task<ActionResult<LoginRespuestaDTO>> Login([FromBody] LoginDTO dto) =>
         await sesiones.IniciarAsync(dto);
 
@@ -24,6 +26,7 @@ public class AuthController(SesionService sesiones, PerfilService perfil) : Cont
     // Cierra solo la sesión de este token: desde ahí no sirve, aunque alguien lo haya copiado. Es del propio usuario,
     // así que no pide un permiso del catálogo.
     [HttpPost("logout")]
+    [Bitacora("Cerrar sesión")]
     public async Task<IActionResult> Logout()
     {
         await sesiones.CerrarAsync();
