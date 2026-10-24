@@ -5,9 +5,12 @@ import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import MapaUbicacion from '../components/MapaUbicacion';
+import EstadoCobranza from '../components/cobranzas/EstadoCobranza';
+import EstadoHP from '../components/hojas/EstadoHP';
+import { ANULADA, CONFIRMADA, ESTADOS_DE_HP } from '../components/hojas/estados';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
@@ -20,23 +23,9 @@ const { ventas, seguridad, reportes } = PERMISOS;
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', tipo: '', desde: '', hasta: '' };
 
-// EstadoHP y TipoVenta de la API.
-const BORRADOR = 0;
-const CONFIRMADA = 1;
-const ANULADA = 2;
-const ESTADOS = {
-  [BORRADOR]: { texto: 'Borrador', color: 'gray' },
-  [CONFIRMADA]: { texto: 'Confirmada', color: 'green' },
-  [ANULADA]: { texto: 'Anulada', color: 'red' },
-};
+// TipoVenta de la API.
 const CREDITO = 1;
 const TIPOS = { 0: 'Contado', [CREDITO]: 'Crédito' };
-const ESTADOS_DE_COBRANZA = { 0: 'Pendiente', 1: 'Parcial', 2: 'Pagada', 3: 'Vencida', 4: 'Incobrable', 5: 'Anulada' };
-
-function EstadoHP({ estado }) {
-  const { texto, color } = ESTADOS[estado] ?? { texto: 'Desconocido', color: 'gray' };
-  return <Badge color={color}>{texto}</Badge>;
-}
 
 function Dato({ titulo, children }) {
   return (
@@ -168,7 +157,7 @@ export default function HojasPedido() {
             <Buscador label="Buscar" placeholder="Número, cliente o código…" value={filtros.texto} onChange={(texto) => filtrar({ texto })} />
             <div className="w-full sm:w-40">
               <Selector label="Estado" todos="Todos" value={filtros.estado}
-                opciones={Object.entries(ESTADOS).map(([valor, e]) => ({ valor, texto: e.texto }))}
+                opciones={Object.entries(ESTADOS_DE_HP).map(([valor, e]) => ({ valor, texto: e.texto }))}
                 onChange={(valor) => filtrar({ estado: valor })} />
             </div>
             <div className="w-full sm:w-36">
@@ -256,7 +245,12 @@ export default function HojasPedido() {
               <Dato titulo="Promotor">{detalle.promotor.nombreCompleto}</Dato>
               <Dato titulo="Zona">{detalle.zona.nombre}</Dato>
               <Dato titulo="Cobranza">
-                {detalle.cobranza ? `${detalle.cobranza.numero} (${ESTADOS_DE_COBRANZA[detalle.cobranza.estado]})` : 'Sin deuda'}
+                {detalle.cobranza ? (
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {detalle.cobranza.numero}
+                    <EstadoCobranza estado={detalle.cobranza.estado} />
+                  </span>
+                ) : 'Sin deuda'}
               </Dato>
             </dl>
             <Table headers={['Producto', { texto: 'Cantidad', derecha: true }, { texto: 'Precio', derecha: true },

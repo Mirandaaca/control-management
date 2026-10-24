@@ -2,8 +2,10 @@ import MapaUbicacion from '../MapaUbicacion';
 import { Table, Td, Tr } from '../Table';
 import { Alert, Btn, Modal } from '../ui';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../../utils/formato';
+import EstadoCobranza from '../cobranzas/EstadoCobranza';
+import EstadoHP from '../hojas/EstadoHP';
 import EstadoPedido from './EstadoPedido';
-import { ANULADO, CREDITO, ENTREGADO, ESTADOS_DE_COBRANZA, ESTADOS_DE_HP } from './estados';
+import { ANULADO, CREDITO, ENTREGADO } from './estados';
 
 function Dato({ titulo, children }) {
   return (
@@ -87,10 +89,20 @@ export default function DetallePedido({ pedido, onCerrar, acciones }) {
                 <Dato titulo="Entregado">{formatearFecha(pedido.fechaEntregaReal, { hora: true })}</Dato>
                 <Dato titulo="Recibió">{pedido.recibidoPor}</Dato>
                 <Dato titulo="Venta">
-                  {hp && `${hp.numero}, ${hp.tipoVenta === CREDITO ? 'a crédito' : 'al contado'} (${ESTADOS_DE_HP[hp.estadoHP]})`}
+                  {hp && (
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {hp.numero}, {hp.tipoVenta === CREDITO ? 'a crédito' : 'al contado'}
+                      <EstadoHP estado={hp.estadoHP} />
+                    </span>
+                  )}
                 </Dato>
                 {hp?.cobranza && (
-                  <Dato titulo="Deuda">{`${hp.cobranza.numero} (${ESTADOS_DE_COBRANZA[hp.cobranza.estado]})`}</Dato>
+                  <Dato titulo="Deuda">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {hp.cobranza.numero}
+                      <EstadoCobranza estado={hp.cobranza.estado} />
+                    </span>
+                  </Dato>
                 )}
               </dl>
               {pedido.latitudEntrega != null && (
