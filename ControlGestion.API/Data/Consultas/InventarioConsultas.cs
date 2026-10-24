@@ -16,6 +16,7 @@ public static class InventarioConsultas
         p.SKU,
         p.Descripcion,
         p.Categoria,
+        p.Precio,
         p.Inventario == null ? 0m : p.Inventario.StockActual,
         p.Inventario == null ? 0m : p.Inventario.StockMinimo,
         (p.Inventario == null ? 0m : p.Inventario.StockActual) <= (p.Inventario == null ? 0m : p.Inventario.StockMinimo),

@@ -44,6 +44,8 @@ public record InventarioDTO(
     string Sku,
     string Descripcion,
     string? Categoria,
+    /// <summary>El precio de venta: la secretaria lo necesita al buscar productos (7.3.7, paso 2.2).</summary>
+    decimal PrecioVenta,
     decimal StockActual,
     decimal StockMinimo,
     bool BajoMinimo,
