@@ -187,9 +187,7 @@ class _MapaDeClientes extends StatelessWidget {
             initialCameraFit: paraEncuadrar.isEmpty
                 ? null
                 : CameraFit.coordinates(coordinates: paraEncuadrar, padding: const EdgeInsets.all(32), maxZoom: 17),
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.scrollWheelZoom,
-            ),
+            interactionOptions: const InteractionOptions(flags: gestosDelMapa),
           ),
           children: [
             const MosaicosDeOpenStreetMap(),

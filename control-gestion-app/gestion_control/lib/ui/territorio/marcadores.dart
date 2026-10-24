@@ -13,6 +13,11 @@ import '../core/tema.dart';
 const _marca500 = Color(0xFF3A6FB5);
 const _marca800 = Color(0xFF1C3A66);
 
+/// Los gestos de un mapa dentro de una pantalla que se desplaza: con dos dedos se mueve y se acerca, y con doble toque se
+/// acerca. Con un dedo se desplaza la pantalla (en el TECNO, deslizar sobre el mapa lo movía y no se llegaba a la lista).
+/// Sin girar ni la rueda del mouse.
+const gestosDelMapa = InteractiveFlag.pinchZoom | InteractiveFlag.pinchMove | InteractiveFlag.doubleTapZoom;
+
 /// Lo que mide un marcador para tocarlo: 48 dp, aunque se vea más chico.
 const toqueDeMarcador = 48.0;
 

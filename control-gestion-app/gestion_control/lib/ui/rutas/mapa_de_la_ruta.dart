@@ -82,9 +82,7 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
                 mapController: _mapa,
                 options: MapOptions(
                   initialCameraFit: _encuadre,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.all & ~InteractiveFlag.rotate & ~InteractiveFlag.scrollWheelZoom,
-                  ),
+                  interactionOptions: const InteractionOptions(flags: gestosDelMapa),
                 ),
                 children: [
                   const MosaicosDeOpenStreetMap(),

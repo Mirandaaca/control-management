@@ -340,15 +340,14 @@ class _TarjetaDeVisita extends StatelessWidget {
     final destacada = enCurso && siguiente;
     final despues = switch (visita.resultado) {
       _ when !recienMarcada || !enCurso => null,
-      EstadoVisita.visitado when puedeVender => OutlinedButton.icon(
+      // Sin ícono, como "Marcar visita": con la letra al 200 % el texto se parte y el ícono quedaba corrido.
+      EstadoVisita.visitado when puedeVender => OutlinedButton(
         onPressed: alVender,
-        icon: const Icon(Icons.receipt_long_outlined),
-        label: const Text('Nueva hoja de pedido'),
+        child: const Text('Nueva hoja de pedido', textAlign: TextAlign.center),
       ),
-      EstadoVisita.ausente when puedeRegistrarEvento => OutlinedButton.icon(
+      EstadoVisita.ausente when puedeRegistrarEvento => OutlinedButton(
         onPressed: alRegistrarEvento,
-        icon: const Icon(Icons.report_outlined),
-        label: const Text('Registrar evento'),
+        child: const Text('Registrar evento', textAlign: TextAlign.center),
       ),
       _ => null,
     };
