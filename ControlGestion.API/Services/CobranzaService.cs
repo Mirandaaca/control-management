@@ -40,7 +40,9 @@ public class CobranzaService(AppDbContext db, IUsuarioActual usuario, NumeradorS
         return new ResumenCobranzasDTO(
             await abiertas.SumAsync(c => c.MontoTotal - c.MontoPagado),
             await abiertas.CountAsync(c => c.Estado != EstadoCobranza.Vencida),
-            await abiertas.CountAsync(c => c.Estado == EstadoCobranza.Vencida));
+            // Toda vencida es abierta, y contarlas sobre `abiertas` falla: sin otro filtro, EF Core 10 simplifica
+            // "Estado IN (0, 1, 3) AND Estado = 3" a WHERE FALSE y el indicador queda siempre en 0.
+            await Filtrar(filtros).CountAsync(c => c.Estado == EstadoCobranza.Vencida));
     }
 
     private IQueryable<Cobranza> Filtrar(FiltrosCobranzaDTO filtros) => db.Cobranzas.VisiblesPara(usuario).Filtrar(filtros);
