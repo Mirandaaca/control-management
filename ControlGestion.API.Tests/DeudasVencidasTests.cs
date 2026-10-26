@@ -72,4 +72,32 @@ public class DeudasVencidasTests(ApiDePrueba api)
         // La vencida, que es la más atrasada, primero; la pagada no se cobra.
         Assert.Equal([vencida, pendiente, parcial], porCobrar);
     }
+
+    [Fact]
+    public async Task El_resumen_cuenta_las_vencidas_sin_filtros_y_con_ellos()
+    {
+        var reloj = new RelojFijo(DateTimeOffset.UtcNow);
+        using var operador = await api.OperadorAsync();
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        var productoId = await operador.CrearProductoAsync(10m);
+        await operador.CrearCobranzaAsync(clienteId, productoId, 1);
+        var vencida = await operador.CrearCobranzaAsync(clienteId, productoId, 3);
+        await VencerAsync(vencida, HoraBolivia.InicioDelDiaUtc(HoraBolivia.Hoy(reloj).AddDays(-2)), reloj);
+
+        // La pantalla al abrirse, con la cartera completa: sin otra condición, EF Core 10 contaba 0 vencidas. La base es
+        // compartida con las demás pruebas: al menos está la de esta.
+        var sinFiltros = await (await operador.GetAsync("/api/cobranzas/resumen")).LeerJsonAsync();
+        Assert.True(sinFiltros.GetProperty("vencidas").GetInt32() >= 1);
+
+        var resumen = await (await operador.GetAsync($"/api/cobranzas/resumen?clienteId={clienteId}")).LeerJsonAsync();
+        Assert.Equal(40m, resumen.GetProperty("porCobrar").GetDecimal());
+        Assert.Equal(1, resumen.GetProperty("pendientes").GetInt32());
+        Assert.Equal(1, resumen.GetProperty("vencidas").GetInt32());
+
+        // Con la lista filtrada en Vencida (prueba 10.1.11), el resumen es el de esa cobranza.
+        var soloVencidas = await (await operador.GetAsync($"/api/cobranzas/resumen?clienteId={clienteId}&estado=3")).LeerJsonAsync();
+        Assert.Equal(30m, soloVencidas.GetProperty("porCobrar").GetDecimal());
+        Assert.Equal(0, soloVencidas.GetProperty("pendientes").GetInt32());
+        Assert.Equal(1, soloVencidas.GetProperty("vencidas").GetInt32());
+    }
 }
