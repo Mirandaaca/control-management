@@ -77,8 +77,8 @@ function Marca() {
   );
 }
 
-function claseDeEnlace(activo) {
-  return `relative flex items-center gap-3 h-10 rounded-lg text-sm transition-colors ${foco} ${
+function claseDeEnlace(activo, alto = 'h-10') {
+  return `relative flex items-center gap-3 ${alto} rounded-lg text-sm transition-colors ${foco} ${
     activo ? 'bg-marca-700 text-white font-semibold' : 'text-marca-200 hover:bg-marca-800 hover:text-white'
   }`;
 }
@@ -99,11 +99,13 @@ function EnlaceDelMenu({ item, ruta, alElegir, sangria = false }) {
       to={item.to}
       onClick={alElegir}
       aria-current={activo ? 'page' : undefined}
-      className={`${claseDeEnlace(activo)} ${sangria ? 'pl-3 pr-3' : 'px-3'}`}
+      // Dentro de un grupo queda menos ancho: el nombre pasa a un segundo renglón en vez de cortarse ("Reporte de
+      // incidencias", a 1366 px).
+      className={sangria ? `${claseDeEnlace(activo, 'min-h-10 py-2')} px-3` : `${claseDeEnlace(activo)} px-3`}
     >
       {activo && <BarraActiva />}
       <Icono size={sangria ? 16 : 18} aria-hidden="true" className="shrink-0" />
-      <span className="truncate">{item.label}</span>
+      <span className={sangria ? 'min-w-0 leading-snug' : 'truncate'}>{item.label}</span>
     </Link>
   );
 }
