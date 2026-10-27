@@ -12,6 +12,7 @@ import { COLOR_DEL_ESTADO, iconoDelEstado } from '../components/eventos/marcador
 import {
   Alert, BarraDeFiltros, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
@@ -69,8 +70,6 @@ export default function MapaEventos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -82,8 +81,8 @@ export default function MapaEventos() {
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
-    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
-    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
+    .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
   [eligePromotor]);
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
@@ -108,10 +107,10 @@ export default function MapaEventos() {
   const filtrar = (cambios) => setFiltros((f) => ({ ...f, ...cambios }));
 
   const abrirEvento = (id) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/eventos/${id}`)
       .then(({ data }) => setDetalle(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -165,8 +164,6 @@ export default function MapaEventos() {
     <Layout>
       <PageHeader title="Mapa de eventos" subtitle="Dónde pasaron las incidencias en campo. Elige un punto para ver su detalle y sus fotos." />
 
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && mapa && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {recortado && (
         <Alert type="info" className="mb-4">

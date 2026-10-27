@@ -9,6 +9,7 @@ import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -50,7 +51,6 @@ export default function Inventario() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const [ingreso, setIngreso] = useState(null);
   const ingresoRef = useRef(null);
@@ -85,7 +85,6 @@ export default function Inventario() {
 
   const registrarIngreso = async () => {
     setGuardando(true);
-    setAviso('');
     setErroresIngreso({});
     setErrorIngreso('');
     try {
@@ -93,7 +92,7 @@ export default function Inventario() {
         cantidad: Number(ingreso.cantidad) || 0,
         observacion: ingreso.observacion,
       });
-      setAviso(`Ingresaron ${formatearCantidad(ingreso.cantidad)} de ${data.descripcion}: el stock quedó en ${formatearCantidad(data.stockActual)}.`);
+      avisar.exito(`Ingresaron ${formatearCantidad(ingreso.cantidad)} de ${data.descripcion}: el stock quedó en ${formatearCantidad(data.stockActual)}.`);
       setIngreso(null);
       cargar();
     } catch (err) {
@@ -152,7 +151,6 @@ export default function Inventario() {
         subtitle="El stock de cada producto. Los ingresos de mercadería lo suben y las ventas confirmadas lo bajan."
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

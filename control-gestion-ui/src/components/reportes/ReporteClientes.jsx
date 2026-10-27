@@ -39,7 +39,7 @@ export default function ReporteClientes({ barra, panel }) {
     [filtrosDeLaApi, paginaNuevos, paginaRecurrentes]);
   const { datos: reporte, cargando, erroresFiltro, estado } =
     useReporte('/reportes/clientes', parametros, 'No se pudo generar el reporte de clientes.');
-  const { exportar, exportando, errorExportar } = useExportar('/reportes/clientes/excel', filtrosDeLaApi, 'clientes');
+  const { exportar, exportando } = useExportar('/reportes/clientes/excel', filtrosDeLaApi, 'clientes');
 
   const cambiar = (cambios) => {
     setPeriodo((p) => ({ ...p, ...cambios }));
@@ -52,7 +52,6 @@ export default function ReporteClientes({ barra, panel }) {
     <>
       {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinClientes} />)}
       <div {...panel}>
-        {errorExportar && <Alert type="error" className="mb-4">{errorExportar}</Alert>}
         {sinClientes && (
           <Alert type="info" className="mb-4">No hay clientes nuevos ni recurrentes en el período: no hay nada que exportar.</Alert>
         )}

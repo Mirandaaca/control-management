@@ -14,6 +14,7 @@ import {
   Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Casilla, ErrorDeCarga, EstadoVacio, PageHeader,
   Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -44,8 +45,6 @@ export default function Pedidos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [estados, setEstados] = useState([]);
   const [zonas, setZonas] = useState([]);
@@ -67,7 +66,7 @@ export default function Pedidos() {
       eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
     ])
       .then(([e, z, p]) => { setEstados(e.data); setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
   }, [eligePromotor]);
 
   const cargar = useCallback(() => api.get('/pedidos', {
@@ -95,21 +94,20 @@ export default function Pedidos() {
 
   // El detalle trae las líneas y el historial: la lista solo trae el resumen. Editar también lo necesita.
   const abrirPedido = (id, alAbrir) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/pedidos/${id}`)
       .then(({ data }) => alAbrir(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el pedido.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir el pedido.')));
   };
 
   const abrirFormulario = (pedido = null) => {
-    setAviso('');
     setDetalle(null);
     setFormulario({ pedido });
   };
 
   const alGuardar = (pedido, esNuevo) => {
     setFormulario(null);
-    setAviso(esNuevo
+    avisar.exito(esNuevo
       ? `Se registró ${pedido.numero} por ${formatearMonto(pedido.total)}, con entrega el ${formatearFecha(pedido.fechaEntregaEstimada, { hora: true })}.`
       : `${pedido.numero} quedó modificado.`);
     cargar();
@@ -119,12 +117,11 @@ export default function Pedidos() {
     setCambio(null);
     setAsignando(false);
     setDetalle(null);
-    setAviso(mensaje);
+    avisar.exito(mensaje);
     cargar();
   };
 
   const abrirCambio = (tipo, pedido) => {
-    setAviso('');
     setDetalle(null);
     setCambio({ tipo, pedido });
   };
@@ -177,8 +174,6 @@ export default function Pedidos() {
         )}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {listaDeElegidos.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-marca-200 bg-marca-50 px-4 py-3">
@@ -187,7 +182,7 @@ export default function Pedidos() {
           </p>
           <div className="flex gap-2">
             <Btn variant="outline" onClick={() => setElegidos({})}>Quitar la selección</Btn>
-            <Btn onClick={() => { setAviso(''); setAsignando(true); }}>
+            <Btn onClick={() => setAsignando(true)}>
               <UserCheck size={14} aria-hidden="true" />
               Asignar
             </Btn>

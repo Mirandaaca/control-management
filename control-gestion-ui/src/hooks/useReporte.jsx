@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { descargar } from '../api/descargas';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import { Cargando, ErrorDeCarga, EstadoVacio } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia } from '../utils/formato';
 
 /**
@@ -60,22 +61,21 @@ export function useReporte(ruta, parametros, mensajeDeFallo) {
   return { datos, cargando, erroresFiltro, estado };
 }
 
-/** "Exportar Excel" de un reporte: descarga el archivo con los mismos filtros, o deja el error para mostrarlo. */
+/** "Exportar Excel" de un reporte: descarga el archivo con los mismos filtros, o avisa el error en un toast. */
 export function useExportar(ruta, parametros, prefijo) {
   const [exportando, setExportando] = useState(false);
-  const [errorExportar, setErrorExportar] = useState('');
 
   const exportar = async () => {
     setExportando(true);
-    setErrorExportar('');
+    avisar.quitarError();
     try {
       await descargar(ruta, parametros, `${prefijo}_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
     } catch (err) {
-      setErrorExportar(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
+      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
     } finally {
       setExportando(false);
     }
   };
 
-  return { exportar, exportando, errorExportar };
+  return { exportar, exportando };
 }

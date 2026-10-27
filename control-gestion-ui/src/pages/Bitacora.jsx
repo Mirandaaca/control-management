@@ -6,6 +6,7 @@ import Layout from '../components/Layout';
 import BotonExportar from '../components/reportes/BotonExportar';
 import { Table, Td, Tr } from '../components/Table';
 import { Alert, BarraDeFiltros, CampoFecha, EstadoVacio, PageHeader, Paginacion, Selector } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useExportar, useReporte } from '../hooks/useReporte';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
@@ -21,12 +22,11 @@ const SIN_FILTROS = { usuario: '', modulo: '', desde: '', hasta: '' };
 export default function Bitacora() {
   const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [opciones, setOpciones] = useState({ usuarios: [], modulos: [] });
-  const [errorOpciones, setErrorOpciones] = useState('');
 
   useEffect(() => {
     api.get('/bitacora/opciones')
       .then(({ data }) => setOpciones(data))
-      .catch((err) => setErrorOpciones(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
   }, []);
 
   const filtrosDeLaApi = useMemo(() => ({
@@ -38,7 +38,7 @@ export default function Bitacora() {
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
   const { datos: pagina, cargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/bitacora', parametros, 'No se pudo consultar la bitácora.');
-  const { exportar, exportando, errorExportar } = useExportar('/bitacora/excel', filtrosDeLaApi, 'bitacora');
+  const { exportar, exportando } = useExportar('/bitacora/excel', filtrosDeLaApi, 'bitacora');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -59,7 +59,6 @@ export default function Bitacora() {
         action={<BotonExportar onExportar={exportar} exportando={exportando} disabled={!pagina || sinRegistros} />}
       />
 
-      {(errorExportar || errorOpciones) && <Alert type="error" className="mb-4">{errorExportar || errorOpciones}</Alert>}
       {sinRegistros && hayFiltros && (
         <Alert type="info" className="mb-4">Ningún registro coincide con los filtros: no hay nada que exportar.</Alert>
       )}

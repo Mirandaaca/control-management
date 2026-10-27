@@ -13,6 +13,7 @@ import {
   Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga,
   EstadoVacio, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -54,8 +55,6 @@ export default function HojasPedido() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [detalle, setDetalle] = useState(null);
 
@@ -84,10 +83,10 @@ export default function HojasPedido() {
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
   const verDetalle = (id) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/hojas-pedido/${id}`)
       .then(({ data }) => setDetalle(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
   };
 
   const puedeAnularla = (hp) => puedeAnular && hp.estadoHP !== ANULADA;
@@ -97,7 +96,7 @@ export default function HojasPedido() {
     setAnulando((a) => ({ ...a, error: '', errorMotivo: '' }));
     try {
       const { data } = await api.post(`/hojas-pedido/${anulando.hp.id}/anular`, { motivo: anulando.motivo });
-      setAviso(anulando.hp.estadoHP === CONFIRMADA
+      avisar.exito(anulando.hp.estadoHP === CONFIRMADA
         ? `${data.numero} quedó anulada: el stock volvió al inventario${data.cobranza ? ` y la deuda ${data.cobranza.numero} se anuló` : ''}.`
         : `${data.numero} quedó anulada.`);
       setAnulando(null);
@@ -141,8 +140,6 @@ export default function HojasPedido() {
         subtitle={veCarteraCompleta ? 'Las ventas en campo de todos los promotores.' : 'Las ventas a los clientes de tu cartera.'}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

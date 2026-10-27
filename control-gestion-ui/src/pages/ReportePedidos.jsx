@@ -9,6 +9,7 @@ import EstadoPedido from '../components/pedidos/EstadoPedido';
 import {
   Alert, BarraDeFiltros, Btn, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, Indicador, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -27,7 +28,6 @@ export default function ReportePedidos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [erroresFiltro, setErroresFiltro] = useState({});
-  const [errorAccion, setErrorAccion] = useState('');
   const [exportando, setExportando] = useState(false);
   const [estados, setEstados] = useState([]);
   const [zonas, setZonas] = useState([]);
@@ -36,7 +36,7 @@ export default function ReportePedidos() {
   useEffect(() => {
     Promise.all([api.get('/pedidos/estados'), api.get('/zonas'), api.get('/usuarios/promotores')])
       .then(([e, z, p]) => { setEstados(e.data); setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
   }, []);
 
   const parametros = useCallback((pagina) => ({
@@ -66,11 +66,11 @@ export default function ReportePedidos() {
 
   const exportar = async () => {
     setExportando(true);
-    setErrorAccion('');
+    avisar.quitarError();
     try {
       await descargar('/pedidos/reporte/excel', parametros(undefined), `pedidos_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
+      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
     } finally {
       setExportando(false);
     }
@@ -106,7 +106,6 @@ export default function ReportePedidos() {
         )}
       />
 
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {sinPedidos && hayFiltros && (
         <Alert type="info" className="mb-4">Ningún pedido coincide con los filtros: no hay nada que exportar.</Alert>
       )}

@@ -7,6 +7,7 @@ import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert, Btn, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import DibujoDeLimite from '../components/zonas/DibujoDeLimite';
 import FormularioPunto from '../components/zonas/FormularioPunto';
 import { comoPosiciones, ESTILO_ZONA, ESTILO_ZONA_ELEGIDA, ICONO_PUNTO } from '../components/zonas/marcadores';
@@ -82,7 +83,6 @@ export default function MapaZonas() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
 
   // El límite que se dibuja ("dibujar") o se edita ("editar"), con los vértices como [[lat, lng], …]; o "punto",
   // mientras se espera el clic que marca un punto de referencia nuevo.
@@ -113,7 +113,6 @@ export default function MapaZonas() {
   const reemplazarZona = (zona) => setZonas((lista) => lista.map((z) => (z.id === zona.id ? zona : z)));
 
   const empezar = (nuevoModo) => {
-    setAviso('');
     setErrorLimite('');
     setBorrador(nuevoModo === 'editar' ? comoPosiciones(elegida.limite) : []);
     setModo(nuevoModo);
@@ -135,7 +134,7 @@ export default function MapaZonas() {
       });
       reemplazarZona(data);
       terminarDibujo();
-      setAviso(`Se guardó el límite de ${data.nombre}.`);
+      avisar.exito(`Se guardó el límite de ${data.nombre}.`);
     } catch (err) {
       setConfirmarReemplazo(false);
       setErrorLimite(mensajeDeError(err, 'No se pudo guardar el límite.'));
@@ -154,7 +153,7 @@ export default function MapaZonas() {
       await api.delete(`/zonas/${elegida.id}/limite`);
       reemplazarZona({ ...elegida, limite: null });
       setQuitando(false);
-      setAviso(`Se quitó el límite de ${elegida.nombre}.`);
+      avisar.exito(`Se quitó el límite de ${elegida.nombre}.`);
     } catch (err) {
       setErrorQuitar(mensajeDeError(err, 'No se pudo quitar el límite.'));
     } finally {
@@ -170,7 +169,7 @@ export default function MapaZonas() {
   // Un punto cambia la cuenta de su zona (y de la anterior, si se movió): se vuelve a pedir todo, que son pocas filas.
   const alGuardarPunto = (punto, esNuevo) => {
     setFormularioPunto(null);
-    setAviso(esNuevo ? `Se registró ${punto.nombre} en ${punto.zona.nombre}.` : `Se guardó ${punto.nombre}.`);
+    avisar.exito(esNuevo ? `Se registró ${punto.nombre} en ${punto.zona.nombre}.` : `Se guardó ${punto.nombre}.`);
     cargar();
   };
 
@@ -179,7 +178,7 @@ export default function MapaZonas() {
     setErrorEliminarPunto('');
     try {
       await api.delete(`/puntos-referencia/${aEliminarPunto.id}`);
-      setAviso(`Se eliminó ${aEliminarPunto.nombre}.`);
+      avisar.exito(`Se eliminó ${aEliminarPunto.nombre}.`);
       setAEliminarPunto(null);
       cargar();
     } catch (err) {
@@ -227,7 +226,7 @@ export default function MapaZonas() {
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
             <h3 className="mr-auto text-sm font-semibold text-slate-900">{elegida?.nombre ?? 'Elige una zona para dibujar su límite'}</h3>
             {puedeRegistrarPuntos && (
-              <Btn variant="outline" onClick={() => { setAviso(''); setModo('punto'); }}>
+              <Btn variant="outline" onClick={() => setModo('punto')}>
                 <MapPinPlus size={14} aria-hidden="true" />
                 Agregar punto
               </Btn>
@@ -362,7 +361,6 @@ export default function MapaZonas() {
   return (
     <Layout>
       <PageHeader title="Mapa de zonas" subtitle="El límite de cada zona y sus puntos de referencia. Elige una zona para verla de cerca." />
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       <div className="bg-white rounded-xl shadow-tarjeta border border-slate-200 overflow-hidden">{contenido}</div>
 
       <Confirmar

@@ -27,10 +27,12 @@ import Roles from './pages/Roles';
 import Perfil from './pages/Perfil';
 import Bitacora from './pages/Bitacora';
 import HojaParaImprimir from './pages/HojaParaImprimir';
+import { Avisos } from './components/ui/sonner';
 
 export default function App() {
   return (
     <AuthProvider>
+      <Avisos />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

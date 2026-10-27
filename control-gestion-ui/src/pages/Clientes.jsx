@@ -11,6 +11,7 @@ import {
   Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -72,8 +73,6 @@ export default function Clientes() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [detalle, setDetalle] = useState(null);
   const [formulario, setFormulario] = useState(null);
@@ -94,7 +93,7 @@ export default function Clientes() {
   useEffect(() => {
     Promise.all([api.get('/zonas'), api.get('/clientes/estados')])
       .then(([z, e]) => { setZonas(z.data); setEstados(e.data); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudieron cargar las zonas y los estados.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar las zonas y los estados.')));
   }, []);
 
   const cargar = useCallback(() => api.get('/clientes', {
@@ -120,12 +119,12 @@ export default function Clientes() {
   // La lista no trae la dirección ni la ubicación: el detalle y el formulario las piden aparte. Si falla, avisa y da null.
   const pedirDetalle = (id) => api.get(`/clientes/${id}`)
     .then(({ data }) => data)
-    .catch((err) => { setErrorAccion(mensajeDeError(err, 'No se pudo abrir el cliente.')); return null; });
+    .catch((err) => { avisar.error(mensajeDeError(err, 'No se pudo abrir el cliente.')); return null; });
 
   const quitarErrorDeUbicacion = () =>
     setErroresCampo((e) => Object.fromEntries(Object.entries(e).filter(([campo]) => campo !== 'latitud')));
 
-  const verDetalle = (id) => { setErrorAccion(''); pedirDetalle(id).then((d) => d && setDetalle(d)); };
+  const verDetalle = (id) => { avisar.quitarError(); pedirDetalle(id).then((d) => d && setDetalle(d)); };
 
   const abrirFormulario = (cliente) => {
     setErroresCampo({});
@@ -147,7 +146,7 @@ export default function Clientes() {
       : { ...FORMULARIO_VACIO, zonaId: zonasElegibles.length === 1 ? String(zonasElegibles[0].id) : '' });
   };
 
-  const editar = (id) => { setErrorAccion(''); pedirDetalle(id).then((d) => d && abrirFormulario(d)); };
+  const editar = (id) => { avisar.quitarError(); pedirDetalle(id).then((d) => d && abrirFormulario(d)); };
 
   const usarMiUbicacion = () => {
     if (!navigator.geolocation) {
@@ -171,7 +170,6 @@ export default function Clientes() {
 
   const guardar = async (confirmarTelefonoRepetido = false) => {
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorFormulario('');
     setAvisoTelefono('');
@@ -189,7 +187,7 @@ export default function Clientes() {
     try {
       if (id) await api.put(`/clientes/${id}`, datos);
       else await api.post('/clientes', datos);
-      setAviso(id ? `Se guardaron los cambios de ${datos.nombreCompleto}.` : `Se registró a ${datos.nombreCompleto}.`);
+      avisar.exito(id ? `Se guardaron los cambios de ${datos.nombreCompleto}.` : `Se registró a ${datos.nombreCompleto}.`);
       setFormulario(null);
       cargar();
     } catch (err) {
@@ -224,11 +222,10 @@ export default function Clientes() {
   const guardarEstado = async () => {
     setGuardandoEstado(true);
     setErrorEstado('');
-    setAviso('');
     try {
       const estadoClienteId = cambioEstado.valor === EN_EL_CICLO ? null : Number(cambioEstado.valor);
       const { data } = await api.put(`/clientes/${cambioEstado.cliente.id}/estado`, { estadoClienteId });
-      setAviso(`${data.nombreCompleto} quedó en “${data.estado.nombre}”.`);
+      avisar.exito(`${data.nombreCompleto} quedó en “${data.estado.nombre}”.`);
       setCambioEstado(null);
       cargar();
     } catch (err) {
@@ -274,8 +271,6 @@ export default function Clientes() {
         )}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

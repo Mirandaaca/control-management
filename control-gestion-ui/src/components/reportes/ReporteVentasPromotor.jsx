@@ -6,7 +6,8 @@ import { mensajeDeError } from '../../api/errores';
 import { useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, Btn, CampoFecha, Selector } from '../ui';
+import { BarraDeFiltros, Btn, CampoFecha, Selector } from '../ui';
+import { avisar } from '../ui/avisar';
 import { atajosDePeriodo } from '../../utils/fechas';
 
 const SIN_FILTROS = { desde: '', hasta: '', promotor: '' };
@@ -36,12 +37,11 @@ export default function ReporteVentasPromotor({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [grafico, setGrafico] = useState(false);
   const [promotores, setPromotores] = useState([]);
-  const [errorPromotores, setErrorPromotores] = useState('');
 
   useEffect(() => {
     api.get('/usuarios/promotores')
       .then(({ data }) => setPromotores(data))
-      .catch((err) => setErrorPromotores(mensajeDeError(err, 'No se pudo cargar la lista de promotores.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo cargar la lista de promotores.')));
   }, []);
 
   const parametros = useMemo(() => ({
@@ -78,7 +78,6 @@ export default function ReporteVentasPromotor({ barra, panel }) {
     <>
       {barra(null)}
       <div {...panel}>
-        {errorPromotores && <Alert type="error" className="mb-4">{errorPromotores}</Alert>}
         <Table
           titulo="Ventas por promotor"
           headers={['Promotor', { texto: 'HP', derecha: true }, { texto: 'Total vendido', derecha: true }]}

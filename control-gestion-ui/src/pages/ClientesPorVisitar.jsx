@@ -9,6 +9,7 @@ import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { textoDelAtraso } from '../components/clientes/visitas';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
@@ -47,13 +48,12 @@ export default function ClientesPorVisitar() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
   const [elegido, setElegido] = useState(null);
 
   useEffect(() => {
     Promise.all([api.get('/zonas'), eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] })])
       .then(([z, p]) => { setZonas(z.data); setPromotores(p.data); })
-      .catch((err) => setErrorFiltros(mensajeDeError(err, 'No se pudieron cargar las zonas y los promotores.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar las zonas y los promotores.')));
   }, [eligePromotor]);
 
   const cargar = useCallback(() => api.get('/clientes/por-visitar', {
@@ -107,7 +107,6 @@ export default function ClientesPorVisitar() {
         action={planificar}
       />
 
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

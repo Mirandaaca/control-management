@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert, Btn, Card, Cargando, ErrorDeCarga, Input, PageHeader } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { formatearFecha } from '../utils/formato';
 
@@ -52,13 +53,11 @@ export default function Perfil() {
 
   const [erroresDatos, setErroresDatos] = useState({});
   const [errorDatos, setErrorDatos] = useState('');
-  const [avisoDatos, setAvisoDatos] = useState('');
   const [guardandoDatos, setGuardandoDatos] = useState(false);
 
   const [contrasenas, setContrasenas] = useState(SIN_CONTRASENAS);
   const [erroresContrasena, setErroresContrasena] = useState({});
   const [errorContrasena, setErrorContrasena] = useState('');
-  const [avisoContrasena, setAvisoContrasena] = useState('');
   const [cambiando, setCambiando] = useState(false);
 
   const cargar = useCallback(() => api.get('/perfil')
@@ -77,11 +76,10 @@ export default function Perfil() {
     setGuardandoDatos(true);
     setErroresDatos({});
     setErrorDatos('');
-    setAvisoDatos('');
     try {
       const { data } = await api.put('/perfil', datos);
       setPerfil(data);
-      setAvisoDatos('Se guardaron tus datos.');
+      avisar.exito('Se guardaron tus datos.');
       // El nombre del menú sale de la sesión.
       refrescar().catch((err) => console.warn('No se pudo actualizar la sesión.', err));
     } catch (err) {
@@ -97,7 +95,6 @@ export default function Perfil() {
     e.preventDefault();
     setErroresContrasena({});
     setErrorContrasena('');
-    setAvisoContrasena('');
     if (contrasenas.nueva !== contrasenas.confirmar) {
       setErroresContrasena({ confirmar: 'Las dos contraseñas nuevas no coinciden.' });
       return;
@@ -106,7 +103,7 @@ export default function Perfil() {
     try {
       await api.put('/perfil/contrasena', { actual: contrasenas.actual, nueva: contrasenas.nueva });
       setContrasenas(SIN_CONTRASENAS);
-      setAvisoContrasena('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.');
+      avisar.exito('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.');
     } catch (err) {
       const campos = camposDelError(err);
       setErroresContrasena(campos);
@@ -128,7 +125,6 @@ export default function Perfil() {
       <Card>
         <Encabezado icono={UserRound} titulo="Tus datos">Tu nombre y el correo con el que inicias sesión.</Encabezado>
         <form onSubmit={guardarDatos} className="space-y-4" noValidate>
-          {avisoDatos && <Alert type="success">{avisoDatos}</Alert>}
           {errorDatos && <Alert type="error">{errorDatos}</Alert>}
           <Input label="Nombre completo" value={datos.nombreCompleto} error={erroresDatos.nombreCompleto} autoComplete="name"
             onChange={(e) => setDatos({ ...datos, nombreCompleto: e.target.value })} />
@@ -151,7 +147,6 @@ export default function Perfil() {
       <Card>
         <Encabezado icono={KeyRound} titulo="Contraseña">Para cambiarla necesitas la actual.</Encabezado>
         <form onSubmit={cambiarContrasena} className="space-y-4" noValidate>
-          {avisoContrasena && <Alert type="success">{avisoContrasena}</Alert>}
           {errorContrasena && <Alert type="error">{errorContrasena}</Alert>}
           <Input label="Contraseña actual" type="password" value={contrasenas.actual} error={erroresContrasena.actual}
             autoComplete="current-password" onChange={(e) => setContrasenas({ ...contrasenas, actual: e.target.value })} />

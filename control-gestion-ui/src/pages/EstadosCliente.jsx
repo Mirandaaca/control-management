@@ -11,6 +11,7 @@ import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
@@ -74,7 +75,6 @@ export default function EstadosCliente() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [busqueda, setBusqueda] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const [editor, setEditor] = useState(null);
   const editorRef = useRef(null);
@@ -104,14 +104,13 @@ export default function EstadosCliente() {
   const guardar = async (ev) => {
     ev.preventDefault();
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorEditor('');
     const datos = { nombre: editor.nombre, color: editor.color, descripcion: editor.descripcion };
     try {
       const { data } = editor.id ? await api.put(`/estados-cliente/${editor.id}`, datos) : await api.post('/estados-cliente', datos);
       setEstados((lista) => (editor.id ? lista.map((e) => (e.id === data.id ? data : e)) : [...lista, data]));
-      setAviso(editor.id ? `Se guardó el estado ${data.nombre}.` : `Se registró el estado ${data.nombre}.`);
+      avisar.exito(editor.id ? `Se guardó el estado ${data.nombre}.` : `Se registró el estado ${data.nombre}.`);
       setEditor(null);
     } catch (err) {
       const campos = erroresPorCampo(err);
@@ -133,7 +132,7 @@ export default function EstadosCliente() {
     try {
       await api.delete(`/estados-cliente/${aEliminar.id}`);
       setEstados((lista) => lista.filter((e) => e.id !== aEliminar.id));
-      setAviso(`Se eliminó el estado ${aEliminar.nombre}.`);
+      avisar.exito(`Se eliminó el estado ${aEliminar.nombre}.`);
       setAEliminar(null);
     } catch (err) {
       setErrorEliminar(mensajeDeError(err, 'No se pudo eliminar el estado.'));
@@ -161,8 +160,6 @@ export default function EstadosCliente() {
           </Btn>
         )}
       />
-
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
 
       <Table
         headers={['Estado', 'Descripción', 'Tipo', { texto: 'Clientes', derecha: true }, { texto: 'Acciones', oculto: true }]}

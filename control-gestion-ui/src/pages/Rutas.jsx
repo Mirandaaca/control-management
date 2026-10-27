@@ -5,6 +5,7 @@ import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Alert, Btn, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import EstadoRuta from '../components/rutas/EstadoRuta';
 import FormularioRuta from '../components/rutas/FormularioRuta';
 import MapaDeRuta, { LeyendaDeRuta } from '../components/rutas/MapaDeRuta';
@@ -123,7 +124,6 @@ export default function Rutas() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [errorRuta, setErrorRuta] = useState('');
-  const [aviso, setAviso] = useState('');
   const [planificando, setPlanificando] = useState(() => parametros.get('planificar') === '1');
   const [aEliminar, setAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
@@ -173,7 +173,6 @@ export default function Rutas() {
 
   const cambiarDia = (nuevo) => {
     if (!nuevo) return;
-    setAviso('');
     setCargando(true);
     setDia(nuevo);
   };
@@ -185,7 +184,7 @@ export default function Rutas() {
 
   const alPlanificar = (nueva) => {
     cerrarFormulario();
-    setAviso(`Se planificó ${nueva.numero} para ${nueva.promotor.nombreCompleto} el ${formatearDia(nueva.fecha)}.`);
+    avisar.exito(`Se planificó ${nueva.numero} para ${nueva.promotor.nombreCompleto} el ${formatearDia(nueva.fecha)}.`);
     setElegidaId(nueva.id);
     if (nueva.fecha === dia) cargarLista();
     else { setCargando(true); setDia(nueva.fecha); }
@@ -196,7 +195,7 @@ export default function Rutas() {
     setErrorEliminar('');
     try {
       await api.delete(`/rutas/${aEliminar.id}`);
-      setAviso(`Se eliminó la ruta ${aEliminar.numero}.`);
+      avisar.exito(`Se eliminó la ruta ${aEliminar.numero}.`);
       setAEliminar(null);
       setElegidaId(null);
       setRuta(null);
@@ -252,13 +251,12 @@ export default function Rutas() {
         title="Rutas"
         subtitle="Las rutas de re-visita de los promotores, su avance y su seguimiento."
         action={puedePlanificar && (
-          <Btn size="md" onClick={() => { setAviso(''); setPlanificando(true); }}>
+          <Btn size="md" onClick={() => setPlanificando(true)}>
             <Plus size={16} aria-hidden="true" />
             Planificar ruta
           </Btn>
         )}
       />
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {errorCarga && rutas && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <div className="grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-tarjeta lg:grid-cols-[18rem_minmax(0,1fr)]">

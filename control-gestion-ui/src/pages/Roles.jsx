@@ -9,6 +9,7 @@ import {
   Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
@@ -84,7 +85,6 @@ export default function Roles() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [busqueda, setBusqueda] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const [editor, setEditor] = useState(null);
   const editorRef = useRef(null);
@@ -127,7 +127,6 @@ export default function Roles() {
   const guardar = async (ev) => {
     ev.preventDefault();
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorEditor('');
     const datos = { nombre: editor.nombre, permisos: [...editor.elegidos] };
@@ -135,7 +134,7 @@ export default function Roles() {
       const { data } = editor.id ? await api.put(`/roles/${editor.id}`, datos) : await api.post('/roles', datos);
       setRoles((lista) => (editor.id ? lista.map((r) => (r.id === data.id ? data : r)) : [...lista, data])
         .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')));
-      setAviso(editor.id ? `Se guardaron los permisos de ${data.nombre}.` : `Se creó el rol ${data.nombre}.`);
+      avisar.exito(editor.id ? `Se guardaron los permisos de ${data.nombre}.` : `Se creó el rol ${data.nombre}.`);
       setEditor(null);
       // Si cambiaron los permisos del propio rol, el menú se actualiza enseguida.
       refrescar().catch((err) => console.warn('No se pudo actualizar la sesión.', err));
@@ -159,7 +158,7 @@ export default function Roles() {
     try {
       await api.delete(`/roles/${aEliminar.id}`);
       setRoles((lista) => lista.filter((r) => r.id !== aEliminar.id));
-      setAviso(`Se eliminó el rol ${aEliminar.nombre}.`);
+      avisar.exito(`Se eliminó el rol ${aEliminar.nombre}.`);
       setAEliminar(null);
     } catch (err) {
       setErrorEliminar(mensajeDeError(err, 'No se pudo eliminar el rol.'));
@@ -188,8 +187,6 @@ export default function Roles() {
           </Btn>
         )}
       />
-
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
 
       <Table
         headers={['Rol', 'Usuarios', 'Permisos', '']}

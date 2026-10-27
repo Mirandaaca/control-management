@@ -3,7 +3,8 @@ import { CalendarClock } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, Card, Cargando, Confirmar, ErrorDeCarga, Input, PageHeader } from '../components/ui';
+import { Btn, Card, Cargando, Confirmar, ErrorDeCarga, Input, PageHeader } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 
 const MENSAJE_DE_RANGO = 'Los días de re-visita van de 1 a 365.';
 
@@ -33,7 +34,6 @@ export default function ConfiguracionGeneral() {
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const cargar = useCallback(() => api.get('/configuraciones/dias-revisita')
     .then(({ data }) => { setGuardados(data.dias); setDias(String(data.dias)); setErrorCarga(''); })
@@ -47,7 +47,6 @@ export default function ConfiguracionGeneral() {
   // Un valor fuera de rango ni siquiera abre la confirmación: la API respondería lo mismo.
   const pedirConfirmacion = (e) => {
     e.preventDefault();
-    setAviso('');
     setErrorGuardar('');
     if (!Number.isInteger(numero) || numero < 1 || numero > 365) {
       setErrorCampo(MENSAJE_DE_RANGO);
@@ -65,7 +64,7 @@ export default function ConfiguracionGeneral() {
       setGuardados(data.dias);
       setDias(String(data.dias));
       setConfirmando(false);
-      setAviso(resumenDelCambio(data));
+      avisar.exito(resumenDelCambio(data));
     } catch (err) {
       const campo = erroresPorCampo(err).dias;
       if (campo) {
@@ -105,7 +104,6 @@ export default function ConfiguracionGeneral() {
         </div>
       </div>
       <form onSubmit={pedirConfirmacion} className="space-y-4" noValidate>
-        {aviso && <Alert type="success">{aviso}</Alert>}
         <div className="w-full sm:w-48">
           <Input label="Días de re-visita" type="number" inputMode="numeric" min="1" max="365" step="1" autoComplete="off"
             value={dias} error={errorCampo} ayuda="Un número entero, de 1 a 365."

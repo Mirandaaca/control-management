@@ -13,6 +13,7 @@ import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -42,9 +43,6 @@ export default function Eventos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
 
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
@@ -60,8 +58,8 @@ export default function Eventos() {
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
-    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
-    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
+    .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
   [eligePromotor]);
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
@@ -90,40 +88,38 @@ export default function Eventos() {
 
   // El detalle trae la descripción, la ubicación y las fotos: la lista solo trae el resumen. Resolver también lo necesita.
   const abrirEvento = (id, alAbrir = setDetalle) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/eventos/${id}`)
       .then(({ data }) => alAbrir(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
   const abrirFormulario = (evento) => {
-    setAviso('');
     setDetalle(null);
     setFormulario({ evento });
   };
 
   const abrirResolver = (evento) => {
-    setAviso('');
     setDetalle(null);
     setResolviendo(evento);
   };
 
   const alGuardar = (evento) => {
     setFormulario(null);
-    setAviso(`${evento.numero} quedó modificado.`);
+    avisar.exito(`${evento.numero} quedó modificado.`);
     cargar();
   };
 
   const alResolver = (evento) => {
     setResolviendo(null);
-    setAviso(`${evento.numero} quedó resuelto.`);
+    avisar.exito(`${evento.numero} quedó resuelto.`);
     cargar();
   };
 
   // Agregar o quitar una foto cambia el detalle y la cantidad de fotos de la lista.
   const alCambiarFotos = (evento, mensaje) => {
     setDetalle(evento);
-    setAviso(mensaje);
+    avisar.exito(mensaje);
     cargar();
   };
 
@@ -156,9 +152,6 @@ export default function Eventos() {
           : 'Las incidencias de tu cartera, sus fotos y su solución.'}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

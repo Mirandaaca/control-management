@@ -8,6 +8,7 @@ import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader, Paginacion,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
@@ -34,7 +35,6 @@ export default function Productos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const [formulario, setFormulario] = useState(null);
   const formularioRef = useRef(null);
@@ -78,7 +78,6 @@ export default function Productos() {
 
   const guardar = async () => {
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorFormulario('');
     const { id, categoria, precioCompra, precio, stockMinimo, ...resto } = formulario;
@@ -92,7 +91,7 @@ export default function Productos() {
     try {
       if (id) await api.put(`/productos/${id}`, datos);
       else await api.post('/productos', datos);
-      setAviso(id ? `Se guardaron los cambios de ${datos.descripcion}.` : `Se registró ${datos.descripcion}, con stock 0.`);
+      avisar.exito(id ? `Se guardaron los cambios de ${datos.descripcion}.` : `Se registró ${datos.descripcion}, con stock 0.`);
       setFormulario(null);
       cargar();
     } catch (err) {
@@ -114,7 +113,7 @@ export default function Productos() {
     setErrorDesactivar('');
     try {
       await api.delete(`/productos/${desactivando.id}`);
-      setAviso(`${desactivando.descripcion} quedó inactivo.`);
+      avisar.exito(`${desactivando.descripcion} quedó inactivo.`);
       setDesactivando(null);
       cargar();
     } catch (err) {
@@ -158,7 +157,6 @@ export default function Productos() {
         )}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table

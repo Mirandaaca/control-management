@@ -16,7 +16,7 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popove
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
 // Componentes del panel con el diseño de docs/diseno.md. Los archivos en minúscula de esta carpeta (dialog, select,
-// checkbox, command, popover y calendar) son primitivos: las pantallas usan los de aquí, que ya traen los textos
+// checkbox, command, popover, calendar y sonner) son primitivos: las pantallas usan los de aquí, que ya traen los textos
 // y el estilo.
 
 export function PageHeader({ title, subtitle, action }) {
