@@ -632,10 +632,19 @@ const anchos = { md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
  * fuera no la cierra: perdería lo que se escribió en un formulario.
  */
 export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, ancho = 'md' }) {
+  // Radix devuelve el foco solo a un DialogTrigger, y las ventanas del panel se abren con su estado: sin esto, al cerrar
+  // el foco caía en el body. Se guarda quién lo tenía al abrir y se le devuelve, si sigue en la página (WCAG 2.4.3).
+  const abrio = useRef(null);
   return (
     <Dialog open={abierto} onOpenChange={(abre) => { if (!abre) onCerrar(); }}>
       <DialogContent
         className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}
+        onOpenAutoFocus={() => { abrio.current = document.activeElement; }}
+        onCloseAutoFocus={(e) => {
+          if (!abrio.current?.isConnected) return;
+          e.preventDefault();
+          abrio.current.focus();
+        }}
         onPointerDownOutside={(e) => e.preventDefault()}
         // Sin descripción, Radix pide aria-describedby={undefined}: así el lector de pantalla no lee el título dos veces.
         {...(descripcion ? {} : { 'aria-describedby': undefined })}
