@@ -87,8 +87,9 @@ function BarraActiva() {
   return <span className="absolute left-0 top-2 bottom-2 w-0.75 rounded-r bg-marca-300" aria-hidden="true" />;
 }
 
+// Una línea solo visual: dentro de una lista, un hijo con role="separator" rompe la lista (WCAG 1.3.1).
 function Separador() {
-  return <li role="separator" className="my-3 mx-3 border-t border-marca-800" />;
+  return <li aria-hidden="true" className="my-3 mx-3 border-t border-marca-800" />;
 }
 
 function EnlaceDelMenu({ item, ruta, alElegir, sangria = false }) {
@@ -180,7 +181,7 @@ function MenuReplegado({ visibles, ruta, mostrarEtiqueta, ocultarEtiqueta }) {
       {visibles.map((modulo, i) => {
         // Sin los nombres de los módulos, una línea entre cada uno muestra dónde empieza el siguiente.
         return [
-          i > 0 && <li key={`sep-${modulo.id}`} role="separator" className="my-2 mx-2 border-t border-marca-800" />,
+          i > 0 && <li key={`sep-${modulo.id}`} aria-hidden="true" className="my-2 mx-2 border-t border-marca-800" />,
           ...modulo.items.map((item) => {
             const activo = ruta === item.to;
             const Icono = item.icon;

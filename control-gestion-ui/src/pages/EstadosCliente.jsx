@@ -33,14 +33,15 @@ function porQueEstaProtegido(estado) {
 /** Las muestras de la paleta: un grupo de opciones que se recorre con las flechas. */
 function ElegirColor({ valor, onCambiar, error }) {
   return (
-    <fieldset aria-describedby={error ? 'color-error' : undefined}>
+    // El error es del grupo: aria-invalid no vale en cada opción (role radio), sí en el grupo.
+    <fieldset role="radiogroup" aria-invalid={error ? true : undefined} aria-describedby={error ? 'color-error' : undefined}>
       <legend className="block text-sm font-medium text-slate-700 mb-1">Color</legend>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {PALETA.map((c) => (
           <label key={c.color}
             className="flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border border-borde-control bg-white px-3 py-2 text-sm text-slate-800 transition-colors hover:bg-slate-50 has-[:checked]:border-marca-600 has-[:checked]:bg-marca-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-marca-500">
             <input type="radio" name="color" value={c.color} checked={valor === c.color} onChange={() => onCambiar(c.color)}
-              aria-invalid={error ? true : undefined} className="sr-only" />
+              className="sr-only" />
             <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-white shadow-[0_0_0_1px_#7B8798]"
               style={{ backgroundColor: c.color, color: c.texto }} aria-hidden="true">
               {valor === c.color && <Check size={12} strokeWidth={3} />}
