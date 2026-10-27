@@ -283,6 +283,14 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
+      {/* Lo primero que recibe el foco: salta el menú (WCAG 2.4.1). Se ve solo al recibirlo. */}
+      <a
+        href="#contenido"
+        onClick={(e) => { e.preventDefault(); document.getElementById('contenido')?.focus(); }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-marca-700 focus:shadow-flotante focus:outline-none focus:ring-2 focus:ring-marca-500"
+      >
+        Saltar al contenido
+      </a>
       {/* PC: menú fijo, replegable */}
       <aside
         className={`hidden lg:flex lg:flex-col shrink-0 bg-marca-900 sticky top-0 h-screen transition-[width] duration-200 ${
@@ -383,7 +391,7 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
+      <main id="contenido" tabIndex={-1} className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 focus:outline-none">
         {children}
       </main>
     </div>
