@@ -30,7 +30,7 @@ export function PageHeader({ title, subtitle, action }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
+        <h2 className="text-2xl font-semibold text-slate-900 text-balance">{title}</h2>
         {subtitle && <p className="text-slate-600 text-sm mt-1">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -124,7 +124,10 @@ export function Input({ label, ayuda, error, id, ...props }) {
   const campoId = id ?? generado;
   return (
     <Campo id={campoId} label={label} ayuda={ayuda} error={error}>
+      {/* Sin autocompletar, salvo que la pantalla lo pida (los datos propios en Mi perfil): el navegador no propone lo
+          escrito en otros formularios, ni el gestor de contraseñas se activa en un campo cualquiera. */}
       <input
+        autoComplete="off"
         {...props}
         id={campoId}
         aria-invalid={error ? true : undefined}
@@ -393,7 +396,7 @@ function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOcu
           </div>
         </PopoverAnchor>
         <PopoverContent align="start" collisionPadding={16} className="w-36 p-1" onOpenAutoFocus={enfocarLaElegida} aria-label={`Horas: ${label}`}>
-          <ul ref={lista} className="max-h-60 overflow-y-auto">
+          <ul ref={lista} className="max-h-60 overflow-y-auto overscroll-contain">
             {HORAS_DEL_DIA.map((hora) => (
               <li key={hora}>
                 <button
@@ -654,7 +657,7 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
           <DialogTitle>{titulo}</DialogTitle>
           {descripcion && <DialogDescription>{descripcion}</DialogDescription>}
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto -mx-6 px-6">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain -mx-6 px-6">{children}</div>
         {pie && <DialogFooter>{pie}</DialogFooter>}
       </DialogContent>
     </Dialog>

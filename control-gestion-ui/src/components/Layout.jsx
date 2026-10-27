@@ -312,7 +312,7 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overflow-x-hidden" onScroll={ocultarEtiqueta}>
+        <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overflow-x-hidden overscroll-contain" onScroll={ocultarEtiqueta}>
           {replegado
             ? <MenuReplegado visibles={visibles} ruta={location.pathname} mostrarEtiqueta={mostrarEtiqueta} ocultarEtiqueta={ocultarEtiqueta} />
             : <MenuCompleto visibles={visibles} ruta={location.pathname} />}
@@ -384,7 +384,7 @@ export default function Layout({ children }) {
                 <X size={22} aria-hidden="true" />
               </button>
             </div>
-            <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto">
+            <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overscroll-contain">
               <MenuCompleto visibles={visibles} ruta={location.pathname} alElegir={cerrarMenu} />
             </nav>
             {pieCompleto}

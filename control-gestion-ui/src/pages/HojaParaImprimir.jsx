@@ -82,7 +82,7 @@ export default function HojaParaImprimir() {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 print:bg-white print:p-0">
       <div className="mx-auto mb-4 flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between print:hidden">
-        <p className="text-sm text-slate-600">En el diálogo de impresión, elige "Guardar como PDF" para guardarla.</p>
+        <p className="text-sm text-slate-600">En el diálogo de impresión, elige “Guardar como PDF” para guardarla.</p>
         <Btn size="md" onClick={() => window.print()}>
           <Printer size={16} aria-hidden="true" />
           Imprimir o guardar en PDF
