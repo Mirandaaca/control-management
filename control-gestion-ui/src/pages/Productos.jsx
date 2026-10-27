@@ -6,12 +6,13 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader, Paginacion,
+  Alert, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader, Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useRecarga } from '../hooks/useRecarga';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearMonto } from '../utils/formato';
 
@@ -54,7 +55,8 @@ export default function Productos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const buscar = (valor) => { setTexto(valor); setNumeroPagina(1); };
 
@@ -127,8 +129,7 @@ export default function Productos() {
   const productos = pagina?.items ?? [];
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando productos…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -160,19 +161,21 @@ export default function Productos() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando productos…'} recargando={recargando}
         headers={encabezados}
         empty="Ningún producto coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => buscar('')}
           >
             <Buscador label="Buscar" placeholder="Código, descripción o categoría…" value={texto} onChange={buscar} />
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {productos.map((p) => (
           <Tr key={p.id}>

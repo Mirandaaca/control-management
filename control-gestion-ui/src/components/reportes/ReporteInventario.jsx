@@ -35,7 +35,7 @@ export default function ReporteInventario({ barra, panel }) {
     categoria: filtros.categoria || undefined, desde: filtros.desde || undefined, hasta: filtros.hasta || undefined,
   }), [filtros]);
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
-  const { datos: reporte, cargando, erroresFiltro, estado } =
+  const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/inventario', parametros, 'No se pudo generar el reporte de inventario.');
   const { exportar, exportando } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
 
@@ -49,11 +49,12 @@ export default function ReporteInventario({ barra, panel }) {
       {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
       <div {...panel}>
         <Table
+          cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           titulo="Stock"
           headers={columnas}
           empty="No hay productos activos en esta categoría."
           estado={estado}
-          barra={!cargando && (
+          barra={(
             <BarraDeFiltros resultado={reporte ? `${reporte.productos.length} ${reporte.productos.length === 1 ? 'producto' : 'productos'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
               <div className="w-full sm:w-44">
@@ -89,7 +90,7 @@ export default function ReporteInventario({ barra, panel }) {
               titulo="Movimientos"
               headers={['Fecha', 'Producto', 'Tipo', { texto: 'Cantidad', derecha: true }, { texto: 'Stock resultante', derecha: true }, 'Usuario']}
               empty="No hay movimientos en el período."
-              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina} />}
+              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
             >
               {movimientos.items.map((m) => (
                 <Tr key={m.id}>

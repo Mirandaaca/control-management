@@ -4,7 +4,7 @@ import { Printer } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import EncabezadoDeLaEmpresa from '../components/hojas/EncabezadoDeLaEmpresa';
-import { Btn, Cargando, ErrorDeCarga } from '../components/ui';
+import { Btn, ErrorDeCarga, Esqueleto, ZonaDeCarga } from '../components/ui';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 
 const ESTADOS = { 0: 'Borrador', 1: 'Confirmada', 2: 'Anulada' };
@@ -57,7 +57,26 @@ export default function HojaParaImprimir() {
       <ErrorDeCarga mensaje={error} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
     </main>
   );
-  if (!hoja) return <Cargando texto="Preparando la hoja de pedido…" />;
+  // Mientras llega, la forma de la hoja: el encabezado, el recuadro del cliente, los productos y los totales.
+  if (!hoja) return (
+    <main className="min-h-screen bg-slate-100 px-4 py-6">
+      <ZonaDeCarga texto="Preparando la hoja de pedido…">
+        <div className="mx-auto max-w-3xl space-y-5 rounded-xl bg-white p-6 shadow-tarjeta sm:p-10">
+          <div className="flex justify-between gap-4 border-b-2 border-slate-200 pb-4">
+            <div className="space-y-2"><Esqueleto className="h-6 w-48" /><Esqueleto className="h-4 w-32" /></div>
+            <Esqueleto className="h-6 w-36" />
+          </div>
+          <div className="grid gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-2">
+            {Array.from({ length: 8 }, (_, i) => <Esqueleto key={i} className="h-4 w-3/4" />)}
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }, (_, i) => <Esqueleto key={i} className="h-5 w-full" />)}
+          </div>
+          <div className="ml-auto w-48 space-y-2"><Esqueleto className="h-4 w-full" /><Esqueleto className="h-6 w-full" /></div>
+        </div>
+      </ZonaDeCarga>
+    </main>
+  );
 
   const anulada = hoja.estadoHP === ANULADA;
   return (

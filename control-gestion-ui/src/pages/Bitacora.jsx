@@ -36,7 +36,7 @@ export default function Bitacora() {
     hasta: filtros.hasta || undefined,
   }), [filtros]);
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
-  const { datos: pagina, cargando, erroresFiltro, estado: estadoDeCarga } =
+  const { datos: pagina, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/bitacora', parametros, 'No se pudo consultar la bitácora.');
   const { exportar, exportando } = useExportar('/bitacora/excel', filtrosDeLaApi, 'bitacora');
 
@@ -64,10 +64,11 @@ export default function Bitacora() {
       )}
 
       <Table
+        cargando={cargando && 'Cargando la bitácora…'} recargando={recargando}
         headers={['Fecha y hora', 'Usuario', 'Módulo', 'Acción', 'IP']}
         empty="Ningún registro coincide con los filtros."
         estado={estado}
-        barra={!cargando && (hayFiltros || pagina?.total > 0) && (
+        barra={(cargando || hayFiltros || pagina?.total > 0) && (
           <BarraDeFiltros resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'registro' : 'registros'}` : ''}
             hayFiltros={hayFiltros} onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
             <div className="w-full sm:w-52">
@@ -91,7 +92,7 @@ export default function Bitacora() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((r) => (
           <Tr key={r.id}>

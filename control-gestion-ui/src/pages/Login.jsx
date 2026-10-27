@@ -5,7 +5,7 @@ import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { despertarLaApi } from '../api/axios';
 import { useAuth } from '../context/auth';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
-import { Alert } from '../components/ui';
+import { Alert } from '../components/ui/basicos';
 import { mostrarPrimerProblema } from '../utils/foco';
 
 const campo = (error) => `w-full h-11 px-3 border rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500 ${
@@ -84,6 +84,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [errores, setErrores] = useState({});
   const [loading, setLoading] = useState(false);
+  const [despertando, setDespertando] = useState(false);
   const formRef = useRef(null);
 
   useEffect(() => { despertarLaApi(); }, []);
@@ -94,6 +95,9 @@ export default function Login() {
     setErrores({});
     setSesionTerminada(false);
     setLoading(true);
+    // En el plan gratuito, la API se duerme sin uso y la primera respuesta tarda hasta un minuto (docs/despliegue.md):
+    // a los 8 s se avisa, y el pedido sigue esperando.
+    const aviso = setTimeout(() => setDespertando(true), 8000);
     try {
       await login(form.email, form.password);
       navigate('/dashboard');
@@ -106,6 +110,8 @@ export default function Login() {
       });
       mostrarPrimerProblema(formRef.current);
     } finally {
+      clearTimeout(aviso);
+      setDespertando(false);
       setLoading(false);
     }
   };
@@ -197,6 +203,7 @@ export default function Login() {
               {loading && <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />}
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
+            {despertando && <Alert type="info">El servidor está despertando: puede tardar hasta un minuto.</Alert>}
           </form>
         </div>
       </section>

@@ -11,7 +11,7 @@ import EstadoPedido from '../components/pedidos/EstadoPedido';
 import FormularioPedido from '../components/pedidos/FormularioPedido';
 import { esFinal, esModificable, SIGUIENTE } from '../components/pedidos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Casilla, ErrorDeCarga, EstadoVacio, PageHeader,
+  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Casilla, ErrorDeCarga, EstadoVacio, PageHeader,
   Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -19,6 +19,7 @@ import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
@@ -88,7 +89,8 @@ export default function Pedidos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde, filtros.hasta]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -141,8 +143,7 @@ export default function Pedidos() {
   const pedidos = pagina?.items ?? [];
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando pedidos…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -191,12 +192,13 @@ export default function Pedidos() {
       )}
 
       <Table
+        cargando={cargando && 'Cargando pedidos…'} recargando={recargando}
         headers={encabezados}
         empty="Ningún pedido coincide con los filtros."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'pedido' : 'pedidos'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'pedido' : 'pedidos'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -233,7 +235,8 @@ export default function Pedidos() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {pedidos.map((p) => (
           <Tr key={p.id}>

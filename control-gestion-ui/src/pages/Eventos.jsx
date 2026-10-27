@@ -11,13 +11,14 @@ import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import ResolverEvento from '../components/eventos/ResolverEvento';
 import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, ErrorDeCarga, EstadoVacio, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
@@ -82,7 +83,8 @@ export default function Eventos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde, filtros.hasta]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -127,8 +129,7 @@ export default function Eventos() {
   const eventos = pagina?.items ?? [];
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando eventos…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -155,12 +156,13 @@ export default function Eventos() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando eventos…'} recargando={recargando}
         headers={encabezados}
         empty="Ningún evento coincide con los filtros."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'evento' : 'eventos'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'evento' : 'eventos'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -196,7 +198,8 @@ export default function Eventos() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {eventos.map((e) => (
           <Tr key={e.id}>

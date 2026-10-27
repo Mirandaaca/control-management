@@ -8,11 +8,13 @@ import { Table, Td, Tr } from '../components/Table';
 import EstadoEvento from '../components/eventos/EstadoEvento';
 import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, Indicador, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
+  Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia, formatearFecha } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
@@ -65,7 +67,8 @@ export default function ReporteEventos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [parametros, numeroPagina]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -86,8 +89,7 @@ export default function ReporteEventos() {
   const sinEventos = reporte?.cantidad === 0;
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Generando el reporte…" />;
-  else if (Object.keys(erroresFiltro).length > 0) estado = (
+  if (Object.keys(erroresFiltro).length > 0) estado = (
     <EstadoVacio titulo="Revisa los filtros" icono={CalendarX}>El error está marcado en su campo.</EstadoVacio>
   );
   else if (errorCarga) estado = (
@@ -116,6 +118,9 @@ export default function ReporteEventos() {
         <Alert type="info" className="mb-4">Ningún evento coincide con los filtros: no hay nada que exportar.</Alert>
       )}
 
+      {cargando && (
+        <ZonaDeCarga><EsqueletoDeIndicadores cantidad={3} grilla="mb-5 grid gap-4 sm:grid-cols-3" /></ZonaDeCarga>
+      )}
       {reporte && (
         <div className="mb-5 grid gap-4 lg:grid-cols-[2fr_1fr]">
           <section aria-label="Totales por estado" className="grid content-start gap-4 sm:grid-cols-3">
@@ -138,10 +143,11 @@ export default function ReporteEventos() {
       )}
 
       <Table
+        cargando={cargando && 'Generando el reporte…'} recargando={recargando}
         headers={['Número', 'Fecha', 'Tipo', 'Cliente', 'Zona', 'Registró', { texto: 'Fotos', derecha: true }, 'Estado']}
         empty="Ningún evento coincide con los filtros."
         estado={estado}
-        barra={!cargando && (hayFiltros || pagina?.total > 0) && (
+        barra={(cargando || hayFiltros || pagina?.total > 0) && (
           <BarraDeFiltros resultado={pagina ? cuantos(pagina.total) : ''} hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
             <div className="w-full sm:w-48">
@@ -175,7 +181,8 @@ export default function ReporteEventos() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((e) => (
           <Tr key={e.id}>

@@ -10,10 +10,12 @@ import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import { COLOR_DEL_ESTADO, iconoDelEstado } from '../components/eventos/marcadores';
 import {
-  Alert, BarraDeFiltros, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Selector,
+  Alert, BarraDeFiltros, BarraDeRecarga, CampoFecha, ErrorDeCarga, EsqueletoDeMapa, EstadoVacio, PageHeader, Selector,
+  ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
+import { useRecarga } from '../hooks/useRecarga';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -102,7 +104,8 @@ export default function MapaEventos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [filtros]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => setFiltros((f) => ({ ...f, ...cambios }));
 
@@ -118,7 +121,7 @@ export default function MapaEventos() {
   const recortado = mapa && mapa.total > puntos.length;
 
   let contenido;
-  if (cargando) contenido = <Cargando texto="Cargando el mapa…" />;
+  if (cargando) contenido = <ZonaDeCarga texto="Cargando el mapa…"><EsqueletoDeMapa /></ZonaDeCarga>;
   else if (errorCarga && !mapa) contenido = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); cargarFiltros(); }} reintentando={reintentando} />
   );
@@ -171,7 +174,9 @@ export default function MapaEventos() {
         </Alert>
       )}
 
-      <div className="bg-white rounded-xl shadow-tarjeta border border-slate-200 overflow-hidden">
+      <div className="relative bg-white rounded-xl shadow-tarjeta border border-slate-200 overflow-hidden"
+        aria-busy={recargando ? true : undefined}>
+        {recargando && !cargando && <BarraDeRecarga />}
         {!cargando && mapa && (mapa.total > 0 || hayFiltros) && (
           <BarraDeFiltros
             resultado={`${numero.format(mapa.total)} ${mapa.total === 1 ? 'evento' : 'eventos'}`}
