@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { BarraDeFiltros, Input } from '../ui';
+import { BarraDeFiltros, CampoFecha } from '../ui';
+import { atajosDePeriodo } from '../../utils/fechas';
 
 const SIN_FILTROS = { desde: '', hasta: '' };
 
@@ -37,11 +38,12 @@ export default function ReporteVentasZona({ barra, panel }) {
               resultado={reporte && !sinVentas ? `${reporte.total.cantidad} ${reporte.total.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => setFiltros(SIN_FILTROS)}>
               <div className="w-full sm:w-40">
-                <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                  onChange={(e) => setFiltros((f) => ({ ...f, desde: e.target.value }))} />
+                <CampoFecha label="Desde" value={filtros.desde} error={erroresFiltro.desde}
+                  onChange={(e) => setFiltros((f) => ({ ...f, desde: e.target.value }))}
+                  atajos={atajosDePeriodo()} onAtajo={(periodo) => setFiltros((f) => ({ ...f, ...periodo }))} />
               </div>
               <div className="w-full sm:w-40">
-                <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+                <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                   onChange={(e) => setFiltros((f) => ({ ...f, hasta: e.target.value }))} />
               </div>
             </BarraDeFiltros>

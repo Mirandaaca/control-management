@@ -10,8 +10,9 @@ import { formatearFecha, formatearMonto } from '../../utils/formato';
 import EstadoCobranza from '../cobranzas/EstadoCobranza';
 import { ESTADOS_DE_COBRANZA, textoDeMora } from '../cobranzas/estados';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, Combobox, EstadoVacio, Input, Paginacion, Selector } from '../ui';
+import { Alert, BarraDeFiltros, CampoFecha, Combobox, EstadoVacio, Paginacion, Selector } from '../ui';
 import BotonExportar from './BotonExportar';
+import { atajosDePeriodo } from '../../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', promotor: '', cliente: '', desde: '', hasta: '' };
@@ -134,11 +135,12 @@ export default function ReporteCobranzas({ barra, panel }) {
                   onChange={(cliente) => filtrar({ cliente: cliente === TODOS ? '' : cliente })} />
               </div>
               <div className="w-full sm:w-36">
-                <Input label="Emitida desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                  onChange={(e) => filtrar({ desde: e.target.value })} />
+                <CampoFecha label="Emitida desde" value={filtros.desde} error={erroresFiltro.desde}
+                  onChange={(e) => filtrar({ desde: e.target.value })}
+                  atajos={atajosDePeriodo()} onAtajo={filtrar} />
               </div>
               <div className="w-full sm:w-36">
-                <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+                <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                   onChange={(e) => filtrar({ hasta: e.target.value })} />
               </div>
             </BarraDeFiltros>

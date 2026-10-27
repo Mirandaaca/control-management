@@ -5,10 +5,11 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import BotonExportar from '../components/reportes/BotonExportar';
 import { Table, Td, Tr } from '../components/Table';
-import { Alert, BarraDeFiltros, EstadoVacio, Input, PageHeader, Paginacion, Selector } from '../components/ui';
+import { Alert, BarraDeFiltros, CampoFecha, EstadoVacio, PageHeader, Paginacion, Selector } from '../components/ui';
 import { useExportar, useReporte } from '../hooks/useReporte';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { usuario: '', modulo: '', desde: '', hasta: '' };
@@ -81,11 +82,12 @@ export default function Bitacora() {
                 onChange={(modulo) => filtrar({ modulo })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} error={erroresFiltro.desde}
+                onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+              <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                 onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>

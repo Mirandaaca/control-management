@@ -10,11 +10,12 @@ import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import { COLOR_DEL_ESTADO, iconoDelEstado } from '../components/eventos/marcadores';
 import {
-  Alert, BarraDeFiltros, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Selector,
+  Alert, BarraDeFiltros, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 // Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay puntos.
 const SANTA_CRUZ = [-17.7833, -63.1821];
@@ -203,10 +204,11 @@ export default function MapaEventos() {
               </div>
             )}
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

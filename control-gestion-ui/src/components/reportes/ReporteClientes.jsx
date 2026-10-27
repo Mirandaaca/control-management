@@ -3,8 +3,9 @@ import { UserPlus, UserRoundCheck } from 'lucide-react';
 import { useExportar, useReporte } from '../../hooks/useReporte';
 import { diaEnBolivia, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, Indicador, Input, Paginacion } from '../ui';
+import { Alert, BarraDeFiltros, CampoFecha, Indicador, Paginacion } from '../ui';
 import BotonExportar from './BotonExportar';
+import { atajosDePeriodo } from '../../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 
@@ -73,11 +74,12 @@ export default function ReporteClientes({ barra, panel }) {
             <BarraDeFiltros resultado={reporte ? clientes(reporte.cantidadNuevos + reporte.cantidadRecurrentes) : ''}
               hayFiltros={false}>
               <div className="w-full sm:w-40">
-                <Input label="Desde" type="date" autoComplete="off" required value={periodo.desde} error={erroresFiltro.desde}
-                  onChange={(e) => cambiar({ desde: e.target.value })} />
+                <CampoFecha label="Desde" required value={periodo.desde} error={erroresFiltro.desde}
+                  onChange={(e) => cambiar({ desde: e.target.value })}
+                  atajos={atajosDePeriodo()} onAtajo={cambiar} />
               </div>
               <div className="w-full sm:w-40">
-                <Input label="Hasta" type="date" autoComplete="off" required value={periodo.hasta} error={erroresFiltro.hasta}
+                <CampoFecha label="Hasta" required value={periodo.hasta} error={erroresFiltro.hasta}
                   onChange={(e) => cambiar({ hasta: e.target.value })} />
               </div>
             </BarraDeFiltros>

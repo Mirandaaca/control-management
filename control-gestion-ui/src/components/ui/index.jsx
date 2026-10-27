@@ -1,17 +1,23 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import {
-  Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, Inbox, Info, LoaderCircle, RefreshCw, Search,
-  TriangleAlert, X,
+  Calendar as IconoDeCalendario, Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, Clock, Inbox, Info,
+  LoaderCircle, RefreshCw, Search, TriangleAlert, X,
 } from 'lucide-react';
+import {
+  aTextoDeDia, dateADia, diaADate, enmascararDia, enmascararHora, HORAS_DEL_DIA, textoADia, textoAHora,
+} from '../../utils/fechas';
+import { diaEnBolivia } from '../../utils/formato';
 import { coincide } from '../../utils/texto';
+import { Calendario } from './calendar';
 import { Checkbox } from './checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './command';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
-import { Popover, PopoverContent, PopoverTrigger } from './popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
 
 // Componentes del panel con el diseño de docs/diseno.md. Los archivos en minúscula de esta carpeta (dialog, select,
-// checkbox, command, popover) son de shadcn/ui: las pantallas usan los de aquí, que ya traen los textos y el estilo.
+// checkbox, command, popover y calendar) son primitivos: las pantallas usan los de aquí, que ya traen los textos
+// y el estilo.
 
 export function PageHeader({ title, subtitle, action }) {
   return (
@@ -78,14 +84,21 @@ export function EnlaceBoton({ children, href, variant = 'outline', size = 'sm', 
   );
 }
 
-/** Etiqueta arriba, el control, y debajo la ayuda o el error del campo (que viene en errors del ProblemDetails). */
-function Campo({ id, label, ayuda, error, children }) {
+/**
+ * Etiqueta arriba, el control, y debajo la ayuda o el error del campo (que viene en errors del ProblemDetails). Con
+ * etiquetaOculta, la etiqueta es solo para el lector de pantalla: la de afuera ya la muestra (CampoFechaHora). Con
+ * alerta, el lector anuncia el error apenas aparece: es el que el campo revisa solo al salir de él, cuando el foco ya
+ * está en otro lado.
+ */
+function Campo({ id, label, ayuda, error, children, etiquetaOculta = false, alerta = false }) {
   return (
     <div>
-      {label && <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
+      {label && (
+        <label htmlFor={id} className={etiquetaOculta ? 'sr-only' : 'block text-sm font-medium text-slate-700 mb-1'}>{label}</label>
+      )}
       {children}
       {error ? (
-        <p id={`${id}-error`} className="mt-1 flex items-start gap-1 text-sm text-red-700">
+        <p id={`${id}-error`} role={alerta ? 'alert' : undefined} className="mt-1 flex items-start gap-1 text-sm text-red-700">
           <CircleAlert size={14} className="shrink-0 mt-0.5" aria-hidden="true" />
           {error}
         </p>
@@ -134,6 +147,323 @@ export function AreaDeTexto({ label, ayuda, error, id, rows = 3, ...props }) {
         }`}
       />
     </Campo>
+  );
+}
+
+const claseDeCampo = (error) => `w-full h-10 border rounded-lg text-sm text-slate-900 tabular-nums placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500 disabled:bg-slate-50 disabled:text-slate-600 ${
+  error ? 'border-red-600' : 'border-borde-control'
+}`;
+
+const botonDentroDelCampo = `absolute right-1 top-1/2 -translate-y-1/2 inline-flex size-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 cursor-pointer disabled:cursor-not-allowed ${foco}`;
+
+function mensajeFueraDeRango(min, max) {
+  if (min && max) return `Elige un día entre el ${aTextoDeDia(min)} y el ${aTextoDeDia(max)}.`;
+  return min ? `Elige un día desde el ${aTextoDeDia(min)}.` : `Elige un día hasta el ${aTextoDeDia(max)}.`;
+}
+
+/**
+ * Un día, escrito como dd/mm/aaaa o elegido en el calendario, como en los diseños 8.6.2 y 8.6.4. Reemplaza a
+ * <input type="date">, que cada navegador dibuja a su manera (uno en inglés muestra mm/dd/yyyy).
+ * - value es aaaa-mm-dd, y onChange recibe un evento como el de un input ({ target: { value } }): quien lo usa no cambia.
+ * - min y max (aaaa-mm-dd) deshabilitan los días de afuera y rechazan los que se escriban.
+ * - atajos y onAtajo van en el "Desde" de un par: el calendario ofrece períodos (atajosDePeriodo de utils/fechas), y
+ *   onAtajo({ desde, hasta }) llena los dos campos.
+ * - Alt+↓ abre el calendario. Enter confirma lo escrito antes de que se envíe el formulario.
+ * - invalido y descritoPor los usa CampoFechaHora: el error de los dos campos se muestra una vez, debajo de ellos, y
+ *   cada campo queda marcado y apunta a él.
+ */
+export function CampoFecha({
+  label, ayuda, error, id, name, value, onChange, min, max, required, disabled, atajos, onAtajo, etiquetaOculta,
+  invalido, descritoPor,
+}) {
+  const generado = useId();
+  const campoId = id ?? generado;
+  const [abierto, setAbierto] = useState(false);
+  // Lo que se está escribiendo; null mientras no se escribe, y entonces se muestra el valor.
+  const [borrador, setBorrador] = useState(null);
+  const [errorPropio, setErrorPropio] = useState('');
+  const hoy = diaEnBolivia();
+  const fueraDeRango = (dia) => Boolean((min && dia < min) || (max && dia > max));
+
+  const cambiar = (dia) => {
+    setBorrador(null);
+    setErrorPropio('');
+    if (dia !== (value ?? '')) onChange?.({ target: { value: dia, name } });
+  };
+
+  const confirmarLoEscrito = () => {
+    if (borrador === null) return;
+    if (borrador.trim() === '') {
+      cambiar('');
+      return;
+    }
+    const dia = textoADia(borrador);
+    if (!dia) setErrorPropio('Escribe la fecha como dd/mm/aaaa.');
+    else if (fueraDeRango(dia)) setErrorPropio(mensajeFueraDeRango(min, max));
+    else cambiar(dia);
+  };
+
+  const elegir = (fecha) => {
+    if (fecha) cambiar(dateADia(fecha));
+    setAbierto(false);
+  };
+
+  const aplicarAtajo = (atajo) => {
+    setBorrador(null);
+    setErrorPropio('');
+    onAtajo({ desde: atajo.desde, hasta: atajo.hasta });
+    setAbierto(false);
+  };
+
+  const errorVisible = errorPropio || error;
+  const diasDeAfuera = [min && { before: diaADate(min) }, max && { after: diaADate(max) }].filter(Boolean);
+
+  return (
+    <Campo id={campoId} label={label} ayuda={ayuda} error={errorVisible} etiquetaOculta={etiquetaOculta} alerta={Boolean(errorPropio)}>
+      <Popover open={abierto} onOpenChange={setAbierto} modal>
+        <PopoverAnchor asChild>
+          <div className="relative">
+            <input
+              id={campoId}
+              name={name}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="dd/mm/aaaa"
+              maxLength={10}
+              required={required}
+              disabled={disabled}
+              value={borrador ?? aTextoDeDia(value)}
+              onChange={(e) => {
+                setBorrador(enmascararDia(e.target.value));
+                setErrorPropio('');
+              }}
+              onBlur={confirmarLoEscrito}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && borrador !== null) {
+                  e.preventDefault();
+                  confirmarLoEscrito();
+                } else if (e.altKey && e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setAbierto(true);
+                }
+              }}
+              aria-invalid={errorVisible || invalido ? true : undefined}
+              aria-describedby={errorVisible ? `${campoId}-error` : (descritoPor ?? describirCon(campoId, errorVisible, ayuda))}
+              className={`${claseDeCampo(errorVisible || invalido)} pl-3 pr-11`}
+            />
+            <PopoverTrigger asChild>
+              <button type="button" disabled={disabled} aria-label={`Elegir en el calendario: ${label}`} className={botonDentroDelCampo}>
+                <IconoDeCalendario size={16} aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent align="start" collisionPadding={16} className="w-auto max-w-[calc(100vw-2rem)] p-3" aria-label={`Calendario: ${label}`}>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {atajos && onAtajo && (
+              <ul aria-label="Períodos" className="flex flex-wrap gap-1 sm:flex-col sm:flex-nowrap sm:border-r sm:border-slate-200 sm:pr-3">
+                {atajos.map((atajo) => (
+                  <li key={atajo.etiqueta}>
+                    <button
+                      type="button"
+                      onClick={() => aplicarAtajo(atajo)}
+                      className={`w-full whitespace-nowrap rounded-md px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-marca-50 cursor-pointer ${foco}`}
+                    >
+                      {atajo.etiqueta}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="self-center sm:self-auto">
+              <Calendario
+                mode="single"
+                required
+                selected={diaADate(value)}
+                defaultMonth={diaADate(value) ?? diaADate(min && min > hoy ? min : hoy)}
+                onSelect={elegir}
+                disabled={diasDeAfuera}
+                today={diaADate(hoy)}
+                autoFocus
+              />
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-200 pt-2">
+                {fueraDeRango(hoy) ? <span /> : <Btn variant="ghost" onClick={() => elegir(diaADate(hoy))}>Hoy</Btn>}
+                {!required && value && (
+                  <Btn variant="ghost" onClick={() => { cambiar(''); setAbierto(false); }}>Borrar</Btn>
+                )}
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </Campo>
+  );
+}
+
+function moverConFlechas(e) {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  const fila = e.target.closest('li');
+  const otra = e.key === 'ArrowDown' ? fila?.nextElementSibling : fila?.previousElementSibling;
+  otra?.querySelector('button')?.focus();
+}
+
+/** Una hora, escrita como hh:mm o elegida de la lista, de 15 en 15 minutos. Va dentro de CampoFechaHora. */
+function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOculta, invalido, descritoPor }) {
+  const generado = useId();
+  const campoId = id ?? generado;
+  const [abierto, setAbierto] = useState(false);
+  const [borrador, setBorrador] = useState(null);
+  const [errorPropio, setErrorPropio] = useState('');
+  const lista = useRef(null);
+
+  const cambiar = (hora) => {
+    setBorrador(null);
+    setErrorPropio('');
+    if (hora !== (value ?? '')) onChange(hora);
+  };
+
+  const confirmarLoEscrito = () => {
+    if (borrador === null) return;
+    if (borrador.trim() === '') {
+      cambiar('');
+      return;
+    }
+    const hora = textoAHora(borrador);
+    if (hora) cambiar(hora);
+    else setErrorPropio('Escribe la hora como hh:mm.');
+  };
+
+  // Al abrir, la hora elegida (o las 08:00) queda a la vista y con el foco. Es la única de la lista que recibe el foco
+  // con Tab: las demás se recorren con las flechas, así Tab no pasa por 96 horas.
+  const enfocable = value || '08:00';
+  const enfocarLaElegida = (e) => {
+    e.preventDefault();
+    const boton = lista.current?.querySelector(`[data-hora="${enfocable}"]`);
+    boton?.scrollIntoView({ block: 'center' });
+    boton?.focus({ preventScroll: true });
+  };
+
+  return (
+    <Campo id={campoId} label={label} error={errorPropio} etiquetaOculta={etiquetaOculta} alerta={Boolean(errorPropio)}>
+      <Popover open={abierto} onOpenChange={setAbierto} modal>
+        <PopoverAnchor asChild>
+          <div className="relative">
+            <input
+              id={campoId}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="hh:mm"
+              maxLength={5}
+              required={required}
+              disabled={disabled}
+              value={borrador ?? (value || '')}
+              onChange={(e) => {
+                setBorrador(enmascararHora(e.target.value));
+                setErrorPropio('');
+              }}
+              onBlur={confirmarLoEscrito}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && borrador !== null) {
+                  e.preventDefault();
+                  confirmarLoEscrito();
+                } else if (e.altKey && e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setAbierto(true);
+                }
+              }}
+              aria-invalid={errorPropio || invalido ? true : undefined}
+              aria-describedby={errorPropio ? `${campoId}-error` : descritoPor}
+              className={`${claseDeCampo(errorPropio || invalido)} pl-3 pr-11`}
+            />
+            <PopoverTrigger asChild>
+              <button type="button" disabled={disabled} aria-label={`Elegir de la lista: ${label}`} className={botonDentroDelCampo}>
+                <Clock size={16} aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent align="start" collisionPadding={16} className="w-36 p-1" onOpenAutoFocus={enfocarLaElegida} aria-label={`Horas: ${label}`}>
+          <ul ref={lista} className="max-h-60 overflow-y-auto" onKeyDown={moverConFlechas}>
+            {HORAS_DEL_DIA.map((hora) => (
+              <li key={hora}>
+                <button
+                  type="button"
+                  data-hora={hora}
+                  tabIndex={hora === enfocable ? 0 : -1}
+                  aria-current={hora === value ? 'true' : undefined}
+                  onClick={() => { cambiar(hora); setAbierto(false); }}
+                  className={`w-full rounded-md px-3 py-1.5 text-left text-sm tabular-nums cursor-pointer ${foco} ${
+                    hora === value ? 'bg-marca-600 text-white hover:bg-marca-700' : 'text-slate-800 hover:bg-marca-50'
+                  }`}
+                >
+                  {hora}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </PopoverContent>
+      </Popover>
+    </Campo>
+  );
+}
+
+/**
+ * Un día y una hora, como la entrega de un pedido. Reemplaza a <input type="datetime-local">: el valor es
+ * aaaa-mm-ddThh:mm en la hora de Bolivia, y onChange recibe { target: { value } }. Mientras falta una de las dos partes,
+ * el valor es ''. min (aaaa-mm-ddThh:mm) limita el día; que la hora no haya pasado lo revisa la API.
+ */
+export function CampoFechaHora({ label, ayuda, error, id, name, value, onChange, min, required, disabled }) {
+  const generado = useId();
+  const campoId = id ?? generado;
+  // La parte elegida mientras falta la otra; con el valor completo, las dos salen del valor.
+  const [parcial, setParcial] = useState({ dia: '', hora: '' });
+  const dia = value ? value.slice(0, 10) : parcial.dia;
+  const hora = value ? value.slice(11, 16) : parcial.hora;
+
+  const cambiar = (nuevoDia, nuevaHora) => {
+    setParcial({ dia: nuevoDia, hora: nuevaHora });
+    onChange?.({ target: { value: nuevoDia && nuevaHora ? `${nuevoDia}T${nuevaHora}` : '', name } });
+  };
+  const descripcion = describirCon(campoId, error, ayuda);
+
+  return (
+    <fieldset>
+      <legend className="block text-sm font-medium text-slate-700 mb-1">{label}</legend>
+      <div className="grid grid-cols-[minmax(0,1fr)_8.5rem] gap-2">
+        <CampoFecha
+          label={`${label}: el día`}
+          etiquetaOculta
+          id={`${campoId}-dia`}
+          value={dia}
+          min={min?.slice(0, 10)}
+          required={required}
+          disabled={disabled}
+          invalido={Boolean(error)}
+          descritoPor={descripcion}
+          onChange={(e) => cambiar(e.target.value, hora)}
+        />
+        <CampoHora
+          label={`${label}: la hora`}
+          etiquetaOculta
+          id={`${campoId}-hora`}
+          value={hora}
+          required={required}
+          disabled={disabled}
+          invalido={Boolean(error)}
+          descritoPor={descripcion}
+          onChange={(nueva) => cambiar(dia, nueva)}
+        />
+      </div>
+      {error ? (
+        <p id={`${campoId}-error`} className="mt-1 flex items-start gap-1 text-sm text-red-700">
+          <CircleAlert size={14} className="shrink-0 mt-0.5" aria-hidden="true" />
+          {error}
+        </p>
+      ) : ayuda && <p id={`${campoId}-ayuda`} className="mt-1 text-sm text-slate-600">{ayuda}</p>}
+    </fieldset>
   );
 }
 

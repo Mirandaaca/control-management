@@ -4,7 +4,7 @@ import { Plus, RefreshCw, Route as IconoRuta, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, PageHeader } from '../components/ui';
+import { Alert, Btn, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
 import EstadoRuta from '../components/rutas/EstadoRuta';
 import FormularioRuta from '../components/rutas/FormularioRuta';
 import MapaDeRuta, { LeyendaDeRuta } from '../components/rutas/MapaDeRuta';
@@ -264,7 +264,7 @@ export default function Rutas() {
       <div className="grid overflow-hidden rounded-xl border border-slate-200 bg-white shadow-tarjeta lg:grid-cols-[18rem_minmax(0,1fr)]">
         <nav aria-label="Rutas del día" className="border-b border-slate-200 lg:border-b-0 lg:border-r">
           <div className="border-b border-slate-200 p-3">
-            <Input label="Día" type="date" value={dia} onChange={(e) => cambiarDia(e.target.value)} />
+            <CampoFecha label="Día" value={dia} onChange={(e) => cambiarDia(e.target.value)} />
           </div>
           <div className="max-h-72 overflow-y-auto lg:max-h-none">{lista}</div>
         </nav>

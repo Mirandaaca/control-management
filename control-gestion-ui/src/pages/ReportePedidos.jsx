@@ -7,10 +7,11 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
 import {
-  Alert, BarraDeFiltros, Btn, Cargando, ErrorDeCarga, EstadoVacio, Indicador, Input, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, Indicador, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' };
@@ -147,11 +148,12 @@ export default function ReportePedidos() {
                 onChange={(promotor) => filtrar({ promotor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Entrega desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Entrega desde" value={filtros.desde} error={erroresFiltro.desde}
+                onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Entrega hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+              <CampoFecha label="Entrega hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                 onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>

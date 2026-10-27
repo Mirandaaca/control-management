@@ -11,8 +11,8 @@ import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Indicador, Input,
-  Modal, PageHeader, Paginacion, Selector,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio,
+  Indicador, Input, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
@@ -20,6 +20,7 @@ import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha, formatearMonto } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const { cobranzas: permisos, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -289,10 +290,11 @@ export default function Cobranzas() {
                 onChange={(valor) => filtrar({ estado: valor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Emitida desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Emitida desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

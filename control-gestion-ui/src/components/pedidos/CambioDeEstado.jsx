@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
-import { AreaDeTexto, Confirmar, Input } from '../ui';
+import { AreaDeTexto, CampoFechaHora, Confirmar } from '../ui';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { ahoraEnBolivia, formatearFecha } from '../../utils/formato';
 import { EN_RUTA, SIGUIENTE } from './estados';
@@ -88,7 +88,7 @@ export default function CambioDeEstado({ cambio, onCerrar, onHecho }) {
       <div ref={contenedorRef} className="space-y-3">
         <p>{textos.explicacion}</p>
         {tipo === 'reprogramar' && (
-          <Input label="Nueva fecha y hora de entrega" type="datetime-local" value={fecha} min={ahoraEnBolivia()} autoComplete="off"
+          <CampoFechaHora label="Nueva fecha y hora de entrega" value={fecha} min={ahoraEnBolivia()}
             ayuda="En la hora de Bolivia." error={errores.fechaEntregaEstimada}
             onChange={(e) => { setFecha(e.target.value); setErrores((x) => ({ ...x, fechaEntregaEstimada: undefined })); }} />
         )}

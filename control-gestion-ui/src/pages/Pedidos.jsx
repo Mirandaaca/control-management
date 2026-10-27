@@ -11,13 +11,15 @@ import EstadoPedido from '../components/pedidos/EstadoPedido';
 import FormularioPedido from '../components/pedidos/FormularioPedido';
 import { esFinal, esModificable, SIGUIENTE } from '../components/pedidos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Casilla, ErrorDeCarga, EstadoVacio, PageHeader,
+  Paginacion, Selector,
 } from '../components/ui';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha, formatearMonto } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const { pedidos: permisos, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -228,10 +230,11 @@ export default function Pedidos() {
               </div>
             )}
             <div className="w-full sm:w-40">
-              <Input label="Entrega desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Entrega desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Entrega hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Entrega hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

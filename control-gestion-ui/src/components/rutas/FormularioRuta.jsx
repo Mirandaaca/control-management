@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { ArrowDown, ArrowUp, LoaderCircle, X } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
-import { Alert, Btn, Combobox, Input, Modal, Selector } from '../ui';
+import { Alert, Btn, CampoFecha, Combobox, Modal, Selector } from '../ui';
 import { diaEnBolivia, formatearDia } from '../../utils/formato';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import MapaDeRuta from './MapaDeRuta';
@@ -146,7 +146,7 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
           <Selector label="Promotor" value={promotorId} placeholder="Elige el promotor" error={errores.promotorId}
             opciones={promotores.map((p) => ({ valor: p.id, texto: p.nombreCompleto }))}
             onChange={(id) => { setPromotorId(id); setErrorGeneral(''); }} />
-          <Input label="Día" type="date" value={fecha} min={hoy} error={errores.fecha}
+          <CampoFecha label="Día" value={fecha} min={hoy} error={errores.fecha}
             onChange={(e) => cambiarFecha(e.target.value)} />
         </div>
 
