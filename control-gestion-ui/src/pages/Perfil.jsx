@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { KeyRound, LoaderCircle, UserRound } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -6,6 +7,7 @@ import Layout from '../components/Layout';
 import { Alert, Btn, Card, Cargando, ErrorDeCarga, Input, PageHeader } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
+import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha } from '../utils/formato';
 
 const SIN_CONTRASENAS = { actual: '', nueva: '', confirmar: '' };
@@ -60,6 +62,9 @@ export default function Perfil() {
   const [errorContrasena, setErrorContrasena] = useState('');
   const [cambiando, setCambiando] = useState(false);
 
+  const formularioDatos = useRef(null);
+  const formularioContrasena = useRef(null);
+
   const cargar = useCallback(() => api.get('/perfil')
     .then(({ data }) => {
       setPerfil(data);
@@ -84,8 +89,11 @@ export default function Perfil() {
       refrescar().catch((err) => console.warn('No se pudo actualizar la sesión.', err));
     } catch (err) {
       const campos = camposDelError(err);
-      setErroresDatos(campos);
-      if (Object.keys(campos).length === 0) setErrorDatos(mensajeDeError(err, 'No se pudieron guardar tus datos.'));
+      flushSync(() => {
+        setErroresDatos(campos);
+        if (Object.keys(campos).length === 0) setErrorDatos(mensajeDeError(err, 'No se pudieron guardar tus datos.'));
+      });
+      mostrarPrimerProblema(formularioDatos.current);
     } finally {
       setGuardandoDatos(false);
     }
@@ -96,7 +104,8 @@ export default function Perfil() {
     setErroresContrasena({});
     setErrorContrasena('');
     if (contrasenas.nueva !== contrasenas.confirmar) {
-      setErroresContrasena({ confirmar: 'Las dos contraseñas nuevas no coinciden.' });
+      flushSync(() => setErroresContrasena({ confirmar: 'Las dos contraseñas nuevas no coinciden.' }));
+      mostrarPrimerProblema(formularioContrasena.current);
       return;
     }
     setCambiando(true);
@@ -106,8 +115,11 @@ export default function Perfil() {
       avisar.exito('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.');
     } catch (err) {
       const campos = camposDelError(err);
-      setErroresContrasena(campos);
-      if (Object.keys(campos).length === 0) setErrorContrasena(mensajeDeError(err, 'No se pudo cambiar la contraseña.'));
+      flushSync(() => {
+        setErroresContrasena(campos);
+        if (Object.keys(campos).length === 0) setErrorContrasena(mensajeDeError(err, 'No se pudo cambiar la contraseña.'));
+      });
+      mostrarPrimerProblema(formularioContrasena.current);
     } finally {
       setCambiando(false);
     }
@@ -124,7 +136,7 @@ export default function Perfil() {
     <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Card>
         <Encabezado icono={UserRound} titulo="Tus datos">Tu nombre y el correo con el que inicias sesión.</Encabezado>
-        <form onSubmit={guardarDatos} className="space-y-4" noValidate>
+        <form ref={formularioDatos} onSubmit={guardarDatos} className="space-y-4" noValidate>
           {errorDatos && <Alert type="error">{errorDatos}</Alert>}
           <Input label="Nombre completo" value={datos.nombreCompleto} error={erroresDatos.nombreCompleto} autoComplete="name"
             onChange={(e) => setDatos({ ...datos, nombreCompleto: e.target.value })} />
@@ -146,7 +158,7 @@ export default function Perfil() {
 
       <Card>
         <Encabezado icono={KeyRound} titulo="Contraseña">Para cambiarla necesitas la actual.</Encabezado>
-        <form onSubmit={cambiarContrasena} className="space-y-4" noValidate>
+        <form ref={formularioContrasena} onSubmit={cambiarContrasena} className="space-y-4" noValidate>
           {errorContrasena && <Alert type="error">{errorContrasena}</Alert>}
           <Input label="Contraseña actual" type="password" value={contrasenas.actual} error={erroresContrasena.actual}
             autoComplete="current-password" onChange={(e) => setContrasenas({ ...contrasenas, actual: e.target.value })} />

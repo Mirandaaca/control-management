@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { LoaderCircle, Pencil, Plus, UserCheck, UserX, Users } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -11,6 +12,7 @@ import {
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
+import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha } from '../utils/formato';
 import { coincide } from '../utils/texto';
 
@@ -38,6 +40,7 @@ export default function Usuarios() {
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const formularioRef = useRef(null);
 
   const [aDesactivar, setADesactivar] = useState(null);
   const [errorDesactivar, setErrorDesactivar] = useState('');
@@ -89,8 +92,11 @@ export default function Usuarios() {
       const campos = erroresPorCampo(err);
       const campoDelCodigo = CAMPO_DEL_ERROR[err.response?.data?.codigo];
       if (campoDelCodigo) campos[campoDelCodigo] = err.response.data.detail;
-      setErroresCampo(campos);
-      if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el usuario.'));
+      flushSync(() => {
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el usuario.'));
+      });
+      mostrarPrimerProblema(formularioRef.current);
     } finally {
       setGuardando(false);
     }
@@ -234,7 +240,7 @@ export default function Usuarios() {
         )}
       >
         {formulario && (
-          <form id="formulario-usuario" onSubmit={guardar} className="space-y-4" noValidate>
+          <form id="formulario-usuario" ref={formularioRef} onSubmit={guardar} className="space-y-4" noValidate>
             {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
             <Input label="Nombre completo" value={formulario.nombreCompleto} error={erroresCampo.nombreCompleto}
               onChange={(e) => setFormulario({ ...formulario, nombreCompleto: e.target.value })} autoComplete="off" />
