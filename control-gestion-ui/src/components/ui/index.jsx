@@ -393,7 +393,7 @@ function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOcu
           </div>
         </PopoverAnchor>
         <PopoverContent align="start" collisionPadding={16} className="w-36 p-1" onOpenAutoFocus={enfocarLaElegida} aria-label={`Horas: ${label}`}>
-          <ul ref={lista} className="max-h-60 overflow-y-auto" onKeyDown={moverConFlechas}>
+          <ul ref={lista} className="max-h-60 overflow-y-auto">
             {HORAS_DEL_DIA.map((hora) => (
               <li key={hora}>
                 <button
@@ -402,6 +402,7 @@ function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOcu
                   tabIndex={hora === enfocable ? 0 : -1}
                   aria-current={hora === value ? 'true' : undefined}
                   onClick={() => { cambiar(hora); setAbierto(false); }}
+                  onKeyDown={moverConFlechas}
                   className={`w-full rounded-md px-3 py-1.5 text-left text-sm tabular-nums cursor-pointer ${foco} ${
                     hora === value ? 'bg-marca-600 text-white hover:bg-marca-700' : 'text-slate-800 hover:bg-marca-50'
                   }`}
