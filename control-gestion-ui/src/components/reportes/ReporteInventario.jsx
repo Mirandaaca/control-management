@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearCantidad, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, Input, Paginacion, Selector } from '../ui';
+import { BarraDeFiltros, CampoFecha, Paginacion, Selector } from '../ui';
 import BotonExportar from './BotonExportar';
+import { atajosDePeriodo } from '../../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { categoria: '', desde: '', hasta: '' };
@@ -36,7 +37,7 @@ export default function ReporteInventario({ barra, panel }) {
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
   const { datos: reporte, cargando, erroresFiltro, estado } =
     useReporte('/reportes/inventario', parametros, 'No se pudo generar el reporte de inventario.');
-  const { exportar, exportando, errorExportar } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
+  const { exportar, exportando } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -47,8 +48,6 @@ export default function ReporteInventario({ barra, panel }) {
     <>
       {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
       <div {...panel}>
-        {errorExportar && <Alert type="error" className="mb-4">{errorExportar}</Alert>}
-
         <Table
           titulo="Stock"
           headers={columnas}
@@ -63,11 +62,12 @@ export default function ReporteInventario({ barra, panel }) {
                   onChange={(categoria) => filtrar({ categoria })} />
               </div>
               <div className="w-full sm:w-40">
-                <Input label="Movimientos desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                  onChange={(e) => filtrar({ desde: e.target.value })} />
+                <CampoFecha label="Movimientos desde" value={filtros.desde} error={erroresFiltro.desde}
+                  onChange={(e) => filtrar({ desde: e.target.value })}
+                  atajos={atajosDePeriodo()} onAtajo={filtrar} />
               </div>
               <div className="w-full sm:w-40">
-                <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+                <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                   onChange={(e) => filtrar({ hasta: e.target.value })} />
               </div>
             </BarraDeFiltros>

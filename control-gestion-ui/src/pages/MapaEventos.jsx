@@ -10,11 +10,13 @@ import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import { COLOR_DEL_ESTADO, iconoDelEstado } from '../components/eventos/marcadores';
 import {
-  Alert, BarraDeFiltros, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Selector,
+  Alert, BarraDeFiltros, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 // Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay puntos.
 const SANTA_CRUZ = [-17.7833, -63.1821];
@@ -68,8 +70,6 @@ export default function MapaEventos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -81,8 +81,8 @@ export default function MapaEventos() {
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
-    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
-    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
+    .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
   [eligePromotor]);
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
@@ -107,10 +107,10 @@ export default function MapaEventos() {
   const filtrar = (cambios) => setFiltros((f) => ({ ...f, ...cambios }));
 
   const abrirEvento = (id) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/eventos/${id}`)
       .then(({ data }) => setDetalle(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -164,8 +164,6 @@ export default function MapaEventos() {
     <Layout>
       <PageHeader title="Mapa de eventos" subtitle="Dónde pasaron las incidencias en campo. Elige un punto para ver su detalle y sus fotos." />
 
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && mapa && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
       {recortado && (
         <Alert type="info" className="mb-4">
@@ -203,10 +201,11 @@ export default function MapaEventos() {
               </div>
             )}
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

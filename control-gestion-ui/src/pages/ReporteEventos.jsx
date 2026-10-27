@@ -8,10 +8,12 @@ import { Table, Td, Tr } from '../components/Table';
 import EstadoEvento from '../components/eventos/EstadoEvento';
 import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Cargando, ErrorDeCarga, EstadoVacio, Indicador, Input, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, Indicador, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia, formatearFecha } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
@@ -29,17 +31,15 @@ export default function ReporteEventos() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [erroresFiltro, setErroresFiltro] = useState({});
-  const [errorAccion, setErrorAccion] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
   const [exportando, setExportando] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
 
-  // Los catálogos de los filtros. Si fallan, el reporte igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
+  // Los catálogos de los filtros. Si fallan, el reporte igual funciona: se avisa en un toast, y "Reintentar" los vuelve a pedir.
   const cargarFiltros = useCallback(() => Promise.all([api.get('/eventos/tipos'), api.get('/zonas'), api.get('/usuarios/promotores')])
-    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
-    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)), []);
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
+    .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)), []);
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
@@ -71,11 +71,11 @@ export default function ReporteEventos() {
 
   const exportar = async () => {
     setExportando(true);
-    setErrorAccion('');
+    avisar.quitarError();
     try {
       await descargar('/eventos/reporte/excel', parametros(undefined), `incidencias_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
     } catch (err) {
-      setErrorAccion(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
+      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
     } finally {
       setExportando(false);
     }
@@ -112,8 +112,6 @@ export default function ReporteEventos() {
         )}
       />
 
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {sinEventos && hayFiltros && (
         <Alert type="info" className="mb-4">Ningún evento coincide con los filtros: no hay nada que exportar.</Alert>
       )}
@@ -167,11 +165,12 @@ export default function ReporteEventos() {
                 onChange={(promotor) => filtrar({ promotor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} error={erroresFiltro.desde}
+                onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+              <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                 onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>

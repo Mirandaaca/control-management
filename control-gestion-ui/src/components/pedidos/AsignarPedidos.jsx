@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
-import { Alert, Btn, Input, Modal, Selector } from '../ui';
+import { Alert, Btn, CampoFecha, Modal, Selector } from '../ui';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { diaEnBolivia, formatearDia, formatearHora } from '../../utils/formato';
 
@@ -62,7 +62,7 @@ export default function AsignarPedidos({ pedidos, promotores, onCerrar, onHecho 
         <Selector label="Promotor" placeholder="Elige el promotor" value={promotorId} error={errores.promotorId}
           opciones={promotores.map((p) => ({ valor: p.id, texto: p.nombreCompleto }))}
           onChange={(valor) => { setPromotorId(valor); setErrores((e) => ({ ...e, promotorId: undefined })); }} />
-        <Input label="Día de entrega" type="date" value={dia} min={diaEnBolivia()} autoComplete="off" error={errores.dia}
+        <CampoFecha label="Día de entrega" value={dia} min={diaEnBolivia()} error={errores.dia}
           onChange={(e) => { setDia(e.target.value); setErrores((x) => ({ ...x, dia: undefined })); }} />
         <div>
           <p className="text-sm font-medium text-slate-700 mb-1">Pedidos</p>

@@ -10,6 +10,7 @@ import {
   Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
   Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
@@ -51,7 +52,6 @@ export default function Zonas() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [busqueda, setBusqueda] = useState('');
-  const [aviso, setAviso] = useState('');
 
   const [editor, setEditor] = useState(null);
   const editorRef = useRef(null);
@@ -84,7 +84,6 @@ export default function Zonas() {
   const guardar = async (ev) => {
     ev.preventDefault();
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorEditor('');
     try {
@@ -93,7 +92,7 @@ export default function Zonas() {
         : await api.post('/zonas', { nombre: editor.nombre, codigo: editor.codigo, promotorId: editor.promotorId });
       setZonas((lista) => (editor.id ? lista.map((z) => (z.id === data.id ? data : z)) : [...lista, data])
         .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')));
-      setAviso(editor.id ? `Se guardó la zona ${data.nombre}.` : `Se registró la zona ${data.nombre}.`);
+      avisar.exito(editor.id ? `Se guardó la zona ${data.nombre}.` : `Se registró la zona ${data.nombre}.`);
       setEditor(null);
     } catch (err) {
       const campos = erroresPorCampo(err);
@@ -115,7 +114,7 @@ export default function Zonas() {
     try {
       await api.delete(`/zonas/${aEliminar.id}`);
       setZonas((lista) => lista.filter((z) => z.id !== aEliminar.id));
-      setAviso(`Se eliminó la zona ${aEliminar.nombre}.`);
+      avisar.exito(`Se eliminó la zona ${aEliminar.nombre}.`);
       setAEliminar(null);
     } catch (err) {
       setErrorEliminar(mensajeDeError(err, 'No se pudo eliminar la zona.'));
@@ -152,7 +151,6 @@ export default function Zonas() {
         )}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
       {porReasignar > 0 && puedeModificar && (
         <Alert type="warning" className="mb-4">
           {porReasignar === 1 ? 'Una zona tiene' : `${porReasignar} zonas tienen`} un promotor inactivo o que ya no recorre rutas:

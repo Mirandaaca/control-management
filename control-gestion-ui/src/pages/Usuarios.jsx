@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { LoaderCircle, Pencil, Plus, UserCheck, UserX, Users } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -8,8 +9,10 @@ import {
   Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
+import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha } from '../utils/formato';
 import { coincide } from '../utils/texto';
 
@@ -32,13 +35,12 @@ export default function Usuarios() {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [filtros, setFiltros] = useState(SIN_FILTROS);
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [formulario, setFormulario] = useState(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const formularioRef = useRef(null);
 
   const [aDesactivar, setADesactivar] = useState(null);
   const [errorDesactivar, setErrorDesactivar] = useState('');
@@ -78,21 +80,23 @@ export default function Usuarios() {
   const guardar = async (e) => {
     e.preventDefault();
     setGuardando(true);
-    setAviso('');
     setErroresCampo({});
     setErrorFormulario('');
     const { id, ...datos } = formulario;
     try {
       const { data } = id ? await api.put(`/usuarios/${id}`, datos) : await api.post('/usuarios', datos);
       reemplazar(data);
-      setAviso(id ? `Se guardaron los cambios de ${data.nombreCompleto}.` : `Se creó el usuario ${data.nombreCompleto}.`);
+      avisar.exito(id ? `Se guardaron los cambios de ${data.nombreCompleto}.` : `Se creó el usuario ${data.nombreCompleto}.`);
       setFormulario(null);
     } catch (err) {
       const campos = erroresPorCampo(err);
       const campoDelCodigo = CAMPO_DEL_ERROR[err.response?.data?.codigo];
       if (campoDelCodigo) campos[campoDelCodigo] = err.response.data.detail;
-      setErroresCampo(campos);
-      if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el usuario.'));
+      flushSync(() => {
+        setErroresCampo(campos);
+        if (Object.keys(campos).length === 0) setErrorFormulario(mensajeDeError(err, 'No se pudo guardar el usuario.'));
+      });
+      mostrarPrimerProblema(formularioRef.current);
     } finally {
       setGuardando(false);
     }
@@ -100,18 +104,17 @@ export default function Usuarios() {
 
   const cambiarActivo = async (u, activo) => {
     setProcesandoId(u.id);
-    setAviso('');
-    setErrorAccion('');
+    avisar.quitarError();
     setErrorDesactivar('');
     try {
       const { data } = await api.put(`/usuarios/${u.id}/${activo ? 'activar' : 'desactivar'}`);
       reemplazar(data);
-      setAviso(activo ? `Se activó a ${data.nombreCompleto}.` : `Se desactivó a ${data.nombreCompleto}.`);
+      avisar.exito(activo ? `Se activó a ${data.nombreCompleto}.` : `Se desactivó a ${data.nombreCompleto}.`);
       setADesactivar(null);
     } catch (err) {
       const mensaje = mensajeDeError(err, activo ? 'No se pudo activar el usuario.' : 'No se pudo desactivar el usuario.');
-      // Desactivar se confirma en un modal: el error va ahí. Activar es directo: el error va arriba de la lista.
-      if (activo) setErrorAccion(mensaje);
+      // Desactivar se confirma en un modal: el error va ahí. Activar es directo: el error va en un toast.
+      if (activo) avisar.error(mensaje);
       else setErrorDesactivar(mensaje);
     } finally {
       setProcesandoId(null);
@@ -147,9 +150,6 @@ export default function Usuarios() {
           </Btn>
         )}
       />
-
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
 
       <Table
         headers={['Usuario', 'Correo', 'Rol', 'Estado', 'Alta', '']}
@@ -240,7 +240,7 @@ export default function Usuarios() {
         )}
       >
         {formulario && (
-          <form id="formulario-usuario" onSubmit={guardar} className="space-y-4" noValidate>
+          <form id="formulario-usuario" ref={formularioRef} onSubmit={guardar} className="space-y-4" noValidate>
             {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
             <Input label="Nombre completo" value={formulario.nombreCompleto} error={erroresCampo.nombreCompleto}
               onChange={(e) => setFormulario({ ...formulario, nombreCompleto: e.target.value })} autoComplete="off" />

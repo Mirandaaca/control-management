@@ -11,15 +11,17 @@ import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Indicador, Input,
-  Modal, PageHeader, Paginacion, Selector,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio,
+  Indicador, Input, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha, formatearMonto } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const { cobranzas: permisos, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -56,8 +58,6 @@ export default function Cobranzas() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [detalle, setDetalle] = useState(null);
   // Un aviso dentro del detalle: el comprobante que se adjuntó, o el que no se pudo subir. { tipo, texto }
@@ -99,10 +99,10 @@ export default function Cobranzas() {
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
   const abrirDetalle = (id, aviso = null) => {
-    setErrorAccion('');
+    avisar.quitarError();
     return api.get(`/cobranzas/${id}`)
       .then(({ data }) => { setDetalle(data); setAvisoDetalle(aviso); })
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la cobranza.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir la cobranza.')));
   };
 
   const cerrarDetalle = () => { setDetalle(null); setAvisoDetalle(null); };
@@ -110,7 +110,6 @@ export default function Cobranzas() {
   // Una clave nueva cada vez que se abre el formulario: si el mismo pago se envía dos veces, la API no lo duplica.
   // crypto.randomUUID solo existe en localhost o con HTTPS; si falta, el pago se envía sin clave.
   const abrirPago = (cobranza, desdeDetalle = false) => {
-    setAviso('');
     setErroresPago({});
     setErrorPago('');
     setDetalle(null);
@@ -148,7 +147,7 @@ export default function Cobranzas() {
         }
       }
       const conComprobante = comprobante && !fallo ? ', con su comprobante' : '';
-      setAviso(data.saldoPendiente > 0
+      avisar.exito(data.saldoPendiente > 0
         ? `Se registró el pago en ${cobranza.numero}${conComprobante}: quedan ${formatearMonto(data.saldoPendiente)} por cobrar.`
         : `Se registró el pago${conComprobante}: ${cobranza.numero} quedó pagada.`);
       setPago(null);
@@ -195,7 +194,6 @@ export default function Cobranzas() {
   };
 
   const pedirMotivo = (tipo, cobranza, pagoElegido = null) => {
-    setAviso('');
     cerrarDetalle();
     setMotivo({ tipo, cobranza, pago: pagoElegido, texto: '', error: '', errorCampo: '' });
   };
@@ -208,7 +206,7 @@ export default function Cobranzas() {
       const { data } = tipo === 'pago'
         ? await api.post(`/cobranzas/${cobranza.id}/pagos/${pagoElegido.id}/anular`, { motivo: texto })
         : await api.post(`/cobranzas/${cobranza.id}/incobrable`, { observacion: texto });
-      setAviso(tipo === 'pago'
+      avisar.exito(tipo === 'pago'
         ? `Se anuló el pago de ${formatearMonto(pagoElegido.monto)}: ${data.numero} quedó con ${formatearMonto(data.saldoPendiente)} por cobrar.`
         : `${data.numero} quedó marcada como incobrable.`);
       setMotivo(null);
@@ -268,8 +266,6 @@ export default function Cobranzas() {
         </div>
       )}
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
@@ -289,10 +285,11 @@ export default function Cobranzas() {
                 onChange={(valor) => filtrar({ estado: valor })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Emitida desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Emitida desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

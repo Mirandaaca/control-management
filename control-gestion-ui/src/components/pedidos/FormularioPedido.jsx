@@ -4,7 +4,7 @@ import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import LineasDeProductos from '../LineasDeProductos';
-import { Alert, AreaDeTexto, Btn, Combobox, Input, Modal } from '../ui';
+import { Alert, AreaDeTexto, Btn, CampoFechaHora, Combobox, Input, Modal } from '../ui';
 import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../../hooks/useOpcionesDeClientes';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { aCampoFechaHora, ahoraEnBolivia, formatearMonto } from '../../utils/formato';
@@ -151,7 +151,7 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
           ) : (
             <Input label="Cliente" value={pedido.cliente.nombreCompleto} disabled readOnly />
           )}
-          <Input label="Fecha y hora de entrega" type="datetime-local" value={datos.fechaEntregaEstimada} autoComplete="off"
+          <CampoFechaHora label="Fecha y hora de entrega" value={datos.fechaEntregaEstimada}
             min={ahoraEnBolivia()} error={errores.fechaEntregaEstimada} ayuda="En la hora de Bolivia."
             onChange={(e) => cambiar('fechaEntregaEstimada', e.target.value)} />
         </div>

@@ -11,13 +11,15 @@ import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import ResolverEvento from '../components/eventos/ResolverEvento';
 import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Input, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const { eventos: permisos, seguridad } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -41,9 +43,6 @@ export default function Eventos() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
-  const [errorFiltros, setErrorFiltros] = useState('');
 
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
@@ -59,8 +58,8 @@ export default function Eventos() {
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
-    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); setErrorFiltros(''); })
-    .catch((err) => setErrorFiltros(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
+    .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
+    .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)),
   [eligePromotor]);
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
@@ -89,40 +88,38 @@ export default function Eventos() {
 
   // El detalle trae la descripción, la ubicación y las fotos: la lista solo trae el resumen. Resolver también lo necesita.
   const abrirEvento = (id, alAbrir = setDetalle) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/eventos/${id}`)
       .then(({ data }) => alAbrir(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir el evento.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir el evento.')));
   };
 
   const abrirFormulario = (evento) => {
-    setAviso('');
     setDetalle(null);
     setFormulario({ evento });
   };
 
   const abrirResolver = (evento) => {
-    setAviso('');
     setDetalle(null);
     setResolviendo(evento);
   };
 
   const alGuardar = (evento) => {
     setFormulario(null);
-    setAviso(`${evento.numero} quedó modificado.`);
+    avisar.exito(`${evento.numero} quedó modificado.`);
     cargar();
   };
 
   const alResolver = (evento) => {
     setResolviendo(null);
-    setAviso(`${evento.numero} quedó resuelto.`);
+    avisar.exito(`${evento.numero} quedó resuelto.`);
     cargar();
   };
 
   // Agregar o quitar una foto cambia el detalle y la cantidad de fotos de la lista.
   const alCambiarFotos = (evento, mensaje) => {
     setDetalle(evento);
-    setAviso(mensaje);
+    avisar.exito(mensaje);
     cargar();
   };
 
@@ -155,9 +152,6 @@ export default function Eventos() {
           : 'Las incidencias de tu cartera, sus fotos y su solución.'}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
-      {errorFiltros && <Alert type="error" className="mb-4">{errorFiltros}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
@@ -194,10 +188,11 @@ export default function Eventos() {
               </div>
             )}
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

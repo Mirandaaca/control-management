@@ -10,15 +10,17 @@ import EstadoHP from '../components/hojas/EstadoHP';
 import { ANULADA, CONFIRMADA, ESTADOS_DE_HP } from '../components/hojas/estados';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Paginacion, Selector,
+  Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga,
+  EstadoVacio, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
+import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
+import { atajosDePeriodo } from '../utils/fechas';
 
 const { ventas, seguridad, reportes } = PERMISOS;
 const TAMANO_PAGINA = 25;
@@ -53,8 +55,6 @@ export default function HojasPedido() {
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
-  const [aviso, setAviso] = useState('');
-  const [errorAccion, setErrorAccion] = useState('');
 
   const [detalle, setDetalle] = useState(null);
 
@@ -83,10 +83,10 @@ export default function HojasPedido() {
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
   const verDetalle = (id) => {
-    setErrorAccion('');
+    avisar.quitarError();
     api.get(`/hojas-pedido/${id}`)
       .then(({ data }) => setDetalle(data))
-      .catch((err) => setErrorAccion(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo abrir la hoja de pedido.')));
   };
 
   const puedeAnularla = (hp) => puedeAnular && hp.estadoHP !== ANULADA;
@@ -96,7 +96,7 @@ export default function HojasPedido() {
     setAnulando((a) => ({ ...a, error: '', errorMotivo: '' }));
     try {
       const { data } = await api.post(`/hojas-pedido/${anulando.hp.id}/anular`, { motivo: anulando.motivo });
-      setAviso(anulando.hp.estadoHP === CONFIRMADA
+      avisar.exito(anulando.hp.estadoHP === CONFIRMADA
         ? `${data.numero} quedó anulada: el stock volvió al inventario${data.cobranza ? ` y la deuda ${data.cobranza.numero} se anuló` : ''}.`
         : `${data.numero} quedó anulada.`);
       setAnulando(null);
@@ -140,8 +140,6 @@ export default function HojasPedido() {
         subtitle={veCarteraCompleta ? 'Las ventas en campo de todos los promotores.' : 'Las ventas a los clientes de tu cartera.'}
       />
 
-      {aviso && <Alert type="success" className="mb-4">{aviso}</Alert>}
-      {errorAccion && <Alert type="error" className="mb-4">{errorAccion}</Alert>}
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
@@ -166,10 +164,11 @@ export default function HojasPedido() {
                 onChange={(tipo) => filtrar({ tipo })} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Desde" type="date" autoComplete="off" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })} />
+              <CampoFecha label="Desde" value={filtros.desde} onChange={(e) => filtrar({ desde: e.target.value })}
+                atajos={atajosDePeriodo()} onAtajo={filtrar} />
             </div>
             <div className="w-full sm:w-40">
-              <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
+              <CampoFecha label="Hasta" value={filtros.hasta} onChange={(e) => filtrar({ hasta: e.target.value })} />
             </div>
           </BarraDeFiltros>
         )}

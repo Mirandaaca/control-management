@@ -10,8 +10,10 @@ import { formatearFecha, formatearMonto } from '../../utils/formato';
 import EstadoCobranza from '../cobranzas/EstadoCobranza';
 import { ESTADOS_DE_COBRANZA, textoDeMora } from '../cobranzas/estados';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, Combobox, EstadoVacio, Input, Paginacion, Selector } from '../ui';
+import { Alert, BarraDeFiltros, CampoFecha, Combobox, EstadoVacio, Paginacion, Selector } from '../ui';
+import { avisar } from '../ui/avisar';
 import BotonExportar from './BotonExportar';
+import { atajosDePeriodo } from '../../utils/fechas';
 
 const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', promotor: '', cliente: '', desde: '', hasta: '' };
@@ -32,14 +34,13 @@ export default function ReporteCobranzas({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [numeroPagina, setNumeroPagina] = useState(1);
   const [promotores, setPromotores] = useState([]);
-  const [errorPromotores, setErrorPromotores] = useState('');
   const clientes = useOpcionesDeClientes({ incluirInactivos: true });
 
   useEffect(() => {
     if (!veCarteraCompleta) return;
     api.get('/usuarios/promotores')
       .then(({ data }) => setPromotores(data))
-      .catch((err) => setErrorPromotores(mensajeDeError(err, 'No se pudo cargar la lista de promotores.')));
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudo cargar la lista de promotores.')));
   }, [veCarteraCompleta]);
 
   const filtrosDeLaApi = useMemo(() => ({
@@ -52,7 +53,7 @@ export default function ReporteCobranzas({ barra, panel }) {
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
   const { datos: reporte, cargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/cobranzas/reporte', parametros, 'No se pudo generar el reporte de cobranzas.');
-  const { exportar, exportando, errorExportar } = useExportar('/cobranzas/reporte/excel', filtrosDeLaApi, 'cobranzas');
+  const { exportar, exportando } = useExportar('/cobranzas/reporte/excel', filtrosDeLaApi, 'cobranzas');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -68,7 +69,6 @@ export default function ReporteCobranzas({ barra, panel }) {
     <>
       {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinCobranzas} />)}
       <div {...panel}>
-        {(errorExportar || errorPromotores) && <Alert type="error" className="mb-4">{errorExportar || errorPromotores}</Alert>}
         {sinCobranzas && hayFiltros && (
           <Alert type="info" className="mb-4">Ninguna cobranza coincide con los filtros: no hay nada que exportar.</Alert>
         )}
@@ -134,11 +134,12 @@ export default function ReporteCobranzas({ barra, panel }) {
                   onChange={(cliente) => filtrar({ cliente: cliente === TODOS ? '' : cliente })} />
               </div>
               <div className="w-full sm:w-36">
-                <Input label="Emitida desde" type="date" autoComplete="off" value={filtros.desde} error={erroresFiltro.desde}
-                  onChange={(e) => filtrar({ desde: e.target.value })} />
+                <CampoFecha label="Emitida desde" value={filtros.desde} error={erroresFiltro.desde}
+                  onChange={(e) => filtrar({ desde: e.target.value })}
+                  atajos={atajosDePeriodo()} onAtajo={filtrar} />
               </div>
               <div className="w-full sm:w-36">
-                <Input label="Hasta" type="date" autoComplete="off" value={filtros.hasta} error={erroresFiltro.hasta}
+                <CampoFecha label="Hasta" value={filtros.hasta} error={erroresFiltro.hasta}
                   onChange={(e) => filtrar({ hasta: e.target.value })} />
               </div>
             </BarraDeFiltros>
