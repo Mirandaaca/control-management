@@ -5,7 +5,7 @@ import { CircleAlert, Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { despertarLaApi } from '../api/axios';
 import { useAuth } from '../context/auth';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
-import { Alert } from '../components/ui';
+import { Alert } from '../components/ui/basicos';
 import { mostrarPrimerProblema } from '../utils/foco';
 
 const campo = (error) => `w-full h-11 px-3 border rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500 ${
