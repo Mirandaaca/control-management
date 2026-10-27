@@ -7,6 +7,7 @@ import '../../proveedores.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/formato.dart';
+import '../core/lista_paginada.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/ubicacion/mapa_de_ubicacion.dart';
@@ -17,6 +18,7 @@ import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../sesion/sesion_notifier.dart';
 import 'hoja_pedido_view_model.dart';
+import 'hojas_pedido_view_model.dart';
 import 'nueva_hoja_screen.dart';
 import 'venta.dart';
 
@@ -62,7 +64,10 @@ class _HojaPedidoScreenState extends ConsumerState<HojaPedidoScreen> {
     );
     if (!confirmado) return;
     final confirmada = await _viewModel.confirmar();
-    if (confirmada != null) _viewModel.avisar(mensajeDeVenta(confirmada));
+    if (confirmada == null || !mounted) return;
+    _viewModel.avisar(mensajeDeVenta(confirmada));
+    // "Confirmar" se toca también desde la lista: al volver, la HP ya no debe seguir como guardada.
+    recargarSiEstaAbierta(ref, hojasPedidoProvider);
   }
 
   @override

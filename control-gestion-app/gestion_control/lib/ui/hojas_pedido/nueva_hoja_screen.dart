@@ -7,6 +7,7 @@ import '../../data/models/hoja_pedido.dart';
 import '../../data/models/producto.dart';
 import '../core/lineas/linea_de_producto.dart';
 import '../core/lineas/lineas.dart';
+import '../core/lista_paginada.dart';
 import '../core/primer_problema.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
@@ -21,6 +22,7 @@ import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/segmentado.dart';
 import '../core/widgets/selectores.dart';
 import '../core/widgets/titulo_de_barra.dart';
+import 'hojas_pedido_view_model.dart';
 import 'nueva_hoja_view_model.dart';
 import 'venta.dart';
 
@@ -101,6 +103,7 @@ class _NuevaHojaScreenState extends ConsumerState<NuevaHojaScreen> {
     final hoja = await _viewModel.enviar(que);
     if (!mounted) return;
     if (hoja == null) return _mostrarPrimerProblema();
+    recargarSiEstaAbierta(ref, hojasPedidoProvider);
     context.pushReplacement(Rutas.hojaPedido(hoja.id), extra: AbrirHoja(mensaje: mensajeDeVenta(hoja)));
   }
 

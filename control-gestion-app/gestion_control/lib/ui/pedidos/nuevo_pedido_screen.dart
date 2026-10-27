@@ -7,6 +7,7 @@ import '../../data/models/cliente.dart';
 import '../../data/models/producto.dart';
 import '../core/lineas/linea_de_producto.dart';
 import '../core/lineas/lineas.dart';
+import '../core/lista_paginada.dart';
 import '../core/primer_problema.dart';
 import '../core/router.dart';
 import '../core/widgets/aviso.dart';
@@ -18,6 +19,7 @@ import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/selectores.dart';
 import 'nuevo_pedido_view_model.dart';
 import 'pedido_screen.dart';
+import 'pedidos_view_model.dart';
 
 /// Registrar un pedido (1.1; `frmPedidoMovil`; 7.3.1, paso 2). No tiene diseño en el 8.6: sigue el de la venta (8.6.5),
 /// con los textos del formulario del panel.
@@ -95,6 +97,7 @@ class _NuevoPedidoScreenState extends ConsumerState<NuevoPedidoScreen> {
     final pedido = await _viewModel.registrar(observaciones: _observaciones.text);
     if (!mounted) return;
     if (pedido == null) return _mostrarPrimerProblema();
+    recargarSiEstaAbierta(ref, pedidosProvider);
     context.pushReplacement(Rutas.pedido(pedido.id), extra: AbrirPedido(mensaje: mensajeDePedido(pedido)));
   }
 

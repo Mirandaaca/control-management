@@ -82,6 +82,13 @@ abstract class ListaPaginada<T> extends Notifier<EstadoDeLista<T>> {
   }
 }
 
+/// Después de guardar algo desde un formulario: si la lista de ese tipo sigue abierta debajo, vuelve a pedir la primera
+/// página, con sus filtros. El formulario se reemplaza por la ficha (`pushReplacement`), y en go_router eso no cumple la
+/// promesa del `push` de la lista: sin este aviso, al volver mostraba lo de antes hasta deslizar (prueba 10.1.5).
+void recargarSiEstaAbierta<T>(WidgetRef ref, NotifierProvider<ListaPaginada<T>, EstadoDeLista<T>> lista) {
+  if (ref.exists(lista)) ref.read(lista.notifier).cargar();
+}
+
 /// Lo que va debajo de los filtros de una lista: la carga, el error con "Reintentar", la lista vacía o los registros, y
 /// "Cargar más" si quedan. [vacio] es la lista sin nada; [sinCoincidencias], la búsqueda sin resultados.
 List<Widget> cuerpoDeLista<T>({

@@ -262,6 +262,45 @@ void main() {
       expect(find.text('Se registró a Silvia Torrico Méndez.'), findsOneWidget);
     });
 
+    testWidgets('al volver, la lista de Clientes ya la tiene, sin deslizar para actualizar', (tester) async {
+      var registrada = false;
+      clientes.alListar = (_, _) async => Pagina(
+        items: [
+          rosaResumen,
+          if (registrada)
+            ClienteResumen(
+              id: 92,
+              codigo: 'CLI-00092',
+              nombreCompleto: 'Silvia Torrico Méndez',
+              telefono: '70010092',
+              direccion: 'Calle 6 N.º 310, a media cuadra del Mercado Norte',
+              zona: zonaNorteResumen,
+              estado: estadoDisponible,
+              saldoPendiente: 0,
+            ),
+        ],
+        total: registrada ? 2 : 1,
+        numero: 1,
+        tamano: 25,
+      );
+      final router = await abrir(tester);
+      router.push('/clientes/nuevo');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      gps.leer(-17.771845, -63.17629, 6);
+      await tester.pump();
+      await escribir(tester);
+      registrada = true;
+      await registrar(tester);
+      await tester.pumpAndSettle();
+      expect(clientes.listados, hasLength(2));
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.toString(), '/');
+      expect(find.text('Silvia Torrico Méndez'), findsOneWidget);
+    });
+
     testWidgets('sin los obligatorios, cada error va en su campo y no envía nada', (tester) async {
       zonas.alListar = () async => const [zonaNorte, zonaSur];
       await abrir(tester, inicio: '/clientes/nuevo');
