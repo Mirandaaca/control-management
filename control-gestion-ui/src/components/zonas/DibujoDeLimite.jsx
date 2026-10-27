@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import L from 'leaflet';
 import { Marker, Polygon, Polyline, useMapEvents } from 'react-leaflet';
 import { ESTILO_DIBUJO } from './marcadores';
@@ -14,8 +15,23 @@ const ASA = L.divIcon({
   iconAnchor: [9, 9],
 });
 
-function AlTocar({ onTocar }) {
-  useMapEvents({ click: (e) => onTocar([redondear(e.latlng.lat), redondear(e.latlng.lng)]) });
+/**
+ * Cada clic agrega un vértice. Un doble clic son dos clics en el mismo lugar y luego el zoom de Leaflet: mientras se
+ * dibuja, el zoom con doble clic se apaga, y un clic sobre el último vértice no agrega otro.
+ */
+function AlTocar({ ultimo, onTocar }) {
+  const mapa = useMapEvents({
+    click: (e) => {
+      if (ultimo && mapa.latLngToContainerPoint(ultimo).distanceTo(e.containerPoint) < 8) return;
+      onTocar([redondear(e.latlng.lat), redondear(e.latlng.lng)]);
+    },
+  });
+
+  useEffect(() => {
+    mapa.doubleClickZoom.disable();
+    return () => mapa.doubleClickZoom.enable();
+  }, [mapa]);
+
   return null;
 }
 
@@ -30,7 +46,7 @@ export default function DibujoDeLimite({ modo, vertices, onCambiar }) {
 
   return (
     <>
-      {modo === 'dibujar' && <AlTocar onTocar={(vertice) => onCambiar([...vertices, vertice])} />}
+      {modo === 'dibujar' && <AlTocar ultimo={vertices.at(-1)} onTocar={(vertice) => onCambiar([...vertices, vertice])} />}
       {vertices.length >= 3 && <Polygon positions={vertices} pathOptions={ESTILO_DIBUJO} interactive={false} />}
       {vertices.length === 2 && <Polyline positions={vertices} pathOptions={ESTILO_DIBUJO} interactive={false} />}
       {vertices.map((vertice, i) => (
