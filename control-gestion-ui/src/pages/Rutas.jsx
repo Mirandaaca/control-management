@@ -4,7 +4,9 @@ import { Plus, RefreshCw, Route as IconoRuta, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import {
+  Alert, Btn, CampoFecha, Confirmar, ErrorDeCarga, EsqueletoDeLista, EsqueletoDeMapa, EstadoVacio, PageHeader, ZonaDeCarga,
+} from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import EstadoRuta from '../components/rutas/EstadoRuta';
 import FormularioRuta from '../components/rutas/FormularioRuta';
@@ -212,7 +214,7 @@ export default function Rutas() {
   const puntosDeLaRuta = puntos.filter((p) => p.zona.id === elegida?.zona.id);
 
   let lista;
-  if (cargando) lista = <Cargando texto="Cargando rutas…" />;
+  if (cargando) lista = <ZonaDeCarga texto="Cargando rutas…"><EsqueletoDeLista /></ZonaDeCarga>;
   else if (errorCarga && !rutas) lista = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargarLista(); }} reintentando={reintentando} />
   );
@@ -273,7 +275,9 @@ export default function Rutas() {
               <Seguimiento ruta={elegida} zona={zonaDeLaRuta} puntos={puntosDeLaRuta}
                 onEliminar={puedePlanificar ? () => { setErrorEliminar(''); setAEliminar(elegida); } : null} />
             )
-            : !cargando && rutas?.length > 0 && !errorRuta && <Cargando texto="Cargando la ruta…" />}
+            : !cargando && rutas?.length > 0 && !errorRuta && (
+              <ZonaDeCarga texto="Cargando la ruta…"><EsqueletoDeMapa /></ZonaDeCarga>
+            )}
           {!cargando && rutas?.length === 0 && (
             <p className="px-4 py-10 text-center text-sm text-slate-600">Elige otro día para ver sus rutas.</p>
           )}

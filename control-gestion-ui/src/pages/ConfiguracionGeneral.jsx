@@ -3,7 +3,9 @@ import { CalendarClock } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Btn, Card, Cargando, Confirmar, ErrorDeCarga, Input, PageHeader } from '../components/ui';
+import {
+  Btn, Card, Confirmar, ErrorDeCarga, Esqueleto, EsqueletoDeDetalle, Input, PageHeader, ZonaDeCarga,
+} from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 
 const MENSAJE_DE_RANGO = 'Los días de re-visita van de 1 a 365.';
@@ -79,7 +81,19 @@ export default function ConfiguracionGeneral() {
   };
 
   let contenido;
-  if (cargando) contenido = <Card><Cargando texto="Cargando la configuración general…" /></Card>;
+  if (cargando) contenido = (
+    <Card className="max-w-2xl">
+      <ZonaDeCarga texto="Cargando la configuración general…">
+        <div className="mb-5 space-y-2">
+          <Esqueleto className="h-5 w-40" />
+          <Esqueleto className="h-4 w-full" />
+          <Esqueleto className="h-4 w-5/6" />
+          <Esqueleto className="h-4 w-full" />
+        </div>
+        <div className="w-full sm:w-48"><EsqueletoDeDetalle pares={1} /></div>
+      </ZonaDeCarga>
+    </Card>
+  );
   else if (errorCarga) contenido = (
     <Card className="p-0">
       <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />

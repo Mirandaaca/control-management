@@ -10,7 +10,7 @@ import EstadoHP from '../components/hojas/EstadoHP';
 import { ANULADA, CONFIRMADA, ESTADOS_DE_HP } from '../components/hojas/estados';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, EnlaceBoton, ErrorDeCarga,
+  Alert, AreaDeTexto, BarraDeFiltros, Btn, Buscador, CampoFecha, Confirmar, EnlaceBoton, ErrorDeCarga,
   EstadoVacio, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -18,6 +18,7 @@ import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -78,7 +79,8 @@ export default function HojasPedido() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -119,8 +121,7 @@ export default function HojasPedido() {
   const hojas = pagina?.items ?? [];
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando hojas de pedido…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -143,12 +144,13 @@ export default function HojasPedido() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando hojas de pedido…'} recargando={recargando}
         headers={encabezados}
         empty="Ninguna hoja de pedido coincide con los filtros."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'hoja de pedido' : 'hojas de pedido'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'hoja de pedido' : 'hojas de pedido'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -172,7 +174,8 @@ export default function HojasPedido() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {hojas.map((hp) => (
           <Tr key={hp.id}>

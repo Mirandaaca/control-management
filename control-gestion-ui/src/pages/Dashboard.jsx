@@ -5,7 +5,9 @@ import { Boxes, ClipboardList, House, Store, TrendingUp, TriangleAlert, Wallet }
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Card, Cargando, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import {
+  Card, ErrorDeCarga, EsqueletoDeGrafico, EsqueletoDeIndicadores, EstadoVacio, PageHeader, ZonaDeCarga,
+} from '../components/ui';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { ahoraEnBolivia, formatearCantidad, formatearDia, formatearMonto } from '../utils/formato';
@@ -75,7 +77,16 @@ export default function Dashboard() {
       <ErrorDeCarga mensaje={error} reintentando={reintentando} onReintentar={() => { setReintentando(true); pedir(); }} />
     </Card>
   );
-  else if (!tablero) contenido = <Card><Cargando texto="Cargando el resumen…" /></Card>;
+  else if (!tablero) contenido = (
+    <ZonaDeCarga texto="Cargando el resumen…">
+      <EsqueletoDeIndicadores cantidad={indicadores.length} />
+      {ventas && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {Array.from({ length: veCarteraCompleta ? 3 : 2 }, (_, i) => <EsqueletoDeGrafico key={i} />)}
+        </div>
+      )}
+    </ZonaDeCarga>
+  );
   else contenido = (
     <>
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 mb-6">

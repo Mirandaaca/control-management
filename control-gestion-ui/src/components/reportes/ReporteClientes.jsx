@@ -3,7 +3,7 @@ import { UserPlus, UserRoundCheck } from 'lucide-react';
 import { useExportar, useReporte } from '../../hooks/useReporte';
 import { diaEnBolivia, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { Alert, BarraDeFiltros, CampoFecha, Indicador, Paginacion } from '../ui';
+import { Alert, BarraDeFiltros, CampoFecha, EsqueletoDeIndicadores, Indicador, Paginacion, ZonaDeCarga } from '../ui';
 import BotonExportar from './BotonExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
 
@@ -37,7 +37,7 @@ export default function ReporteClientes({ barra, panel }) {
   const filtrosDeLaApi = useMemo(() => ({ desde: periodo.desde || undefined, hasta: periodo.hasta || undefined }), [periodo]);
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, paginaNuevos, paginaRecurrentes, tamano: TAMANO_PAGINA }),
     [filtrosDeLaApi, paginaNuevos, paginaRecurrentes]);
-  const { datos: reporte, cargando, erroresFiltro, estado } =
+  const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/clientes', parametros, 'No se pudo generar el reporte de clientes.');
   const { exportar, exportando } = useExportar('/reportes/clientes/excel', filtrosDeLaApi, 'clientes');
 
@@ -56,6 +56,9 @@ export default function ReporteClientes({ barra, panel }) {
           <Alert type="info" className="mb-4">No hay clientes nuevos ni recurrentes en el período: no hay nada que exportar.</Alert>
         )}
 
+        {cargando && (
+          <ZonaDeCarga><EsqueletoDeIndicadores cantidad={2} grilla="mb-5 grid gap-4 sm:grid-cols-2" /></ZonaDeCarga>
+        )}
         {reporte && (
           <section aria-label="Totales del período" className="mb-5 grid gap-4 sm:grid-cols-2">
             <Indicador titulo="Clientes nuevos" icono={UserPlus} valor={reporte.cantidadNuevos} detalle="Registrados en el período" />
@@ -65,11 +68,12 @@ export default function ReporteClientes({ barra, panel }) {
         )}
 
         <Table
+          cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           titulo="Clientes nuevos"
           headers={['Cliente nuevo', 'Zona', 'Promotor', 'Registrado']}
           empty="Ningún cliente se registró en el período."
           estado={estado}
-          barra={!cargando && (
+          barra={(
             <BarraDeFiltros resultado={reporte ? clientes(reporte.cantidadNuevos + reporte.cantidadRecurrentes) : ''}
               hayFiltros={false}>
               <div className="w-full sm:w-40">
@@ -83,7 +87,7 @@ export default function ReporteClientes({ barra, panel }) {
               </div>
             </BarraDeFiltros>
           )}
-          pie={reporte && <Paginacion pagina={reporte.nuevos.numeroPagina} totalPaginas={reporte.nuevos.totalPaginas} onCambiar={setPaginaNuevos} />}
+          pie={reporte && <Paginacion pagina={reporte.nuevos.numeroPagina} totalPaginas={reporte.nuevos.totalPaginas} onCambiar={setPaginaNuevos} deshabilitada={recargando} />}
         >
           {(reporte?.nuevos.items ?? []).map((c) => (
             <Tr key={c.id}>
@@ -101,7 +105,7 @@ export default function ReporteClientes({ barra, panel }) {
               titulo="Clientes recurrentes"
               headers={['Cliente recurrente', 'Zona', 'Promotor', { texto: 'Compras', derecha: true }]}
               empty="Ningún cliente de antes compró en el período."
-              pie={<Paginacion pagina={reporte.recurrentes.numeroPagina} totalPaginas={reporte.recurrentes.totalPaginas} onCambiar={setPaginaRecurrentes} />}
+              pie={<Paginacion pagina={reporte.recurrentes.numeroPagina} totalPaginas={reporte.recurrentes.totalPaginas} onCambiar={setPaginaRecurrentes} deshabilitada={recargando} />}
             >
               {reporte.recurrentes.items.map((c) => (
                 <Tr key={c.id}>

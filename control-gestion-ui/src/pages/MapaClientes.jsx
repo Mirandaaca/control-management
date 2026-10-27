@@ -7,7 +7,7 @@ import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import EstadoCliente from '../components/EstadoCliente';
-import { Cargando, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import { ErrorDeCarga, EsqueletoDeMapa, EstadoVacio, PageHeader, ZonaDeCarga } from '../components/ui';
 import { ACTIVO, DISPONIBLE, iconoDelCliente, pinturaDelEstado } from '../components/clientes/marcadores';
 import { cuantoFalta } from '../components/clientes/visitas';
 import { comoPosiciones, ESTILO_ZONA, ESTILO_ZONA_ELEGIDA, ICONO_PUNTO } from '../components/zonas/marcadores';
@@ -164,7 +164,7 @@ export default function MapaClientes() {
   if (elegida && clientes.length === 0) avisos.push(`${elegida.nombre} todavía no tiene clientes en el mapa.`);
 
   let contenido;
-  if (cargando) contenido = <Cargando texto="Cargando el mapa…" />;
+  if (cargando) contenido = <ZonaDeCarga texto="Cargando el mapa…"><EsqueletoDeMapa /></ZonaDeCarga>;
   else if (errorCarga) contenido = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );

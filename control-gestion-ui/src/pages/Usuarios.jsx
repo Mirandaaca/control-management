@@ -6,7 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, Badge, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -129,8 +129,7 @@ export default function Usuarios() {
   const esYo = (u) => u.id === yo?.id;
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando usuarios…" />;
-  else if (errorCarga && usuarios.length === 0) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={reintentar} reintentando={reintentando} />;
+  if (errorCarga && usuarios.length === 0) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={reintentar} reintentando={reintentando} />;
   else if (usuarios.length === 0) estado = (
     <EstadoVacio titulo="Todavía no hay usuarios" icono={Users}
       accion={puedeCrear && <Btn size="md" onClick={() => abrirFormulario(null)}><Plus size={16} aria-hidden="true" />Nuevo usuario</Btn>}>
@@ -152,12 +151,13 @@ export default function Usuarios() {
       />
 
       <Table
+        cargando={cargando && 'Cargando usuarios…'}
         headers={['Usuario', 'Correo', 'Rol', 'Estado', 'Alta', '']}
         empty="Ningún usuario coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && usuarios.length > 0 && (
+        barra={(cargando || usuarios.length > 0) && (
           <BarraDeFiltros
-            resultado={hayFiltros ? `${visibles.length} de ${usuarios.length} usuarios` : `${usuarios.length} usuarios`}
+            resultado={cargando ? '' : (hayFiltros ? `${visibles.length} de ${usuarios.length} usuarios` : `${usuarios.length} usuarios`)}
             hayFiltros={hayFiltros}
             onLimpiar={() => setFiltros(SIN_FILTROS)}
           >

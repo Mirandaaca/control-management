@@ -6,7 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Casilla, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -14,6 +14,7 @@ import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 
@@ -73,7 +74,8 @@ export default function Inventario() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda, filtros.soloBajoMinimo]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -120,8 +122,7 @@ export default function Inventario() {
   const hayAcciones = puedeIngresar || puedeVerKardex;
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando inventario…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -136,8 +137,7 @@ export default function Inventario() {
   ];
 
   let estadoKardex = null;
-  if (kardex?.cargando && !kardex.pagina) estadoKardex = <Cargando texto="Cargando movimientos…" />;
-  else if (kardex?.error && !kardex.pagina) estadoKardex = (
+  if (kardex?.error && !kardex.pagina) estadoKardex = (
     <ErrorDeCarga mensaje={kardex.error} onReintentar={() => cargarKardex(kardex.item, kardex.numero)} reintentando={kardex.cargando} />
   );
   else if (kardex?.pagina?.total === 0) estadoKardex = (
@@ -154,12 +154,13 @@ export default function Inventario() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando inventario…'} recargando={recargando}
         headers={encabezados}
         empty={filtros.soloBajoMinimo && filtros.texto === '' ? 'Ningún producto está bajo el mínimo.' : 'Ningún producto coincide con la búsqueda.'}
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -172,7 +173,8 @@ export default function Inventario() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {items.map((item) => (
           <Tr key={item.productoId}>
@@ -257,11 +259,13 @@ export default function Inventario() {
           <div className="space-y-3">
             {kardex.error && kardex.pagina && <Alert type="error">{kardex.error}</Alert>}
             <Table
+              cargando={kardex.cargando && !kardex.pagina && 'Cargando movimientos…'}
+              recargando={kardex.cargando && Boolean(kardex.pagina)}
               headers={['Fecha', 'Movimiento', { texto: 'Cantidad', derecha: true }, { texto: 'Stock', derecha: true }, 'Origen', 'Usuario']}
               estado={estadoKardex}
               pie={kardex.pagina && (
                 <Paginacion pagina={kardex.pagina.numeroPagina} totalPaginas={kardex.pagina.totalPaginas}
-                  onCambiar={(n) => cargarKardex(kardex.item, n)} />
+                  onCambiar={(n) => cargarKardex(kardex.item, n)} deshabilitada={kardex.cargando} />
               )}
             >
               {(kardex.pagina?.items ?? []).map((m) => {

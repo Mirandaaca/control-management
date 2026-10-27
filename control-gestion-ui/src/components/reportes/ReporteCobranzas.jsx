@@ -51,7 +51,7 @@ export default function ReporteCobranzas({ barra, panel }) {
     hasta: filtros.hasta || undefined,
   }), [filtros]);
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
-  const { datos: reporte, cargando, erroresFiltro, estado: estadoDeCarga } =
+  const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/cobranzas/reporte', parametros, 'No se pudo generar el reporte de cobranzas.');
   const { exportar, exportando } = useExportar('/cobranzas/reporte/excel', filtrosDeLaApi, 'cobranzas');
 
@@ -73,6 +73,13 @@ export default function ReporteCobranzas({ barra, panel }) {
           <Alert type="info" className="mb-4">Ninguna cobranza coincide con los filtros: no hay nada que exportar.</Alert>
         )}
 
+        {cargando && (
+          <div className="mb-5">
+            <Table cargando compacta titulo="Totales por estado"
+              headers={['Totales por estado', { texto: 'Cobranzas', derecha: true }, { texto: 'Emitido', derecha: true },
+                { texto: 'Cobrado', derecha: true }, { texto: 'Saldo', derecha: true }]} />
+          </div>
+        )}
         {reporte?.porEstado.length > 0 && (
           <div className="mb-5">
             <Table
@@ -107,12 +114,13 @@ export default function ReporteCobranzas({ barra, panel }) {
         )}
 
         <Table
+          cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           compacta
           headers={[{ texto: 'Cliente', segundo: 'Promotor' }, { texto: 'Emitida', segundo: 'Vence' }, { texto: 'Total', derecha: true },
             { texto: 'Pagado', derecha: true }, { texto: 'Saldo', derecha: true }, 'Estado']}
           empty="Ninguna cobranza coincide con los filtros."
           estado={estado}
-          barra={!cargando && (hayFiltros || pagina?.total > 0) && (
+          barra={(cargando || hayFiltros || pagina?.total > 0) && (
             <BarraDeFiltros resultado={pagina ? cobranzas(pagina.total) : ''} hayFiltros={hayFiltros}
               onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
               <div className="w-full sm:w-32">
@@ -144,7 +152,7 @@ export default function ReporteCobranzas({ barra, panel }) {
               </div>
             </BarraDeFiltros>
           )}
-          pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+          pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
         >
           {(pagina?.items ?? []).map((c) => (
             <Tr key={c.id}>

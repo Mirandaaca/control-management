@@ -3,9 +3,10 @@ import { CalendarX } from 'lucide-react';
 import api from '../api/axios';
 import { descargar } from '../api/descargas';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
-import { Cargando, ErrorDeCarga, EstadoVacio } from '../components/ui';
+import { ErrorDeCarga, EstadoVacio } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia } from '../utils/formato';
+import { useRecarga } from './useRecarga';
 
 /**
  * Pide un reporte cada vez que cambian sus parámetros (un objeto memorizado con useMemo). Si la API rechaza los
@@ -43,22 +44,23 @@ export function useReporte(ruta, parametros, mensajeDeFallo) {
       });
   }, [ruta, parametros, mensajeDeFallo]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const reintentar = () => {
     setReintentando(true);
     cargar();
   };
 
-  // Lo que reemplaza a las filas de la tabla mientras carga o si falló; null si hay datos para mostrar.
+  // Lo que reemplaza a las filas de la tabla si falló; null si hay datos para mostrar. Mientras llega la primera carga,
+  // la tabla muestra su esqueleto (cargando), y al cambiar los filtros, la barra de recarga (recargando).
   let estado = null;
-  if (cargando) estado = <Cargando texto="Generando el reporte…" />;
-  else if (Object.keys(erroresFiltro).length > 0) estado = (
+  if (Object.keys(erroresFiltro).length > 0) estado = (
     <EstadoVacio titulo="Revisa los filtros" icono={CalendarX}>El error está marcado en su campo.</EstadoVacio>
   );
   else if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={reintentar} reintentando={reintentando} />;
 
-  return { datos, cargando, erroresFiltro, estado };
+  return { datos, cargando, recargando, erroresFiltro, estado };
 }
 
 /** "Exportar Excel" de un reporte: descarga el archivo con los mismos filtros, o avisa el error en un toast. */

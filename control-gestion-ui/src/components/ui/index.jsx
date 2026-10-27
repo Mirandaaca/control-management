@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import {
-  Calendar as IconoDeCalendario, Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, CircleCheck, Clock, Inbox, Info,
-  LoaderCircle, RefreshCw, Search, TriangleAlert, X,
+  Calendar as IconoDeCalendario, Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, Clock, Inbox, LoaderCircle,
+  RefreshCw, Search, X,
 } from 'lucide-react';
 import {
   aTextoDeDia, dateADia, diaADate, enmascararDia, enmascararHora, HORAS_DEL_DIA, textoADia, textoAHora,
@@ -14,10 +14,17 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
+import { Alert } from './basicos';
 
 // Componentes del panel con el diseño de docs/diseno.md. Los archivos en minúscula de esta carpeta (dialog, select,
-// checkbox, command, popover, calendar y sonner) son primitivos: las pantallas usan los de aquí, que ya traen los textos
-// y el estilo.
+// checkbox, command, popover, calendar, sonner y skeleton) son primitivos: las pantallas usan los de aquí, que ya traen
+// los textos y el estilo. Alert, Card y los esqueletos viven en basicos.jsx, sin dependencias pesadas, y se exportan
+// también desde aquí.
+
+export {
+  Alert, BarraDeRecarga, Card, Esqueleto, EsqueletoDeDetalle, EsqueletoDeGrafico, EsqueletoDeIndicadores,
+  EsqueletoDeLista, EsqueletoDeMapa, EsqueletoDePagina, ZonaDeCarga,
+} from './basicos';
 
 export function PageHeader({ title, subtitle, action }) {
   return (
@@ -618,30 +625,6 @@ export function Casilla({ checked, onCheckedChange, disabled, children, id }) {
   );
 }
 
-export function Card({ children, className = '' }) {
-  return (
-    <div className={`bg-white rounded-xl shadow-tarjeta border border-slate-200 p-5 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-export function Alert({ children, type = 'error', className = '' }) {
-  const styles = {
-    error: { clase: 'bg-red-50 border-red-200 text-red-700', Icono: CircleAlert },
-    success: { clase: 'bg-green-50 border-green-200 text-green-800', Icono: CircleCheck },
-    warning: { clase: 'bg-amber-50 border-amber-200 text-amber-800', Icono: TriangleAlert },
-    info: { clase: 'bg-marca-50 border-marca-200 text-marca-800', Icono: Info },
-  };
-  const { clase, Icono } = styles[type];
-  return (
-    <div role={type === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2.5 border rounded-lg px-4 py-3 text-sm ${clase} ${className}`}>
-      <Icono size={18} className="shrink-0 mt-px" aria-hidden="true" />
-      <div className="min-w-0">{children}</div>
-    </div>
-  );
-}
-
 const anchos = { md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
 
 /**
@@ -744,18 +727,18 @@ export function BarraDeFiltros({ children, resultado, hayFiltros, onLimpiar }) {
   );
 }
 
-/** Página anterior y siguiente de una lista paginada en la API. */
-export function Paginacion({ pagina, totalPaginas, onCambiar }) {
+/** Página anterior y siguiente de una lista paginada en la API. Mientras la lista recarga, quedan deshabilitadas. */
+export function Paginacion({ pagina, totalPaginas, onCambiar, deshabilitada = false }) {
   if (totalPaginas <= 1) return null;
   return (
     <nav aria-label="Paginación" className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
       <span>Página {pagina} de {totalPaginas}</span>
       <div className="flex gap-2">
-        <Btn variant="outline" onClick={() => onCambiar(pagina - 1)} disabled={pagina <= 1}>
+        <Btn variant="outline" onClick={() => onCambiar(pagina - 1)} disabled={deshabilitada || pagina <= 1}>
           <ChevronLeft size={14} aria-hidden="true" />
           Anterior
         </Btn>
-        <Btn variant="outline" onClick={() => onCambiar(pagina + 1)} disabled={pagina >= totalPaginas}>
+        <Btn variant="outline" onClick={() => onCambiar(pagina + 1)} disabled={deshabilitada || pagina >= totalPaginas}>
           Siguiente
           <ChevronRight size={14} aria-hidden="true" />
         </Btn>
@@ -774,15 +757,6 @@ export function Indicador({ titulo, valor, detalle, icono: Icono }) {
       </p>
       <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums truncate">{valor}</p>
       {detalle && <p className="mt-1 text-sm text-slate-600">{detalle}</p>}
-    </div>
-  );
-}
-
-export function Cargando({ texto = 'Cargando…' }) {
-  return (
-    <div role="status" className="flex items-center justify-center gap-2 py-16 text-sm text-slate-600">
-      <LoaderCircle size={18} className="animate-spin" aria-hidden="true" />
-      {texto}
     </div>
   );
 }

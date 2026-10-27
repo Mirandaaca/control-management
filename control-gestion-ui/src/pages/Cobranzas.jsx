@@ -11,14 +11,15 @@ import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, CampoFecha, Cargando, Confirmar, ErrorDeCarga, EstadoVacio,
-  Indicador, Input, Modal, PageHeader, Paginacion, Selector,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, CampoFecha, Confirmar, ErrorDeCarga, EsqueletoDeIndicadores,
+  EstadoVacio, Indicador, Input, Modal, PageHeader, Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -94,7 +95,8 @@ export default function Cobranzas() {
       .finally(() => { setCargando(false); setReintentando(false); });
   }, [numeroPagina, busqueda, filtros.estado, filtros.desde, filtros.hasta]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -232,8 +234,7 @@ export default function Cobranzas() {
   const abierta = (c) => ABIERTAS.includes(c.estado);
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando cobranzas…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -255,6 +256,9 @@ export default function Cobranzas() {
         subtitle={veCarteraCompleta ? 'Las deudas de las ventas a crédito, sus pagos y su mora.' : 'Las deudas de los clientes de tu cartera y sus pagos.'}
       />
 
+      {cargando && (
+        <ZonaDeCarga><EsqueletoDeIndicadores cantidad={3} grilla="grid gap-4 sm:grid-cols-3 mb-6" /></ZonaDeCarga>
+      )}
       {resumen && (
         <div className="grid gap-4 sm:grid-cols-3 mb-6">
           <Indicador titulo="Por cobrar" icono={Wallet} valor={formatearMonto(resumen.porCobrar)}
@@ -269,12 +273,13 @@ export default function Cobranzas() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando cobranzas…'} recargando={recargando}
         headers={encabezados}
         empty="Ninguna cobranza coincide con los filtros."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'cobranza' : 'cobranzas'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'cobranza' : 'cobranzas'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -293,7 +298,8 @@ export default function Cobranzas() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {cobranzas.map((c) => (
           <Tr key={c.id}>

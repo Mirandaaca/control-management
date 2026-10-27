@@ -8,7 +8,7 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import { PALETA } from '../components/paletaDeEstados';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -144,8 +144,7 @@ export default function EstadosCliente() {
   const visibles = estados.filter((e) => coincide(busqueda, e.nombre, e.descripcion));
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando estados…" />;
-  else if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
+  if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
   else if (estados.length === 0) estado = <EstadoVacio titulo="Todavía no hay estados" icono={Tags} />;
 
   return (
@@ -162,12 +161,13 @@ export default function EstadosCliente() {
       />
 
       <Table
+        cargando={cargando && 'Cargando estados…'}
         headers={['Estado', 'Descripción', 'Tipo', { texto: 'Clientes', derecha: true }, { texto: 'Acciones', oculto: true }]}
         empty="Ningún estado coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && !errorCarga && estados.length > 0 && (
+        barra={(cargando || (!errorCarga && estados.length > 0)) && (
           <BarraDeFiltros
-            resultado={busqueda ? `${visibles.length} de ${estados.length} estados` : `${estados.length} estados`}
+            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${estados.length} estados` : `${estados.length} estados`)}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

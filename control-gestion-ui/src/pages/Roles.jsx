@@ -6,7 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, Badge, BarraDeFiltros, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -171,8 +171,7 @@ export default function Roles() {
   const modulos = agruparPorModulo(catalogo);
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando roles…" />;
-  else if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
+  if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
   else if (roles.length === 0) estado = <EstadoVacio titulo="Todavía no hay roles" icono={ShieldCheck} />;
 
   return (
@@ -189,12 +188,13 @@ export default function Roles() {
       />
 
       <Table
+        cargando={cargando && 'Cargando roles…'}
         headers={['Rol', 'Usuarios', 'Permisos', '']}
         empty="Ningún rol coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && !errorCarga && roles.length > 0 && (
+        barra={(cargando || (!errorCarga && roles.length > 0)) && (
           <BarraDeFiltros
-            resultado={busqueda ? `${visibles.length} de ${roles.length} roles` : `${roles.length} roles`}
+            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${roles.length} roles` : `${roles.length} roles`)}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

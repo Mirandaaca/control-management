@@ -7,7 +7,7 @@ import Layout from '../components/Layout';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Cargando, ErrorDeCarga, EstadoVacio, Modal, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, Buscador, ErrorDeCarga, EstadoVacio, Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { textoDelAtraso } from '../components/clientes/visitas';
@@ -15,6 +15,7 @@ import { useAuth } from '../context/auth';
 import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { diaEnBolivia, formatearDia, formatearFecha } from '../utils/formato';
 
 const TAMANO_PAGINA = 25;
@@ -70,7 +71,8 @@ export default function ClientesPorVisitar() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [numeroPagina, busqueda, filtros.zonaId, filtros.promotorId]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -81,8 +83,7 @@ export default function ClientesPorVisitar() {
   const hoy = formatearDia(diaEnBolivia());
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando clientes por visitar…" />;
-  else if (errorCarga && !pagina) estado = (
+  if (errorCarga && !pagina) estado = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );
   else if (pagina?.total === 0 && !hayFiltros) estado = (
@@ -110,12 +111,13 @@ export default function ClientesPorVisitar() {
       {errorCarga && pagina && <Alert type="error" className="mb-4">{errorCarga}</Alert>}
 
       <Table
+        cargando={cargando && 'Cargando clientes por visitar…'} recargando={recargando}
         headers={['Cliente', 'Zona', ...(veTodos ? ['Promotor'] : []), 'Última visita', 'Próxima visita', 'Atraso', { texto: 'Acciones', oculto: true }]}
         empty="Ningún cliente por visitar coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && pagina && (pagina.total > 0 || hayFiltros) && (
+        barra={(cargando || (pagina && (pagina.total > 0 || hayFiltros))) && (
           <BarraDeFiltros
-            resultado={`${pagina.total} ${pagina.total === 1 ? 'cliente' : 'clientes'}`}
+            resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'cliente' : 'clientes'}` : ''}
             hayFiltros={hayFiltros}
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
@@ -136,7 +138,8 @@ export default function ClientesPorVisitar() {
           </BarraDeFiltros>
         )}
         pie={pagina && (
-          <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />
+          <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />
         )}
       >
         {clientes.map((c) => (

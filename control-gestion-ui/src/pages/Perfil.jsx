@@ -4,7 +4,7 @@ import { KeyRound, LoaderCircle, UserRound } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, Card, Cargando, ErrorDeCarga, Input, PageHeader } from '../components/ui';
+import { Alert, Btn, Card, ErrorDeCarga, EsqueletoDeDetalle, Input, PageHeader, ZonaDeCarga } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { mostrarPrimerProblema } from '../utils/foco';
@@ -126,7 +126,14 @@ export default function Perfil() {
   };
 
   let contenido;
-  if (cargando) contenido = <Card><Cargando texto="Cargando tu perfil…" /></Card>;
+  if (cargando) contenido = (
+    <ZonaDeCarga texto="Cargando tu perfil…">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Card><EsqueletoDeDetalle pares={3} /></Card>
+        <Card><EsqueletoDeDetalle pares={3} /></Card>
+      </div>
+    </ZonaDeCarga>
+  );
   else if (errorCarga) contenido = (
     <Card className="p-0">
       <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />

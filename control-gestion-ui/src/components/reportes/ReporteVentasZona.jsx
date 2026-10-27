@@ -14,7 +14,7 @@ const SIN_FILTROS = { desde: '', hasta: '' };
 export default function ReporteVentasZona({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const parametros = useMemo(() => ({ desde: filtros.desde || undefined, hasta: filtros.hasta || undefined }), [filtros]);
-  const { datos: reporte, cargando, erroresFiltro, estado: estadoDeCarga } =
+  const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-zona', parametros, 'No se pudo generar el reporte de ventas por zona.');
 
   const hayFiltros = filtros.desde !== '' || filtros.hasta !== '';
@@ -28,12 +28,13 @@ export default function ReporteVentasZona({ barra, panel }) {
       {barra(null)}
       <div {...panel}>
         <Table
+          cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           titulo="Ventas por zona"
           headers={['Zona', { texto: 'HP', derecha: true }, { texto: 'Total', derecha: true }, { texto: 'Contado', derecha: true },
             { texto: 'Crédito', derecha: true }]}
           empty="Todavía no hay zonas."
           estado={estado}
-          barra={!cargando && (
+          barra={(
             <BarraDeFiltros
               resultado={reporte && !sinVentas ? `${reporte.total.cantidad} ${reporte.total.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => setFiltros(SIN_FILTROS)}>

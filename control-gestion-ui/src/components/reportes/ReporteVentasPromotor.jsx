@@ -47,7 +47,7 @@ export default function ReporteVentasPromotor({ barra, panel }) {
   const parametros = useMemo(() => ({
     desde: filtros.desde || undefined, hasta: filtros.hasta || undefined, promotorId: filtros.promotor || undefined,
   }), [filtros]);
-  const { datos: reporte, cargando, erroresFiltro, estado: estadoDeCarga } =
+  const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-promotor', parametros, 'No se pudo generar el reporte de ventas por promotor.');
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -79,10 +79,11 @@ export default function ReporteVentasPromotor({ barra, panel }) {
       {barra(null)}
       <div {...panel}>
         <Table
+          cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           titulo="Ventas por promotor"
           headers={['Promotor', { texto: 'HP', derecha: true }, { texto: 'Total vendido', derecha: true }]}
           estado={estado}
-          barra={!cargando && (
+          barra={(
             <BarraDeFiltros resultado={reporte && !sinVentas ? `${reporte.cantidad} ${reporte.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => setFiltros(SIN_FILTROS)}>
               <div className="w-full sm:w-40">

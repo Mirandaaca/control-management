@@ -6,7 +6,9 @@ import { MapContainer, Marker, Pane, Polygon, TileLayer, Tooltip, useMap, useMap
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import { Alert, Btn, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, PageHeader } from '../components/ui';
+import {
+  Alert, Btn, Confirmar, ErrorDeCarga, EsqueletoDeMapa, EstadoVacio, PageHeader, ZonaDeCarga,
+} from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import DibujoDeLimite from '../components/zonas/DibujoDeLimite';
 import FormularioPunto from '../components/zonas/FormularioPunto';
@@ -189,7 +191,7 @@ export default function MapaZonas() {
   };
 
   let contenido;
-  if (cargando) contenido = <Cargando texto="Cargando el mapa…" />;
+  if (cargando) contenido = <ZonaDeCarga texto="Cargando el mapa…"><EsqueletoDeMapa /></ZonaDeCarga>;
   else if (errorCarga) contenido = (
     <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />
   );

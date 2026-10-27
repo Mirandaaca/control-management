@@ -7,11 +7,13 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
 import {
-  Alert, BarraDeFiltros, Btn, CampoFecha, Cargando, ErrorDeCarga, EstadoVacio, Indicador, PageHeader, Paginacion, Selector,
+  Alert, BarraDeFiltros, Btn, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
+  Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useRecarga } from '../hooks/useRecarga';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
@@ -60,7 +62,8 @@ export default function ReportePedidos() {
     .finally(() => { setCargando(false); setReintentando(false); }),
   [parametros, numeroPagina]);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  const { recargando, terminar } = useRecarga(cargar);
+  useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -82,8 +85,7 @@ export default function ReportePedidos() {
   const sinPedidos = pagina?.total === 0;
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Generando el reporte…" />;
-  else if (Object.keys(erroresFiltro).length > 0) estado = (
+  if (Object.keys(erroresFiltro).length > 0) estado = (
     <EstadoVacio titulo="Revisa los filtros" icono={CalendarX}>El error está marcado en su campo.</EstadoVacio>
   );
   else if (errorCarga) estado = (
@@ -110,6 +112,9 @@ export default function ReportePedidos() {
         <Alert type="info" className="mb-4">Ningún pedido coincide con los filtros: no hay nada que exportar.</Alert>
       )}
 
+      {cargando && (
+        <ZonaDeCarga><EsqueletoDeIndicadores cantidad={6} grilla="mb-5 grid gap-4 sm:grid-cols-3" /></ZonaDeCarga>
+      )}
       {reporte && (
         <section aria-label="Totales por estado" className="mb-5 grid gap-4 sm:grid-cols-3">
           <Indicador titulo="Total sin anulados" valor={formatearMonto(reporte.monto)}
@@ -122,10 +127,11 @@ export default function ReportePedidos() {
       )}
 
       <Table
+        cargando={cargando && 'Generando el reporte…'} recargando={recargando}
         headers={['Número', 'Cliente', 'Zona', 'Promotor', 'Entrega', 'Asignado a', { texto: 'Total', derecha: true }, 'Estado']}
         empty="Ningún pedido coincide con los filtros."
         estado={estado}
-        barra={!cargando && (hayFiltros || pagina?.total > 0) && (
+        barra={(cargando || hayFiltros || pagina?.total > 0) && (
           <BarraDeFiltros
             resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'pedido' : 'pedidos'}` : ''}
             hayFiltros={hayFiltros}
@@ -157,7 +163,8 @@ export default function ReportePedidos() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+            deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((p) => (
           <Tr key={p.id}>

@@ -7,7 +7,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Cargando, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
+  Alert, Badge, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
   Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -127,8 +127,7 @@ export default function Zonas() {
   const porReasignar = zonas.filter((z) => !z.promotorValido).length;
 
   let estado = null;
-  if (cargando) estado = <Cargando texto="Cargando zonas…" />;
-  else if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
+  if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
   else if (zonas.length === 0) estado = (
     <EstadoVacio titulo="Todavía no hay zonas" icono={Mapa}
       accion={puedeRegistrar && <Btn size="md" onClick={() => abrirEditor(null)}><Plus size={16} aria-hidden="true" />Nueva zona</Btn>}>
@@ -159,13 +158,14 @@ export default function Zonas() {
       )}
 
       <Table
+        cargando={cargando && 'Cargando zonas…'}
         headers={['Zona', 'Promotor', { texto: 'Clientes', derecha: true }, 'Límite', { texto: 'Puntos', derecha: true },
           { texto: 'Acciones', oculto: true }]}
         empty="Ninguna zona coincide con la búsqueda."
         estado={estado}
-        barra={!cargando && !errorCarga && zonas.length > 0 && (
+        barra={(cargando || (!errorCarga && zonas.length > 0)) && (
           <BarraDeFiltros
-            resultado={busqueda ? `${visibles.length} de ${cuantasZonas(zonas.length)}` : cuantasZonas(zonas.length)}
+            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${cuantasZonas(zonas.length)}` : cuantasZonas(zonas.length))}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

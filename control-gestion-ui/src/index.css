@@ -97,6 +97,20 @@ body {
   to { opacity: 1; }
 }
 
+/* Los esqueletos y la barra de recarga aparecen a los 150 ms: una carga rápida no parpadea (tarea 21). */
+.aparecer-demorado {
+  animation: aparecer 150ms ease-out 150ms both;
+}
+
+/* La barra de recarga: un tramo que cruza la tarjeta. Con "reducir movimiento" queda quieta, a lo ancho. */
+.barra-de-recarga {
+  animation: recargar 1.1s ease-in-out infinite;
+}
+@keyframes recargar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -104,6 +118,13 @@ body {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
+    /* Una animación infinita (el pulso del esqueleto, un indicador que gira) corre una vez y queda quieta: si no,
+       titila a 0,01 ms por vuelta. */
+    animation-iteration-count: 1 !important;
+  }
+  .barra-de-recarga {
+    width: 100%;
+    opacity: 0.6;
   }
 }
 
