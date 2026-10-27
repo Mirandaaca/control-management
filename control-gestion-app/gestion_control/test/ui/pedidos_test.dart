@@ -252,6 +252,35 @@ void main() {
       expect(find.text('Se registró PED-2026-00037 por Bs 76,00, con entrega el 30/10/2026 09:00.'), findsOneWidget);
     });
 
+    testWidgets('al volver, la lista de Pedidos ya tiene el pedido nuevo, sin deslizar para actualizar', (
+      tester,
+    ) async {
+      Pedido elNuevo() =>
+          pedidoDePrueba(id: 37, numero: 'PED-2026-00037', estado: EstadosDePedido.pendiente, repartidorId: null);
+      var registrado = false;
+      pedidos.alListar = (_, _, _) async =>
+          Pagina(items: [if (registrado) resumenDePedido(elNuevo())], total: registrado ? 1 : 0, numero: 1, tamano: 25);
+      pedidos.alRegistrar = (_) async {
+        registrado = true;
+        return elNuevo();
+      };
+      final router = await abrir(tester, inicio: '/');
+      router.push('/pedidos');
+      await navegar(tester);
+      router.push('/pedidos/nuevo');
+      await navegar(tester);
+      await llenar(tester);
+
+      await tester.tap(find.text('Registrar pedido'));
+      await navegar(tester);
+      expect(pedidos.listados, hasLength(2));
+
+      router.pop();
+      await navegar(tester);
+      expect(router.state.uri.toString(), '/pedidos');
+      expect(find.text('PED-2026-00037'), findsOneWidget);
+    });
+
     testWidgets('la fecha que la API rechaza va en su campo', (tester) async {
       pedidos.alRegistrar = (_) => throw const ErrorDeApi(
         mensaje: 'La fecha y la hora de entrega ya pasaron: elige unas futuras.',

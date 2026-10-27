@@ -263,6 +263,31 @@ void main() {
       );
     });
 
+    // La prueba 10.1.5 encontró que, al volver, la lista seguía sin la venta hasta deslizar para actualizar.
+    testWidgets('al volver, la lista ya tiene la venta nueva, sin deslizar para actualizar', (tester) async {
+      var vendida = false;
+      hojas.alListar = (_, _, _, _) async =>
+          Pagina(items: [if (vendida) resumenDe(hojaDePrueba())], total: vendida ? 1 : 0, numero: 1, tamano: 25);
+      hojas.alConfirmarNueva = (_) async {
+        vendida = true;
+        return hojaDePrueba();
+      };
+      await abrirFormulario(tester);
+      final router = GoRouter.of(tester.element(find.byType(NuevaHojaScreen)));
+      await llenarComoLa18(tester);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Confirmar venta'));
+      await tester.pump();
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Confirmar venta')));
+      await navegar(tester);
+      expect(hojas.listados, hasLength(2));
+
+      router.pop();
+      await navegar(tester);
+      expect(router.state.uri.toString(), '/');
+      expect(find.text('HP-2026-00018'), findsOneWidget);
+    });
+
     testWidgets('sin stock al confirmar, el error dice qué producto y cuánto hay, en su línea', (tester) async {
       hojas.alConfirmarNueva = (_) async => throw const ErrorDeApi(
         mensaje: 'No hay stock suficiente de Detergente en polvo 1 kg: hay 5 y la venta pide 6.',
@@ -508,6 +533,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('¿Confirmar la venta?'), findsOneWidget);
+    });
+
+    testWidgets('confirmada desde la lista, al volver ya no figura como borrador', (tester) async {
+      var confirmada = false;
+      HojaPedido laHoja() => hojaDePrueba(estado: confirmada ? EstadoHP.confirmada : EstadoHP.borrador);
+      hojas.alListar = (_, _, _, _) async => Pagina(items: [resumenDe(laHoja())], total: 1, numero: 1, tamano: 25);
+      hojas.alObtener = (_) async => laHoja();
+      hojas.alConfirmar = (_) async {
+        confirmada = true;
+        return laHoja();
+      };
+      final router = await abrir(tester, alto: 800);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Confirmar venta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(of: find.byType(AlertDialog), matching: find.text('Confirmar venta')));
+      await tester.pumpAndSettle();
+      expect(hojas.listados, hasLength(2));
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.text('Confirmada'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Confirmar venta'), findsNothing);
     });
 
     testWidgets('con la letra al 200 % cumple las guías', (tester) async {

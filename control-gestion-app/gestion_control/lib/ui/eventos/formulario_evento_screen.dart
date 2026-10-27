@@ -6,6 +6,7 @@ import '../../data/models/cliente.dart';
 import '../../data/models/evento.dart';
 import '../../data/models/pedido.dart';
 import '../core/formato.dart';
+import '../core/lista_paginada.dart';
 import '../core/primer_problema.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
@@ -18,6 +19,7 @@ import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/selectores.dart';
 import 'evento_screen.dart';
+import 'eventos_view_model.dart';
 import 'formulario_evento_view_model.dart';
 import 'fotos_del_evento.dart';
 
@@ -130,6 +132,7 @@ class _FormularioEventoScreenState extends ConsumerState<FormularioEventoScreen>
   }
 
   void _terminar(Evento evento) {
+    recargarSiEstaAbierta(ref, eventosProvider);
     if (_esNuevo) {
       context.pushReplacement(Rutas.evento(evento.id), extra: AbrirEvento(mensaje: mensajeDeEventoRegistrado(evento)));
     } else {

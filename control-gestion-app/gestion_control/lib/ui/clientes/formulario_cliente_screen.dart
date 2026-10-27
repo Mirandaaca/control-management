@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/cliente.dart';
 import '../../domain/geometria.dart';
+import '../core/lista_paginada.dart';
 import '../core/primer_problema.dart';
 import '../core/router.dart';
 import '../core/ubicacion/captura_de_ubicacion.dart';
@@ -16,6 +17,7 @@ import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/selectores.dart';
+import 'clientes_view_model.dart';
 import 'formulario_cliente_view_model.dart';
 
 /// Registrar o editar un cliente (8.6.6): la ubicación del GPS con su mapa, los obligatorios (nombre, celular, dirección
@@ -126,6 +128,7 @@ class _FormularioClienteScreenState extends ConsumerState<FormularioClienteScree
       );
       return;
     }
+    recargarSiEstaAbierta(ref, clientesProvider);
     if (!_esNuevo) {
       context.pop('Se guardaron los cambios de ${guardado.nombreCompleto}.');
     } else if (widget.devolver) {

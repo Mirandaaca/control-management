@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/evento.dart';
+import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/core/ubicacion/mapa_de_ubicacion.dart';
@@ -240,6 +241,43 @@ void main() {
       expect(eventos.fotosSubidas[1].foto.deLaGaleria, isTrue);
       expect(eventos.fotosSubidas[1].lugar, isNull);
       expect(find.text('Se registró EVT-2026-00005: queda pendiente hasta que se resuelva.'), findsOneWidget);
+    });
+
+    testWidgets('al volver, la lista de Eventos ya tiene el evento nuevo, sin deslizar para actualizar', (
+      tester,
+    ) async {
+      var registrado = false;
+      eventos.alListar = (_, _) async => Pagina(
+        items: [if (registrado) resumenDeEvento(eventoDePrueba())],
+        total: registrado ? 1 : 0,
+        numero: 1,
+        tamano: 25,
+      );
+      eventos.alRegistrar = (_) async {
+        registrado = true;
+        return eventoDePrueba();
+      };
+      final router = await abrir(tester, inicio: '/');
+      router.push('/eventos');
+      await navegar(tester);
+      router.push('/eventos/nuevo');
+      await navegar(tester);
+      gps.leer(-17.768930, -63.179455, 10);
+      await tester.pump();
+      await elegirTipo(tester, 'Cliente ausente · pide foto');
+      await elegirAPedro(tester);
+      await tester.enterText(campo('Qué pasó'), 'El local estaba cerrado y nadie atendió.');
+      await tester.tap(find.text('Tomar foto'));
+      await tester.pump();
+
+      await tester.tap(find.text('Registrar evento'));
+      await navegar(tester);
+      expect(eventos.listados, hasLength(2));
+
+      router.pop();
+      await navegar(tester);
+      expect(router.state.uri.toString(), '/eventos');
+      expect(find.text('EVT-2026-00005'), findsOneWidget);
     });
 
     testWidgets('quitar una foto antes de registrar no pide confirmación', (tester) async {
