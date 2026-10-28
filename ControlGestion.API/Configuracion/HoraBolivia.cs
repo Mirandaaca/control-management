@@ -9,6 +9,12 @@ public static class HoraBolivia
 {
     public const string IdDeZona = "America/La_Paz";
 
+    /// <summary>
+    /// El desfase fijo de Bolivia con UTC, para agrupar por día o por mes en la base, donde no está TimeZoneInfo. Es fijo
+    /// porque Bolivia no tiene horario de verano.
+    /// </summary>
+    public const int DesfaseEnHoras = -4;
+
     private static readonly TimeZoneInfo Zona = TimeZoneInfo.FindSystemTimeZoneById(IdDeZona);
 
     public static DateTime DesdeUtc(DateTime utc) =>

@@ -115,6 +115,36 @@ public record VentasDeProductoDTO(string Producto, decimal Cantidad, decimal Tot
 public record VentasDelDiaDTO(string Fecha, int Cantidad, decimal Total);
 
 /// <summary>
+/// El análisis de Inicio (tarea 24, parte B), con la cartera del usuario. El mes va del 1 a hoy en Bolivia y se compara
+/// con el mismo tramo del mes anterior (del 1 al mismo día). Cada bloque es null si el usuario no tiene un permiso del
+/// reporte al que pertenece.
+/// </summary>
+public record AnalisisDelTableroDTO(
+    DateOnly Hoy,
+    DateOnly HastaElMesAnterior,
+    VariacionDTO? Ventas,
+    VariacionDTO? Cobrado,
+    VariacionDTO? ClientesNuevos,
+    List<VentasDelMesDTO>? Tendencia,
+    List<AntiguedadDeSaldosDTO>? Antiguedad,
+    List<VentasDeClienteDTO>? MejoresClientes,
+    List<VisitasDePromotorDTO>? Visitas);
+
+/// <summary>Lo del mes en curso y lo del mismo tramo del mes anterior.</summary>
+public record VariacionDTO(decimal Actual, decimal Anterior);
+
+/// <summary>Las ventas confirmadas de un mes de Bolivia (aaaa-mm), al contado y a crédito.</summary>
+public record VentasDelMesDTO(string Mes, decimal Contado, decimal Credito);
+
+/// <summary>Lo que se debe en las cobranzas abiertas, por días de mora: "al-dia", "1-30", "31-60", "61-90" y "mas-de-90".</summary>
+public record AntiguedadDeSaldosDTO(string Tramo, int Cantidad, decimal Saldo);
+
+public record VentasDeClienteDTO(int ClienteId, string Cliente, int Cantidad, decimal Total);
+
+/// <summary>Las visitas de las rutas del mes, del 1 a hoy, de un promotor.</summary>
+public record VisitasDePromotorDTO(string PromotorId, string Promotor, int Planificadas, int Visitadas, int Ausentes);
+
+/// <summary>
 /// El tablero de Inicio, del mes en curso en Bolivia y con la cartera del usuario. No es de ninguna especificación: su
 /// aspecto se rehace en la tarea 18.
 /// </summary>

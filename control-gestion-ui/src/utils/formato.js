@@ -64,6 +64,9 @@ export function diaEnBolivia(desfaseDias = 0) {
   return diaISO.format(new Date(Date.now() + desfaseDias * 86400000));
 }
 
+export const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
+  'noviembre', 'diciembre'];
+
 const montoBolivia = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** Un monto en bolivianos: "Bs 1.234,50". */
