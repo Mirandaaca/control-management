@@ -24,6 +24,11 @@ public class ReportesController(
     public async Task<ActionResult<TableroDTO>> GetTablero() =>
         await tablero.ResumenAsync();
 
+    // Igual que el tablero: sin operación en el catálogo. Cada bloque lo abre el permiso de su reporte, en el servicio.
+    [HttpGet("tablero/analisis")]
+    public async Task<ActionResult<AnalisisDelTableroDTO>> GetAnalisis() =>
+        await tablero.AnalisisAsync();
+
     [HttpGet("ventas-por-zona")]
     [Permiso(Permisos.Reportes.VentasPorZona)]
     public async Task<ActionResult<ReporteVentasPorZonaDTO>> GetVentasPorZona([FromQuery] FiltrosPeriodoDTO filtros) =>
