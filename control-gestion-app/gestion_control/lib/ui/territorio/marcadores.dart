@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -95,17 +97,37 @@ Polygon limiteDeZona(Zona zona, {bool elegida = false}) => Polygon(
   borderStrokeWidth: elegida ? 3 : 2,
 );
 
-/// El nombre de una zona, fijo en el centro de su límite en un recuadro blanco (8.6.9), como el panel.
-Marker nombreDeZona(Zona zona) {
-  final vertices = zona.limite!;
-  final latitud = vertices.map((v) => v.latitud).reduce((a, b) => a + b) / vertices.length;
-  final longitud = vertices.map((v) => v.longitud).reduce((a, b) => a + b) / vertices.length;
-  return Marker(
-    point: puntoDe(latitud, longitud),
-    width: 200,
-    height: 32,
-    child: ExcludeSemantics(child: Center(child: EtiquetaDeMapa(zona.nombre))),
-  );
+/// El nombre de una zona en un recuadro blanco (8.6.9), como el panel: en el centro de su límite, o donde no tape lo
+/// que hay que [evitar] (las paradas de la ruta).
+Marker nombreDeZona(Zona zona, {Iterable<LatLng> evitar = const []}) => Marker(
+  point: lugarDelNombre(zona.limite!, evitar),
+  width: 200,
+  height: 32,
+  child: ExcludeSemantics(child: Center(child: EtiquetaDeMapa(zona.nombre))),
+);
+
+/// Dónde va el nombre de una zona: el centro de su límite, o, si hay marcadores que [evitar], el lugar más lejos de
+/// ellos entre el centro y los puntos a mitad de camino hacia cada vértice. En el TECNO, con los clientes cerca del
+/// centro, el nombre tapaba una parada. El recuadro es más ancho que alto: lo que está al lado pesa más que lo que está
+/// arriba o abajo.
+LatLng lugarDelNombre(List<Vertice> limite, Iterable<LatLng> evitar) {
+  final latitud = limite.map((v) => v.latitud).reduce((a, b) => a + b) / limite.length;
+  final longitud = limite.map((v) => v.longitud).reduce((a, b) => a + b) / limite.length;
+  final centro = puntoDe(latitud, longitud);
+  if (evitar.isEmpty) return centro;
+
+  // Un grado de longitud mide menos que uno de latitud lejos del ecuador; y de ancho, el recuadro es unas 3 veces su alto.
+  final ancho = math.cos(latitud * math.pi / 180) / 3;
+  double cercania(LatLng lugar) => evitar
+      .map((m) => math.pow((m.latitude - lugar.latitude), 2) + math.pow((m.longitude - lugar.longitude) * ancho, 2))
+      .reduce(math.min)
+      .toDouble();
+
+  final candidatos = [
+    centro,
+    for (final v in limite) puntoDe((latitud + v.latitud) / 2, (longitud + v.longitud) / 2),
+  ];
+  return candidatos.reduce((mejor, otro) => cercania(otro) > cercania(mejor) ? otro : mejor);
 }
 
 /// Un texto sobre el mapa en un recuadro blanco: el nombre de una zona o "Tú". No crece con la letra del sistema: es
