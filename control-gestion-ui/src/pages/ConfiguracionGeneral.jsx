@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { CalendarClock } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -7,6 +8,7 @@ import {
   Btn, Card, Confirmar, ErrorDeCarga, Esqueleto, EsqueletoDeDetalle, Input, PageHeader, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
+import { mostrarPrimerProblema } from '../utils/foco';
 
 const MENSAJE_DE_RANGO = 'Los días de re-visita van de 1 a 365.';
 
@@ -36,6 +38,7 @@ export default function ConfiguracionGeneral() {
   const [confirmando, setConfirmando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [errorGuardar, setErrorGuardar] = useState('');
+  const formularioRef = useRef(null);
 
   const cargar = useCallback(() => api.get('/configuraciones/dias-revisita')
     .then(({ data }) => { setGuardados(data.dias); setDias(String(data.dias)); setErrorCarga(''); })
@@ -51,7 +54,9 @@ export default function ConfiguracionGeneral() {
     e.preventDefault();
     setErrorGuardar('');
     if (!Number.isInteger(numero) || numero < 1 || numero > 365) {
-      setErrorCampo(MENSAJE_DE_RANGO);
+      // El foco va al campo, con su error: si se queda en el botón, el lector de pantalla no lo anuncia.
+      flushSync(() => setErrorCampo(MENSAJE_DE_RANGO));
+      mostrarPrimerProblema(formularioRef.current);
       return;
     }
     setErrorCampo('');
@@ -117,7 +122,7 @@ export default function ConfiguracionGeneral() {
           </p>
         </div>
       </div>
-      <form onSubmit={pedirConfirmacion} className="space-y-4" noValidate>
+      <form ref={formularioRef} onSubmit={pedirConfirmacion} className="space-y-4" noValidate>
         <div className="w-full sm:w-48">
           <Input label="Días de re-visita" type="number" inputMode="numeric" min="1" max="365" step="1" autoComplete="off"
             value={dias} error={errorCampo} ayuda="Un número entero, de 1 a 365."

@@ -128,6 +128,28 @@ body {
   }
 }
 
+/* WCAG 2.4.11, el foco no queda tapado (técnica C43). En el celular y la tableta, la barra de arriba es fija: al llegar
+   con Tab, el navegador deja el elemento debajo de ella. Mientras hay un toast (abajo a la derecha; arriba en el celular),
+   la página deja lugar para desplazarse y el elemento con el foco queda fuera de él. */
+@media (max-width: 1023px) {
+  html {
+    scroll-padding-top: 4.5rem;
+  }
+}
+@media (min-width: 601px) {
+  html:has([data-sonner-toast]) {
+    scroll-padding-bottom: 8rem;
+  }
+  body:has([data-sonner-toast]) main {
+    padding-bottom: 8rem;
+  }
+}
+@media (max-width: 600px) {
+  html:has([data-sonner-toast]) {
+    scroll-padding-top: 11rem;
+  }
+}
+
 /* La HP impresa (6.5): una hoja carta con márgenes de 12 mm. Los botones llevan print:hidden. */
 @page {
   size: letter;

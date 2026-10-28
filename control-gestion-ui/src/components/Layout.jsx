@@ -87,8 +87,9 @@ function BarraActiva() {
   return <span className="absolute left-0 top-2 bottom-2 w-0.75 rounded-r bg-marca-300" aria-hidden="true" />;
 }
 
+// Una línea solo visual: dentro de una lista, un hijo con role="separator" rompe la lista (WCAG 1.3.1).
 function Separador() {
-  return <li role="separator" className="my-3 mx-3 border-t border-marca-800" />;
+  return <li aria-hidden="true" className="my-3 mx-3 border-t border-marca-800" />;
 }
 
 function EnlaceDelMenu({ item, ruta, alElegir, sangria = false }) {
@@ -180,7 +181,7 @@ function MenuReplegado({ visibles, ruta, mostrarEtiqueta, ocultarEtiqueta }) {
       {visibles.map((modulo, i) => {
         // Sin los nombres de los módulos, una línea entre cada uno muestra dónde empieza el siguiente.
         return [
-          i > 0 && <li key={`sep-${modulo.id}`} role="separator" className="my-2 mx-2 border-t border-marca-800" />,
+          i > 0 && <li key={`sep-${modulo.id}`} aria-hidden="true" className="my-2 mx-2 border-t border-marca-800" />,
           ...modulo.items.map((item) => {
             const activo = ruta === item.to;
             const Icono = item.icon;
@@ -283,6 +284,14 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
+      {/* Lo primero que recibe el foco: salta el menú (WCAG 2.4.1). Se ve solo al recibirlo. */}
+      <a
+        href="#contenido"
+        onClick={(e) => { e.preventDefault(); document.getElementById('contenido')?.focus(); }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-marca-700 focus:shadow-flotante focus:outline-none focus:ring-2 focus:ring-marca-500"
+      >
+        Saltar al contenido
+      </a>
       {/* PC: menú fijo, replegable */}
       <aside
         className={`hidden lg:flex lg:flex-col shrink-0 bg-marca-900 sticky top-0 h-screen transition-[width] duration-200 ${
@@ -303,7 +312,7 @@ export default function Layout({ children }) {
           </button>
         </div>
 
-        <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overflow-x-hidden" onScroll={ocultarEtiqueta}>
+        <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overflow-x-hidden overscroll-contain" onScroll={ocultarEtiqueta}>
           {replegado
             ? <MenuReplegado visibles={visibles} ruta={location.pathname} mostrarEtiqueta={mostrarEtiqueta} ocultarEtiqueta={ocultarEtiqueta} />
             : <MenuCompleto visibles={visibles} ruta={location.pathname} />}
@@ -375,7 +384,7 @@ export default function Layout({ children }) {
                 <X size={22} aria-hidden="true" />
               </button>
             </div>
-            <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto">
+            <nav aria-label="Menú principal" className="flex-1 py-4 overflow-y-auto overscroll-contain">
               <MenuCompleto visibles={visibles} ruta={location.pathname} alElegir={cerrarMenu} />
             </nav>
             {pieCompleto}
@@ -383,7 +392,7 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
+      <main id="contenido" tabIndex={-1} className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 focus:outline-none">
         {children}
       </main>
     </div>

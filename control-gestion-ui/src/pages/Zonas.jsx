@@ -191,7 +191,7 @@ export default function Zonas() {
             <Td>
               <div className="flex items-center justify-end gap-1">
                 {veElMapa && (
-                  <Link to={`/zonas/mapa?zona=${z.id}`} className={enlaceDeFila} aria-label={`Ver la zona ${z.nombre} en el mapa`}>
+                  <Link to={`/zonas/mapa?zona=${z.id}`} className={enlaceDeFila} aria-label={`Ver en el mapa la zona ${z.nombre}`}>
                     <Layers size={14} aria-hidden="true" />
                     Ver en el mapa
                   </Link>

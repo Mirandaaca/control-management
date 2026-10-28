@@ -30,7 +30,7 @@ export function PageHeader({ title, subtitle, action }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
+        <h2 className="text-2xl font-semibold text-slate-900 text-balance">{title}</h2>
         {subtitle && <p className="text-slate-600 text-sm mt-1">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -124,7 +124,10 @@ export function Input({ label, ayuda, error, id, ...props }) {
   const campoId = id ?? generado;
   return (
     <Campo id={campoId} label={label} ayuda={ayuda} error={error}>
+      {/* Sin autocompletar, salvo que la pantalla lo pida (los datos propios en Mi perfil): el navegador no propone lo
+          escrito en otros formularios, ni el gestor de contraseñas se activa en un campo cualquiera. */}
       <input
+        autoComplete="off"
         {...props}
         id={campoId}
         aria-invalid={error ? true : undefined}
@@ -393,7 +396,7 @@ function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOcu
           </div>
         </PopoverAnchor>
         <PopoverContent align="start" collisionPadding={16} className="w-36 p-1" onOpenAutoFocus={enfocarLaElegida} aria-label={`Horas: ${label}`}>
-          <ul ref={lista} className="max-h-60 overflow-y-auto" onKeyDown={moverConFlechas}>
+          <ul ref={lista} className="max-h-60 overflow-y-auto overscroll-contain">
             {HORAS_DEL_DIA.map((hora) => (
               <li key={hora}>
                 <button
@@ -402,6 +405,7 @@ function CampoHora({ label, id, value, onChange, required, disabled, etiquetaOcu
                   tabIndex={hora === enfocable ? 0 : -1}
                   aria-current={hora === value ? 'true' : undefined}
                   onClick={() => { cambiar(hora); setAbierto(false); }}
+                  onKeyDown={moverConFlechas}
                   className={`w-full rounded-md px-3 py-1.5 text-left text-sm tabular-nums cursor-pointer ${foco} ${
                     hora === value ? 'bg-marca-600 text-white hover:bg-marca-700' : 'text-slate-800 hover:bg-marca-50'
                   }`}
@@ -632,10 +636,19 @@ const anchos = { md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
  * fuera no la cierra: perdería lo que se escribió en un formulario.
  */
 export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, ancho = 'md' }) {
+  // Radix devuelve el foco solo a un DialogTrigger, y las ventanas del panel se abren con su estado: sin esto, al cerrar
+  // el foco caía en el body. Se guarda quién lo tenía al abrir y se le devuelve, si sigue en la página (WCAG 2.4.3).
+  const abrio = useRef(null);
   return (
     <Dialog open={abierto} onOpenChange={(abre) => { if (!abre) onCerrar(); }}>
       <DialogContent
         className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}
+        onOpenAutoFocus={() => { abrio.current = document.activeElement; }}
+        onCloseAutoFocus={(e) => {
+          if (!abrio.current?.isConnected) return;
+          e.preventDefault();
+          abrio.current.focus();
+        }}
         onPointerDownOutside={(e) => e.preventDefault()}
         // Sin descripción, Radix pide aria-describedby={undefined}: así el lector de pantalla no lee el título dos veces.
         {...(descripcion ? {} : { 'aria-describedby': undefined })}
@@ -644,7 +657,7 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
           <DialogTitle>{titulo}</DialogTitle>
           {descripcion && <DialogDescription>{descripcion}</DialogDescription>}
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto -mx-6 px-6">{children}</div>
+        <div className="min-h-0 overflow-y-auto overscroll-contain -mx-6 px-6">{children}</div>
         {pie && <DialogFooter>{pie}</DialogFooter>}
       </DialogContent>
     </Dialog>

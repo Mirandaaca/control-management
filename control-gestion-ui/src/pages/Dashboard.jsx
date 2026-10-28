@@ -137,7 +137,10 @@ function Globo({ active, payload, nombre }) {
   );
 }
 
-/** Un gráfico de barras de una sola serie (el total vendido), con su lista para el lector de pantalla. */
+/**
+ * Un gráfico de barras de una sola serie (el total vendido), con su lista para el lector de pantalla. El dibujo va oculto
+ * para el lector, y sin la capa de teclado de Recharts: dentro de aria-hidden, nada puede recibir el foco (WCAG 4.1.2).
+ */
 function Grafico({ titulo, datos, nombre, horizontal = false }) {
   const eje = { tick: { fontSize: 12, fill: COLOR_EJE }, axisLine: false, tickLine: false };
   const monto = { tickFormatter: (v) => `Bs ${montoCorto.format(v)}` };
@@ -151,7 +154,8 @@ function Grafico({ titulo, datos, nombre, horizontal = false }) {
           <div aria-hidden="true">
             <ResponsiveContainer width="100%" height={horizontal ? Math.max(220, datos.length * 40) : 240}>
               {horizontal ? (
-                <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }} barCategoryGap={8}>
+                <BarChart data={datos} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }} barCategoryGap={8}
+                  accessibilityLayer={false}>
                   <CartesianGrid horizontal={false} stroke={COLOR_GRILLA} />
                   <XAxis type="number" {...eje} {...monto} />
                   <YAxis type="category" dataKey={nombre} width={140} {...eje} />
@@ -159,7 +163,7 @@ function Grafico({ titulo, datos, nombre, horizontal = false }) {
                   <Bar dataKey="total" fill={COLOR_BARRA} radius={[0, 4, 4, 0]} maxBarSize={28} />
                 </BarChart>
               ) : (
-                <BarChart data={datos} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+                <BarChart data={datos} margin={{ left: 8, right: 8, top: 4, bottom: 4 }} accessibilityLayer={false}>
                   <CartesianGrid vertical={false} stroke={COLOR_GRILLA} />
                   <XAxis dataKey={nombre} interval="preserveStartEnd" {...eje} />
                   <YAxis width={72} {...eje} {...monto} />
