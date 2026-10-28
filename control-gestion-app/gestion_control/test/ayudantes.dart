@@ -620,6 +620,7 @@ Cobranza cobranzaDeRosa({double pagado = 100, List<Pago> pagos = const [pagoDeLu
       saldo: 240 - pagado,
       fechaEmision: '2026-10-08T13:30:00',
       fechaVencimiento: '2026-11-07T13:30:00',
+      clienteId: 42,
       clienteNombre: 'Rosa Quispe Mamani',
       hojaPedido: 'HP-2026-00018',
       pagos: pagos,

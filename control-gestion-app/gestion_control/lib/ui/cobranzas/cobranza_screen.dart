@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/cobranza.dart';
 import '../../domain/permisos.dart';
 import '../core/formato.dart';
+import '../core/lista_paginada.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
@@ -19,6 +20,7 @@ import '../sesion/sesion_notifier.dart';
 import '../../proveedores.dart';
 import 'cobranza_ui.dart';
 import 'cobranza_view_model.dart';
+import 'cobranzas_view_model.dart';
 
 /// Una cobranza (3.1 y 3.2): el total, lo pagado, el saldo, el vencimiento, la mora y el historial de pagos.
 class CobranzaScreen extends ConsumerStatefulWidget {
@@ -43,11 +45,18 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
     if (mensaje != null) Future.microtask(() => _viewModel.avisar(mensaje));
   }
 
-  // Al volver con el pago registrado, avisa lo que pasó y trae la cobranza de nuevo.
+  // Al volver con el pago registrado, avisa lo que pasó y trae la cobranza de nuevo. Las listas que siguen abiertas
+  // debajo (las cobranzas, las del cliente y lo que debe en su ficha) también: si no, mostraban el saldo de antes.
   Future<void> _registrarPago() async {
+    final clienteId = ref.read(cobranzaProvider(widget.id)).cobranza?.clienteId;
     final mensaje = await context.push<String>(Rutas.registrarPago(widget.id));
     if (mensaje == null || !mounted) return;
     _viewModel.avisar(mensaje);
+    for (final id in [null, ?clienteId]) {
+      recargarSiEstaAbierta(ref, cobranzasProvider(id));
+      ref.invalidate(resumenDeCobranzasProvider(id));
+    }
+    if (clienteId != null) ref.invalidate(porCobrarDelClienteProvider(clienteId));
     await _viewModel.cargar();
   }
 

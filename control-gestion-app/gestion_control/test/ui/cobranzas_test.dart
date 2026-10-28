@@ -10,6 +10,7 @@ import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/cobranzas/cobranza_screen.dart';
 import 'package:gestion_control/ui/cobranzas/cobranzas_screen.dart';
+import 'package:gestion_control/ui/cobranzas/registrar_pago_screen.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,6 +34,12 @@ void main() {
           path: 'cobranzas/:id',
           builder: (context, state) =>
               CobranzaScreen(id: int.parse(state.pathParameters['id']!), mensaje: state.extra as String?),
+          routes: [
+            GoRoute(
+              path: 'pago',
+              builder: (context, state) => RegistrarPagoScreen(cobranzaId: int.parse(state.pathParameters['id']!)),
+            ),
+          ],
         ),
       ],
     ),
@@ -131,6 +138,39 @@ void main() {
 
       expect(cobranzas.listados.single.clienteId, 42);
       expect(find.text('De Rosa Quispe Mamani'), findsOneWidget);
+    });
+
+    testWidgets('después de un pago, al volver, la lista ya tiene el saldo nuevo, sin deslizar para actualizar', (
+      tester,
+    ) async {
+      var pagado = false;
+      cobranzas.alListar = (_, _) async => Pagina(
+        items: [
+          resumenDeMarta,
+          if (!pagado) resumenDeRosa,
+        ],
+        total: pagado ? 1 : 2,
+        numero: 1,
+        tamano: 25,
+      );
+      final router = await abrir(tester);
+      await tester.tap(find.text('Rosa Quispe Mamani'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Registrar pago'));
+      await tester.pumpAndSettle();
+      await tester.enterText(campo('Monto (Bs)'), '140');
+      pagado = true;
+      cobranzas.alObtener = (_) async => cobranzaDeRosa(pagado: 240);
+      await tester.tap(find.widgetWithText(FilledButton, 'Registrar pago'));
+      await tester.pumpAndSettle();
+      expect(cobranzas.pagos, hasLength(1));
+      expect(cobranzas.listados, hasLength(2));
+
+      router.pop();
+      await tester.pumpAndSettle();
+      // La de Rosa quedó pagada: ya no está entre las por cobrar.
+      expect(find.text('Rosa Quispe Mamani'), findsNothing);
+      expect(find.text('Marta Rivero Salas'), findsOneWidget);
     });
 
     testWidgets('con la letra al 200 % cumple las guías', (tester) async {
