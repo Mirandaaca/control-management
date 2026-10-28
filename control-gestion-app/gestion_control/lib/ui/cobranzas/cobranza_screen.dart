@@ -8,6 +8,7 @@ import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/confirmar.dart';
@@ -68,6 +69,9 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(cobranzaProvider(widget.id));
+    ref.listen(cobranzaProvider(widget.id).select((e) => e.mensaje), (anterior, mensaje) {
+      if (mensaje != null && mensaje != anterior) avisarExito(context, mensaje);
+    });
     final sesion = ref.watch(sesionProvider);
     final puedeRegistrar = sesion is ConSesion && sesion.sesion.tiene([Permisos.cobranzas.registrarPago]);
     final cobranza = estado.cobranza;
@@ -78,10 +82,6 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
         DetalleDeCobranza(cobranza: final cobranza?) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            if (estado.mensaje != null) ...[
-              Aviso(estado.mensaje!, tipo: TipoDeAviso.exito),
-              const SizedBox(height: 16),
-            ],
             if (estado.errorAlSubir != null) ...[
               Aviso.deError(
                 estado.errorAlSubir!,

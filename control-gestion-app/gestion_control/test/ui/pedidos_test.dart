@@ -249,7 +249,7 @@ void main() {
         {'productoId': 1, 'cantidad': 2.0, 'descuento': 0.0},
       ]);
       expect(json['claveIdempotencia'], isNotEmpty);
-      expect(find.text('Se registró PED-2026-00037 por Bs 76,00, con entrega el 30/10/2026 09:00.'), findsOneWidget);
+      expect(exito('Se registró PED-2026-00037 por Bs 76,00, con entrega el 30/10/2026 09:00.'), findsOneWidget);
     });
 
     testWidgets('al volver, la lista de Pedidos ya tiene el pedido nuevo, sin deslizar para actualizar', (

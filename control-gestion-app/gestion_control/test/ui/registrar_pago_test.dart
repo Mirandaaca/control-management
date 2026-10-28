@@ -130,7 +130,7 @@ void main() {
     expect(envio.datos.metodo, MetodoPago.qr);
     expect(envio.datos.referencia, '51762204');
     expect(cobranzas.subidas.single.pagoId, 2);
-    expect(find.text('Se registró el pago, con su comprobante: COB-2026-00012 quedó pagada.'), findsOneWidget);
+    expect(exito('Se registró el pago, con su comprobante: COB-2026-00012 quedó pagada.'), findsOneWidget);
   });
 
   testWidgets('sin foto y sin saldar, el aviso dice lo que queda por cobrar', (tester) async {
@@ -140,7 +140,7 @@ void main() {
     await registrar(tester);
 
     expect(cobranzas.subidas, isEmpty);
-    expect(find.text('Se registró el pago en COB-2026-00012: quedan Bs 100,00 por cobrar.'), findsOneWidget);
+    expect(exito('Se registró el pago en COB-2026-00012: quedan Bs 100,00 por cobrar.'), findsOneWidget);
   });
 
   testWidgets('quitar la foto no pide confirmación: todavía no se subió', (tester) async {
@@ -175,7 +175,7 @@ void main() {
 
     expect(cobranzas.pagos, hasLength(1));
     expect(cobranzas.subidas, hasLength(2));
-    expect(find.text('Se registró el pago, con su comprobante: COB-2026-00012 quedó pagada.'), findsOneWidget);
+    expect(exito('Se registró el pago, con su comprobante: COB-2026-00012 quedó pagada.'), findsOneWidget);
   });
 
   testWidgets('si otro usuario cambió la cobranza, muestra el saldo nuevo y deja el formulario igual', (tester) async {

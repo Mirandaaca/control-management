@@ -167,6 +167,9 @@ void tamanoDeCelular(WidgetTester tester, {double letra = 1, double alto = 800})
 Finder campo(String etiqueta) =>
     find.descendant(of: find.widgetWithText(CampoDeTexto, etiqueta), matching: find.byType(TextField));
 
+/// El aviso de éxito de una acción, en el SnackBar (tarea 23).
+Finder exito(String texto) => find.descendant(of: find.byType(SnackBar), matching: find.text(texto));
+
 /// El error que muestra un campo debajo, o null si no tiene.
 String? errorDelCampo(WidgetTester tester, String etiqueta) =>
     (tester.widget<TextField>(campo(etiqueta)).decoration!.error as ErrorDeCampo?)?.mensaje;

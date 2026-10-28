@@ -77,7 +77,11 @@ class CobranzaViewModel extends Notifier<DetalleDeCobranza> {
     }
   }
 
-  void avisar(String mensaje) => state = state.copiar(mensaje: mensaje);
+  // Primero sin aviso: así el mismo texto dos veces seguidas (dos ediciones iguales) se muestra las dos veces.
+  void avisar(String mensaje) {
+    state = state.copiar(mensaje: null);
+    state = state.copiar(mensaje: mensaje);
+  }
 
   /// Toma la foto con la cámara y la sube. Si la subida falla, la foto queda para "Reintentar".
   Future<void> adjuntar(Pago pago) async {

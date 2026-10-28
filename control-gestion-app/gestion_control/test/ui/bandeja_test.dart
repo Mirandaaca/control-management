@@ -33,7 +33,7 @@ void main() {
       routes: [
         GoRoute(
           path: 'bandeja',
-          builder: (context, state) => BandejaScreen(mensaje: state.extra as String?),
+          builder: (context, state) => const BandejaScreen(),
           routes: [
             GoRoute(
               path: ':id',
@@ -233,8 +233,10 @@ void main() {
       expect(envio.datos.recibidoPor, 'Doña Rosa');
       expect(envio.datos.tipoVenta, TipoVenta.credito);
       expect(envio.ubicacion.latitud, -17.7801);
+      // En la bandeja, a donde volvió: el SnackBar pasa de una pantalla a otra.
+      expect(find.text('Bandeja del día'), findsOneWidget);
       expect(
-        find.text(
+        exito(
           'PED-2026-00031 quedó entregado: nació la venta HP-2026-00040, se descontó el stock y nació la deuda '
           'COB-2026-00030.',
         ),

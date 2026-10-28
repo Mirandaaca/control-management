@@ -10,6 +10,7 @@ import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/ubicacion/mapa_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
@@ -34,13 +35,22 @@ class ClienteScreen extends ConsumerStatefulWidget {
 }
 
 class _ClienteScreenState extends ConsumerState<ClienteScreen> {
-  late String? _mensaje = widget.mensaje;
+  @override
+  void initState() {
+    super.initState();
+    final mensaje = widget.mensaje;
+    if (mensaje != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) avisarExito(context, mensaje);
+      });
+    }
+  }
 
   // Al volver de editarlo, avisa lo que se guardó y lo trae de nuevo.
   Future<void> _editar({bool capturar = false}) async {
     final mensaje = await context.push<String>(Rutas.editarCliente(widget.id), extra: capturar);
     if (!mounted || mensaje == null) return;
-    setState(() => _mensaje = mensaje);
+    avisarExito(context, mensaje);
     ref.read(clienteProvider(widget.id).notifier).cargar();
   }
 
@@ -59,7 +69,6 @@ class _ClienteScreenState extends ConsumerState<ClienteScreen> {
         DetalleDeCliente(cliente: final cliente?) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            if (_mensaje != null) ...[Aviso(_mensaje!, tipo: TipoDeAviso.exito), const SizedBox(height: 16)],
             _Encabezado(cliente),
             const SizedBox(height: 16),
             if (cliente.tieneUbicacion)

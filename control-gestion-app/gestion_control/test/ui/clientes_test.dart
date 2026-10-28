@@ -259,7 +259,7 @@ void main() {
       expect(envio.ubicacion.latitud, -17.771845);
       expect(envio.confirmar, isFalse);
       expect(router.state.uri.toString(), '/clientes/92');
-      expect(find.text('Se registró a Silvia Torrico Méndez.'), findsOneWidget);
+      expect(exito('Se registró a Silvia Torrico Méndez.'), findsOneWidget);
     });
 
     testWidgets('al volver, la lista de Clientes ya la tiene, sin deslizar para actualizar', (tester) async {

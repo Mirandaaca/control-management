@@ -240,7 +240,7 @@ void main() {
       expect(eventos.fotosSubidas[0].lugar?.latitud, -17.768930);
       expect(eventos.fotosSubidas[1].foto.deLaGaleria, isTrue);
       expect(eventos.fotosSubidas[1].lugar, isNull);
-      expect(find.text('Se registró EVT-2026-00005: queda pendiente hasta que se resuelva.'), findsOneWidget);
+      expect(exito('Se registró EVT-2026-00005: queda pendiente hasta que se resuelva.'), findsOneWidget);
     });
 
     testWidgets('al volver, la lista de Eventos ya tiene el evento nuevo, sin deslizar para actualizar', (
@@ -327,7 +327,7 @@ void main() {
 
       expect(eventos.registrados, hasLength(1));
       expect(eventos.fotosSubidas, hasLength(1));
-      expect(find.text('Se registró EVT-2026-00005: queda pendiente hasta que se resuelva.'), findsOneWidget);
+      expect(exito('Se registró EVT-2026-00005: queda pendiente hasta que se resuelva.'), findsOneWidget);
     });
 
     testWidgets('desde un pedido, vienen el pedido y su cliente (7.3.2, ext. 3a)', (tester) async {
@@ -447,7 +447,20 @@ void main() {
       await navegar(tester);
 
       expect(eventos.modificados.single.datos.descripcion, 'Volví en la tarde y tampoco estaba.');
-      expect(find.text('EVT-2026-00005 quedó modificado.'), findsOneWidget);
+      expect(exito('EVT-2026-00005 quedó modificado.'), findsOneWidget);
+      // No empuja el contenido: el aviso no está en la lista del detalle.
+      expect(find.descendant(of: find.byType(ListView), matching: find.text('EVT-2026-00005 quedó modificado.')), findsNothing);
+
+      // A los 5 segundos se va solo; una segunda edición, con el mismo texto, avisa otra vez.
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(exito('EVT-2026-00005 quedó modificado.'), findsNothing);
+      await tester.tap(find.text('Editar'));
+      await navegar(tester);
+      await tester.tap(find.text('Guardar cambios'));
+      await navegar(tester);
+      expect(eventos.modificados, hasLength(2));
+      expect(exito('EVT-2026-00005 quedó modificado.'), findsOneWidget);
     });
 
     testWidgets('con la letra al 200 % cumple las guías', (tester) async {

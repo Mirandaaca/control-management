@@ -6,6 +6,7 @@ import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
@@ -42,6 +43,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       _nombre.text = perfil.nombreCompleto;
       _correo.text = perfil.email;
     });
+    ref.listen(perfilProvider.select((e) => e.guardado), (_, guardado) {
+      if (guardado) avisarExito(context, 'Se guardaron tus datos.');
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mi perfil')),
@@ -57,10 +61,6 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
           children: [
             const Text('Tu nombre y el correo con el que inicias sesión.', style: TextStyle(color: textoSecundario)),
             const SizedBox(height: 16),
-            if (estado.guardado) ...[
-              const Aviso('Se guardaron tus datos.', tipo: TipoDeAviso.exito),
-              const SizedBox(height: 16),
-            ],
             if (estado.errorAlGuardar != null) ...[Aviso(estado.errorAlGuardar!), const SizedBox(height: 16)],
             CampoDeTexto(
               controller: _nombre,

@@ -8,7 +8,6 @@ import '../../proveedores.dart';
 import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
-import '../core/widgets/aviso.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/tarjeta_que_se_toca.dart';
@@ -20,10 +19,7 @@ import 'etiqueta_de_pedido.dart';
 /// La bandeja del día (1.3; `frmBandejaPedidosMovil`; 8.6.10): los pedidos que tiene asignados para hoy, por hora, con
 /// su cliente, su dirección y su monto (7.3.3, paso 3.2). Los que ya están en ruta tienen "Registrar entrega".
 class BandejaScreen extends ConsumerWidget {
-  const BandejaScreen({super.key, this.mensaje});
-
-  /// El aviso de la entrega que se acaba de registrar.
-  final String? mensaje;
+  const BandejaScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,7 +36,6 @@ class BandejaScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              if (mensaje != null) ...[Aviso(mensaje!, tipo: TipoDeAviso.exito), const SizedBox(height: 16)],
               _Cabeza(cantidad: pedidos.length),
               const SizedBox(height: 12),
               if (pedidos.isEmpty)

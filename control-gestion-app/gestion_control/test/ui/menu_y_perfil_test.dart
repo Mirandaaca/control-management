@@ -174,7 +174,7 @@ void main() {
       await tester.pump();
 
       expect(perfiles.ediciones.single, ('Pablo Promotor Pérez', 'promotor@test.local'));
-      expect(find.text('Se guardaron tus datos.'), findsOneWidget);
+      expect(exito('Se guardaron tus datos.'), findsOneWidget);
       expect(sesiones.pedidosDeYo, 1);
     });
 
@@ -269,7 +269,7 @@ void main() {
       await escribir(tester);
 
       expect(perfiles.cambios.single, ('Actual2026', 'Nueva2026'));
-      expect(find.text('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.'), findsOneWidget);
+      expect(exito('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.'), findsOneWidget);
       expect(tester.widget<TextField>(campo('Contraseña nueva')).controller!.text, isEmpty);
     });
 
