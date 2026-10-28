@@ -22,6 +22,7 @@ if ($Disco) {
     (Invoke-RestMethod -Method Post "$kudu/api/command" -Headers $cabeceras -ContentType 'application/json' -Body $cuerpo).Output
 }
 else {
-    Invoke-WebRequest "$kudu/api/zip/home/archivos/" -Headers $cabeceras -OutFile $BajarFotos
+    # La API de zip de Kudu ya parte de /home: "home/archivos" pedía /home/home/archivos.
+    Invoke-WebRequest "$kudu/api/zip/archivos/" -Headers $cabeceras -OutFile $BajarFotos
     Write-Host "Listo: $BajarFotos ($([math]::Round((Get-Item $BajarFotos).Length / 1MB, 1)) MB)." -ForegroundColor Green
 }
