@@ -41,7 +41,7 @@ const sesionDePrueba = Sesion(
   permisos: <String>{},
 );
 
-const sinConexion = ErrorDeApi(mensaje: 'No se pudo conectar con el servidor.', sinConexion: true);
+const sinConexion = ErrorDeApi.sinServidor;
 
 /// La sesión sin API: cada prueba dice qué responde y ve qué se le pidió.
 class SesionRepositoryFalso implements SesionRepository {

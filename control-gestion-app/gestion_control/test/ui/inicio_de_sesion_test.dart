@@ -101,7 +101,8 @@ void main() {
 
     respuesta.completeError(sinConexion);
     await tester.pump();
-    expect(find.text('No se pudo conectar con el servidor.'), findsOneWidget);
+    // Con lo que hay que hacer: en la prueba 10.1.5, el primer ingreso con datos móviles solo decía el problema.
+    expect(find.text('No se pudo conectar con el servidor. Espera un momento y vuelve a intentarlo.'), findsOneWidget);
     expect(tester.widget<FilledButton>(botonIngresar()).onPressed, isNotNull);
   });
 

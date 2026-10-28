@@ -20,9 +20,7 @@ class ErrorDeApi implements Exception {
 
     final respuesta = error.response;
     if (respuesta == null) {
-      return error.requestOptions.extra[InterceptorDeConexion.sinRed] == true
-          ? sinInternet
-          : const ErrorDeApi(mensaje: 'No se pudo conectar con el servidor.', sinConexion: true);
+      return error.requestOptions.extra[InterceptorDeConexion.sinRed] == true ? sinInternet : sinServidor;
     }
 
     final datos = respuesta.data;
@@ -45,6 +43,14 @@ class ErrorDeApi implements Exception {
   static const sinInternet = ErrorDeApi(
     mensaje: 'No tienes conexión a internet.',
     detalle: 'Revisa los datos móviles o el wifi y vuelve a intentarlo.',
+    sinConexion: true,
+  );
+
+  /// El celular tiene red y el servidor no respondió: una red débil o el servidor despertando. Dice qué hacer, como el
+  /// panel desde la tarea 22; la pantalla ofrece "Reintentar".
+  static const sinServidor = ErrorDeApi(
+    mensaje: 'No se pudo conectar con el servidor.',
+    detalle: 'Espera un momento y vuelve a intentarlo.',
     sinConexion: true,
   );
 

@@ -132,7 +132,7 @@ void main() {
     final error = await errorDe(() => dio.get('/perfil'));
 
     expect(error.mensaje, 'No se pudo conectar con el servidor.');
-    expect(error.detalle, isNull);
+    expect(error.detalle, 'Espera un momento y vuelve a intentarlo.');
     expect(error.sinConexion, isTrue);
   });
 
