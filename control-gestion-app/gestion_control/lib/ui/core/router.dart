@@ -247,7 +247,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             // Después de una entrega, la bandeja vuelve con su aviso.
             builder: (context, state) => ConPermiso(
               permisos: PermisosDe.bandeja,
-              child: BandejaScreen(mensaje: state.extra as String?),
+              child: const BandejaScreen(),
             ),
             routes: [
               GoRoute(

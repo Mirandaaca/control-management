@@ -85,7 +85,11 @@ class HojaPedidoViewModel extends Notifier<DetalleDeHoja> {
     }
   }
 
-  void avisar(String mensaje) => state = state.copiar(mensaje: mensaje);
+  // Primero sin aviso: así el mismo texto dos veces seguidas (dos ediciones iguales) se muestra las dos veces.
+  void avisar(String mensaje) {
+    state = state.copiar(mensaje: null);
+    state = state.copiar(mensaje: mensaje);
+  }
 }
 
 final hojaPedidoProvider = NotifierProvider.autoDispose.family<HojaPedidoViewModel, DetalleDeHoja, int>(

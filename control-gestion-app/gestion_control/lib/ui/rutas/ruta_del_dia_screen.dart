@@ -10,6 +10,7 @@ import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/confirmar.dart';
@@ -113,6 +114,9 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(rutaDelDiaProvider);
+    ref.listen(rutaDelDiaProvider.select((e) => e.mensaje), (anterior, mensaje) {
+      if (mensaje != null && mensaje != anterior) avisarExito(context, mensaje);
+    });
     final seguimiento = ref.watch(seguimientoDeRutaProvider);
     final sesion = ref.watch(sesionProvider);
     bool tiene(String permiso) => sesion is ConSesion && sesion.sesion.tiene([permiso]);
@@ -165,10 +169,6 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
                               aviso,
                               const SizedBox(height: 16),
                             ],
-                          if (estado.mensaje case final mensaje?) ...[
-                            Aviso(mensaje, tipo: TipoDeAviso.exito),
-                            const SizedBox(height: 16),
-                          ],
                           if (estado.errorDeAccion ?? estado.errorDeCarga case final error?) ...[
                             Aviso.deError(error),
                             const SizedBox(height: 16),

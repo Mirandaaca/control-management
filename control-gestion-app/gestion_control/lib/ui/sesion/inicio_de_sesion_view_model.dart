@@ -37,7 +37,9 @@ class InicioDeSesionViewModel extends Notifier<EstadoInicioDeSesion> {
       await ref.read(sesionProvider.notifier).iniciar(email.trim(), password);
     } on ErrorDeApi catch (e) {
       if (!ref.mounted) return;
-      state = EstadoInicioDeSesion(error: e.campos.isEmpty ? e.mensaje : null, campos: e.campos);
+      // Con el detalle: sin conexión, "Espera un momento y vuelve a intentarlo." (en la prueba 10.1.5 faltaba).
+      final texto = e.detalle == null ? e.mensaje : '${e.mensaje} ${e.detalle}';
+      state = EstadoInicioDeSesion(error: e.campos.isEmpty ? texto : null, campos: e.campos);
     }
   }
 }

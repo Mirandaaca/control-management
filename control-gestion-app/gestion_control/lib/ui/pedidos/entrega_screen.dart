@@ -12,6 +12,7 @@ import '../core/tema.dart';
 import '../core/ubicacion/captura_de_ubicacion.dart';
 import '../core/ubicacion/tarjeta_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
@@ -74,7 +75,9 @@ class _EntregaScreenState extends ConsumerState<EntregaScreen> {
     if (mensaje == null) return _mostrarPrimerProblema();
     // La bandeja ya no tiene este pedido: se vuelve a pedir.
     ref.invalidate(bandejaProvider);
-    context.go(Rutas.bandeja, extra: mensaje);
+    // El aviso sigue en la bandeja: el SnackBar pasa de una pantalla a otra.
+    avisarExito(context, mensaje);
+    context.go(Rutas.bandeja);
   }
 
   Future<bool> _confirmarEntrega(Pedido pedido) {

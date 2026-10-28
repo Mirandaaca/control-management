@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/cobranza.dart';
 import '../../domain/permisos.dart';
 import '../core/formato.dart';
+import '../core/lista_paginada.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/confirmar.dart';
@@ -18,6 +20,7 @@ import '../sesion/sesion_notifier.dart';
 import '../../proveedores.dart';
 import 'cobranza_ui.dart';
 import 'cobranza_view_model.dart';
+import 'cobranzas_view_model.dart';
 
 /// Una cobranza (3.1 y 3.2): el total, lo pagado, el saldo, el vencimiento, la mora y el historial de pagos.
 class CobranzaScreen extends ConsumerStatefulWidget {
@@ -42,11 +45,18 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
     if (mensaje != null) Future.microtask(() => _viewModel.avisar(mensaje));
   }
 
-  // Al volver con el pago registrado, avisa lo que pasó y trae la cobranza de nuevo.
+  // Al volver con el pago registrado, avisa lo que pasó y trae la cobranza de nuevo. Las listas que siguen abiertas
+  // debajo (las cobranzas, las del cliente y lo que debe en su ficha) también: si no, mostraban el saldo de antes.
   Future<void> _registrarPago() async {
+    final clienteId = ref.read(cobranzaProvider(widget.id)).cobranza?.clienteId;
     final mensaje = await context.push<String>(Rutas.registrarPago(widget.id));
     if (mensaje == null || !mounted) return;
     _viewModel.avisar(mensaje);
+    for (final id in [null, ?clienteId]) {
+      recargarSiEstaAbierta(ref, cobranzasProvider(id));
+      ref.invalidate(resumenDeCobranzasProvider(id));
+    }
+    if (clienteId != null) ref.invalidate(porCobrarDelClienteProvider(clienteId));
     await _viewModel.cargar();
   }
 
@@ -68,6 +78,9 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(cobranzaProvider(widget.id));
+    ref.listen(cobranzaProvider(widget.id).select((e) => e.mensaje), (anterior, mensaje) {
+      if (mensaje != null && mensaje != anterior) avisarExito(context, mensaje);
+    });
     final sesion = ref.watch(sesionProvider);
     final puedeRegistrar = sesion is ConSesion && sesion.sesion.tiene([Permisos.cobranzas.registrarPago]);
     final cobranza = estado.cobranza;
@@ -78,10 +91,6 @@ class _CobranzaScreenState extends ConsumerState<CobranzaScreen> {
         DetalleDeCobranza(cobranza: final cobranza?) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            if (estado.mensaje != null) ...[
-              Aviso(estado.mensaje!, tipo: TipoDeAviso.exito),
-              const SizedBox(height: 16),
-            ],
             if (estado.errorAlSubir != null) ...[
               Aviso.deError(
                 estado.errorAlSubir!,

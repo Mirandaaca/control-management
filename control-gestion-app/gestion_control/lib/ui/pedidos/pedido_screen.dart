@@ -12,6 +12,7 @@ import '../core/lineas/linea_de_producto.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
@@ -65,6 +66,9 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(pedidoProvider(widget.id));
+    ref.listen(pedidoProvider(widget.id).select((e) => e.mensaje), (anterior, mensaje) {
+      if (mensaje != null && mensaje != anterior) avisarExito(context, mensaje);
+    });
     final pedido = estado.pedido;
 
     return Scaffold(
@@ -72,7 +76,7 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
       body: switch (estado) {
         DetalleDePedido(pedido: final pedido?) => RefreshIndicator(
           onRefresh: _viewModel.cargar,
-          child: _Contenido(pedido: pedido, mensaje: estado.mensaje, desdeLaBandeja: widget.desdeLaBandeja),
+          child: _Contenido(pedido: pedido, desdeLaBandeja: widget.desdeLaBandeja),
         ),
         DetalleDePedido(error: final error?) => ErrorConReintento.de(
           error,
@@ -111,10 +115,9 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
 }
 
 class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.pedido, this.mensaje, this.desdeLaBandeja = false});
+  const _Contenido({required this.pedido, this.desdeLaBandeja = false});
 
   final Pedido pedido;
-  final String? mensaje;
   final bool desdeLaBandeja;
 
   @override
@@ -127,7 +130,6 @@ class _Contenido extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        if (mensaje != null) ...[Aviso(mensaje!, tipo: TipoDeAviso.exito), const SizedBox(height: 16)],
         if (desdeLaBandeja &&
             (pedido.estado.id == EstadosDePedido.pendiente || pedido.estado.id == EstadosDePedido.enProceso)) ...[
           const Aviso('Se entrega cuando salga a ruta.', tipo: TipoDeAviso.informacion),

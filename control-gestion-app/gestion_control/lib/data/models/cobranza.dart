@@ -117,6 +117,7 @@ class Cobranza {
     required this.saldo,
     required this.fechaEmision,
     required this.fechaVencimiento,
+    required this.clienteId,
     required this.clienteNombre,
     required this.pagos,
     this.hojaPedido,
@@ -132,6 +133,7 @@ class Cobranza {
     saldo: (json['saldoPendiente'] as num).toDouble(),
     fechaEmision: json['fechaEmision'] as String,
     fechaVencimiento: json['fechaVencimiento'] as String,
+    clienteId: (json['cliente'] as Map<String, dynamic>)['id'] as int,
     clienteNombre: (json['cliente'] as Map<String, dynamic>)['nombreCompleto'] as String,
     hojaPedido: (json['hojaPedido'] as Map<String, dynamic>?)?['numero'] as String?,
     diasDeMora: json['diasDeMora'] as int?,
@@ -146,6 +148,7 @@ class Cobranza {
   final double saldo;
   final String fechaEmision;
   final String fechaVencimiento;
+  final int clienteId;
   final String clienteNombre;
   final String? hojaPedido;
   final int? diasDeMora;

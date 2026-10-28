@@ -74,7 +74,11 @@ class EventoViewModel extends Notifier<DetalleDeEvento> {
     }
   }
 
-  void avisar(String mensaje) => state = state.copiar(mensaje: mensaje);
+  // Primero sin aviso: así el mismo texto dos veces seguidas (dos ediciones iguales) se muestra las dos veces.
+  void avisar(String mensaje) {
+    state = state.copiar(mensaje: null);
+    state = state.copiar(mensaje: mensaje);
+  }
 
   /// Toma una foto con la cámara (7.3.14, paso 2) y la sube. El lugar de la toma es la mejor lectura del GPS que haya:
   /// la foto no espera al GPS, y sin permiso no lo pide.

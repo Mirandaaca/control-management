@@ -41,7 +41,7 @@ const sesionDePrueba = Sesion(
   permisos: <String>{},
 );
 
-const sinConexion = ErrorDeApi(mensaje: 'No se pudo conectar con el servidor.', sinConexion: true);
+const sinConexion = ErrorDeApi.sinServidor;
 
 /// La sesión sin API: cada prueba dice qué responde y ve qué se le pidió.
 class SesionRepositoryFalso implements SesionRepository {
@@ -166,6 +166,9 @@ void tamanoDeCelular(WidgetTester tester, {double letra = 1, double alto = 800})
 /// El TextField de un campo, buscado por la etiqueta que va encima de él.
 Finder campo(String etiqueta) =>
     find.descendant(of: find.widgetWithText(CampoDeTexto, etiqueta), matching: find.byType(TextField));
+
+/// El aviso de éxito de una acción, en el SnackBar (tarea 23).
+Finder exito(String texto) => find.descendant(of: find.byType(SnackBar), matching: find.text(texto));
 
 /// El error que muestra un campo debajo, o null si no tiene.
 String? errorDelCampo(WidgetTester tester, String etiqueta) =>
@@ -617,6 +620,7 @@ Cobranza cobranzaDeRosa({double pagado = 100, List<Pago> pagos = const [pagoDeLu
       saldo: 240 - pagado,
       fechaEmision: '2026-10-08T13:30:00',
       fechaVencimiento: '2026-11-07T13:30:00',
+      clienteId: 42,
       clienteNombre: 'Rosa Quispe Mamani',
       hojaPedido: 'HP-2026-00018',
       pagos: pagos,

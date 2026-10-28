@@ -90,7 +90,14 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
                   PolylineLayer(polylines: [lineaDeRuta(ruta.visitas)]),
                   MarkerLayer(
                     markers: [
-                      if (conLimite) nombreDeZona(zona),
+                      if (conLimite)
+                        nombreDeZona(
+                          zona,
+                          evitar: [
+                            for (final v in ruta.visitas) puntoDe(v.cliente.latitud, v.cliente.longitud),
+                            for (final p in widget.puntos) puntoDe(p.latitud, p.longitud),
+                          ],
+                        ),
                       ...marcadoresDePuntos(widget.puntos),
                       ...marcadoresDeParadas(ruta.visitas),
                       if (tu != null) marcadorTu(puntoDe(tu.latitud, tu.longitud)),

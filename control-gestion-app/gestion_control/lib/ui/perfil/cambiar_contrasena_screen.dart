@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/tema.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/campo_de_texto.dart';
 import 'cambiar_contrasena_view_model.dart';
 
@@ -41,6 +42,7 @@ class _CambiarContrasenaScreenState extends ConsumerState<CambiarContrasenaScree
       for (final campo in [_actual, _nueva, _confirmar]) {
         campo.clear();
       }
+      avisarExito(context, 'Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.');
     });
 
     return Scaffold(
@@ -52,10 +54,6 @@ class _CambiarContrasenaScreenState extends ConsumerState<CambiarContrasenaScree
           children: [
             const Text('Para cambiarla necesitas la actual.', style: TextStyle(color: textoSecundario)),
             const SizedBox(height: 16),
-            if (estado.cambiada) ...[
-              const Aviso('Tu contraseña cambió. Se cerraron tus otras sesiones abiertas.', tipo: TipoDeAviso.exito),
-              const SizedBox(height: 16),
-            ],
             if (estado.error != null) ...[Aviso(estado.error!), const SizedBox(height: 16)],
             CampoDeTexto(
               controller: _actual,

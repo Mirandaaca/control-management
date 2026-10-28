@@ -12,6 +12,7 @@ import '../core/router.dart';
 import '../core/tema.dart';
 import '../core/ubicacion/mapa_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
+import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
 import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
@@ -79,6 +80,9 @@ class _HojaPedidoScreenState extends ConsumerState<HojaPedidoScreen> {
         _confirmar(hoja);
       }
     });
+    ref.listen(hojaPedidoProvider(widget.id).select((e) => e.mensaje), (anterior, mensaje) {
+      if (mensaje != null && mensaje != anterior) avisarExito(context, mensaje);
+    });
     final hoja = estado.hoja;
 
     return Scaffold(
@@ -127,7 +131,6 @@ class _Contenido extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        if (estado.mensaje != null) ...[Aviso(estado.mensaje!, tipo: TipoDeAviso.exito), const SizedBox(height: 16)],
         Wrap(
           spacing: 12,
           runSpacing: 4,
