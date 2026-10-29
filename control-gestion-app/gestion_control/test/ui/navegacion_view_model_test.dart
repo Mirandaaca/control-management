@@ -114,6 +114,36 @@ void main() {
     });
   });
 
+  // En el TECNO, con la ubicación saltando, recalculaba cada 20 s y la voz repetía la primera indicación (29/10).
+  test(
+    'quieto lejos del camino, recalcula una vez: sin moverse 50 m no lo vuelve a pedir, ni repite la indicación',
+    () {
+      fakeAsync((reloj) {
+        abrir(reloj);
+        leer(reloj, desdeCarmen);
+        reloj.elapse(esperaEntreRecalculos);
+        leer(reloj, fueraDelCamino);
+        leer(reloj, fueraDelCamino);
+        expect(rutas.caminos, hasLength(2));
+
+        // El camino nuevo (el mismo del falso) sigue a 60 m: quieto, no se pide otro.
+        for (var i = 0; i < 3; i++) {
+          reloj.elapse(esperaEntreRecalculos);
+          leer(reloj, fueraDelCamino);
+          leer(reloj, fueraDelCamino);
+        }
+        expect(rutas.caminos, hasLength(2));
+        expect(voz.dichos, ['En 530 metros, gira a la izquierda en Calle 8', 'Recalculando']);
+
+        // Se movió más de 50 m desde donde lo pidió: ahora sí.
+        final masAlla = desplazar(fueraDelCamino, este: 60);
+        leer(reloj, masAlla);
+        leer(reloj, masAlla);
+        expect(rutas.caminos, hasLength(3));
+      });
+    },
+  );
+
   test('las lecturas con más de 30 m de error no cuentan para el desvío', () {
     fakeAsync((reloj) {
       abrir(reloj);

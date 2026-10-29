@@ -117,6 +117,13 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
   final _desvio = DetectorDeDesvio();
   var _anunciador = Anunciador.para(MedioDeTransporte.auto);
 
+  /// Desde dónde se pidió el camino que se sigue. Quieto lejos de la calle (un estacionamiento, un mercado), el camino
+  /// nuevo empieza en la calle y el promotor sigue "desviado": sin moverse, no se vuelve a pedir.
+  PuntoDelCamino? _desdeDelCamino;
+
+  /// La indicación que la voz dijo al empezar el último camino: si un camino nuevo empieza igual, no la repite.
+  String? _ultimaInicial;
+
   PuntoDelCamino get _cliente => (latitud: abrir.visita.cliente.latitud, longitud: abrir.visita.cliente.longitud);
 
   @override
@@ -169,10 +176,15 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
       return;
     }
     final progreso = _avanzar(punto);
-    if (_desvio.anotar(progreso.distanciaAlCamino, lectura.precision) && _puedeRecalcular) {
+    if (_desvio.anotar(progreso.distanciaAlCamino, lectura.precision) && _puedeRecalcular && _seMovio(punto)) {
       _pedir(recalculo: true);
     }
   }
+
+  bool _seMovio(PuntoDelCamino punto) => switch (_desdeDelCamino) {
+    final desde? => distanciaEnMetros(desde, punto) > umbralDeDesvio,
+    null => true,
+  };
 
   bool get _puedeRecalcular =>
       !_pidiendo && !(_esperaDelRecalculo?.isActive ?? false) && !(_esperaDelPedido?.isActive ?? false);
@@ -216,6 +228,7 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
       if (medio != state.medio) {
         _pendiente = true;
       } else if (!state.llegaste) {
+        _desdeDelCamino = (latitud: desde.latitud, longitud: desde.longitud);
         state = state.copiar(caminos: caminos, elegido: 0, calculando: false, recalculando: false, error: null);
         _seguirCamino();
       }
@@ -241,7 +254,9 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
     final progreso = _avanzar((latitud: posicion.latitud, longitud: posicion.longitud), anunciar: false);
     if (progreso.proximo case final proximo?) {
       final indicacion = indicacionDe(camino.pasos[proximo], abrir.visita.cliente.nombreCompleto);
-      _decir(_anunciador.inicial(proximo, progreso.metrosHastaElProximo, indicacion));
+      final texto = _anunciador.inicial(proximo, progreso.metrosHastaElProximo, indicacion);
+      if (indicacion != _ultimaInicial) _decir(texto);
+      _ultimaInicial = indicacion;
     }
   }
 
