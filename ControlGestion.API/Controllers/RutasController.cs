@@ -3,6 +3,7 @@ using ControlGestion.API.Seguridad;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ControlGestion.API.Controllers;
 
@@ -59,6 +60,14 @@ public class RutasController(RutaService rutas) : ControllerBase
     [Permiso(Permisos.Territorial.RecorrerRuta)]
     public async Task<ActionResult<RutaDTO>> MarcarVisita(int id, int visitaId, [FromBody] MarcarVisitaDTO dto) =>
         await rutas.MarcarVisitaAsync(id, visitaId, dto);
+
+    // El camino por calles hasta el cliente de la visita (tarea 25), con un límite por usuario: el proveedor tiene un cupo
+    // diario. Pasado el límite, o si el proveedor falla, 503 navegacion_no_disponible.
+    [HttpGet("{id:int}/visitas/{visitaId:int}/camino")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    [EnableRateLimiting(LimiteDeCaminos.Politica)]
+    public async Task<ActionResult<CaminosDTO>> GetCamino(int id, int visitaId, [FromQuery] CaminoConsultaDTO consulta) =>
+        await rutas.CaminoAsync(id, visitaId, consulta);
 
     [HttpPost("{id:int}/ubicaciones")]
     // La app la manda sola cada 30 s con la ruta en curso: no es una operación del usuario.

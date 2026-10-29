@@ -21,7 +21,8 @@ public class ManejadorDeExcepciones(IProblemDetailsService problemDetails, ILogg
         var traceId = Activity.Current?.Id ?? http.TraceIdentifier;
         var (estado, codigo, titulo, detalle) = Traducir(excepcion, traceId);
 
-        if (estado >= StatusCodes.Status500InternalServerError)
+        // Un 503 de negocio (el camino sin proveedor) no es un error no controlado: quien lo lanza deja su aviso.
+        if (estado >= StatusCodes.Status500InternalServerError && excepcion is not ExcepcionDeNegocio)
             logger.LogError(excepcion, "Error no controlado en {Metodo} {Ruta} ({TraceId}).",
                 http.Request.Method, http.Request.Path, traceId);
 

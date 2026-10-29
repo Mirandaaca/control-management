@@ -140,6 +140,19 @@ builder.Services.AddScoped<ControlGestion.API.Services.BitacoraService>();
 builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
+// El camino por calles de la navegación (tarea 25): OpenRouteService, con un caché, un tope diario entre todos y un límite
+// por usuario.
+builder.Services.AddOptions<NavegacionOptions>().Bind(builder.Configuration.GetSection(NavegacionOptions.Seccion));
+builder.Services.AddSingleton<IValidateOptions<NavegacionOptions>, NavegacionOptionsValidator>();
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ControlGestion.API.Services.CupoDeNavegacion>();
+builder.Services.AddHttpClient<ControlGestion.API.Services.NavegacionService>((servicios, http) =>
+{
+    http.BaseAddress = new Uri(servicios.GetRequiredService<IOptions<NavegacionOptions>>().Value.Url);
+    http.Timeout = TimeSpan.FromSeconds(8);
+});
+builder.Services.AddRateLimiter(LimiteDeCaminos.Configurar);
+
 // Los orígenes que pueden llamar a la API desde un navegador: el panel y, en desarrollo, la app como web. appsettings.json
 // no los lleva, porque .NET combina las listas posición por posición: una lista allá y otra en Development se mezclarían.
 var origenesPermitidos = builder.Configuration.GetSection("Cors:Origenes").Get<string[]>() ?? [];
@@ -157,6 +170,9 @@ var app = builder.Build();
 // para que una clave faltante o corta detenga la API sin tocar la base.
 _ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
 _ = app.Services.GetRequiredService<IOptions<SesionOptions>>().Value;
+if (string.IsNullOrWhiteSpace(app.Services.GetRequiredService<IOptions<NavegacionOptions>>().Value.Clave))
+    app.Logger.LogWarning("Falta 'Navegacion:Clave' (la clave de OpenRouteService): el camino por calles responderá 503. " +
+        "En desarrollo va en user-secrets y en producción en la variable de entorno Navegacion__Clave.");
 if (ComprobacionRegional.Problema() is { } problemaRegional)
     throw new InvalidOperationException(problemaRegional);
 if (origenesPermitidos.Length == 0)
@@ -197,6 +213,7 @@ app.UseStatusCodePages();
 app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 // Sin sesión: el panel y la app lo piden al abrir el inicio de sesión para despertar la API mientras el usuario escribe.
 // Responde solo "Healthy" o "Unhealthy", sin detalles de la base.
