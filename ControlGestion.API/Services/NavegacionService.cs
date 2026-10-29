@@ -20,6 +20,8 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
 {
     public const string CodigoNoDisponible = "navegacion_no_disponible";
     public const string MensajeNoDisponible = "No se pudo calcular el camino. Sigue el mapa.";
+    public const string CodigoOrdenNoDisponible = "orden_no_disponible";
+    public const string MensajeOrdenNoDisponible = "No se pudo calcular el orden. Sigue con el que tienes.";
 
     // El camino principal y hasta dos alternativas. Los factores son los del proveedor por defecto: una alternativa
     // comparte como mucho el 60 % del principal y tarda como mucho un 40 % más.
@@ -27,14 +29,19 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
 
     public static ServicioNoDisponibleException NoDisponible() => new(CodigoNoDisponible, MensajeNoDisponible);
 
+    public static ServicioNoDisponibleException OrdenNoDisponible() =>
+        new(CodigoOrdenNoDisponible, MensajeOrdenNoDisponible);
+
+    // OpenRouteService no tiene perfil de moto: la moto va por donde va un auto.
+    private static string Perfil(MedioDeTransporte medio) => medio == MedioDeTransporte.Pie ? "foot-walking" : "driving-car";
+
     public async Task<CaminosDTO> CaminoAsync(decimal latitud, decimal longitud, decimal latitudDestino,
         decimal longitudDestino, MedioDeTransporte medio)
     {
         var configuracion = opciones.Value;
         if (string.IsNullOrWhiteSpace(configuracion.Clave)) throw NoDisponible();
 
-        // OpenRouteService no tiene perfil de moto: la moto va por donde va un auto.
-        var perfil = medio == MedioDeTransporte.Pie ? "foot-walking" : "driving-car";
+        var perfil = Perfil(medio);
         // Redondeado a unos 11 m: dos pedidos desde casi el mismo punto comparten el camino del caché.
         latitud = Math.Round(latitud, 4);
         longitud = Math.Round(longitud, 4);
@@ -42,35 +49,80 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
             $"camino:{perfil}:{latitud}:{longitud}:{latitudDestino}:{longitudDestino}");
         if (cache.TryGetValue(claveDelCache, out CaminosDTO? guardado)) return guardado!;
 
-        if (!cupo.Consumir())
+        if (!cupo.Consumir(PedidoAlProveedor.Camino))
         {
             logger.LogWarning("Se alcanzó el tope diario de {Tope} caminos: la navegación vuelve mañana.",
                 configuracion.TopeDiario);
             throw NoDisponible();
         }
 
-        var caminos = await PedirAsync(configuracion.Clave, perfil, [[longitud, latitud], [longitudDestino, latitudDestino]]);
+        var respuesta = await EnviarAsync<RespuestaDelProveedor>(configuracion.Clave, $"v2/directions/{perfil}/json", new
+        {
+            coordinates = new[] { new[] { longitud, latitud }, new[] { longitudDestino, latitudDestino } },
+            language = "es",
+            instructions = true,
+            instructions_format = "text",
+            units = "m",
+            alternative_routes = new { target_count = CaminosPedidos, share_factor = 0.6, weight_factor = 1.4 }
+        }, NoDisponible);
+
+        var lista = respuesta?.Routes?.Select(Convertir).Where(c => c != null).Select(c => c!).ToList() ?? [];
+        if (lista.Count == 0)
+        {
+            logger.LogWarning("OpenRouteService respondió sin ningún camino que se pueda dibujar.");
+            throw NoDisponible();
+        }
+        var caminos = new CaminosDTO(lista[0], lista[1..]);
         cache.Set(claveDelCache, caminos, TimeSpan.FromSeconds(configuracion.SegundosDeCache));
         return caminos;
     }
 
-    private async Task<CaminosDTO> PedirAsync(string clave, string perfil, decimal[][] coordenadas)
+    /// <summary>
+    /// El orden más corto para recorrer <paramref name="destinos"/> saliendo de donde está el promotor y sin volver (parte
+    /// C de la tarea 25), con la optimización de OpenRouteService (VROOM). Devuelve las posiciones de los destinos en el
+    /// orden nuevo; uno que el proveedor no puede ordenar va al final.
+    /// </summary>
+    public async Task<OrdenCalculado> OrdenAsync(decimal latitud, decimal longitud,
+        IReadOnlyList<(decimal Latitud, decimal Longitud)> destinos, MedioDeTransporte medio)
     {
-        using var pedido = new HttpRequestMessage(HttpMethod.Post, $"v2/directions/{perfil}/json")
+        var configuracion = opciones.Value;
+        if (string.IsNullOrWhiteSpace(configuracion.Clave)) throw OrdenNoDisponible();
+        if (!cupo.Consumir(PedidoAlProveedor.Orden))
         {
-            Content = JsonContent.Create(new
-            {
-                coordinates = coordenadas,
-                language = "es",
-                instructions = true,
-                instructions_format = "text",
-                units = "m",
-                alternative_routes = new { target_count = CaminosPedidos, share_factor = 0.6, weight_factor = 1.4 }
-            })
-        };
-        pedido.Headers.TryAddWithoutValidation("Authorization", clave);
+            logger.LogWarning("Se alcanzó el tope diario de {Tope} órdenes de las visitas.", configuracion.TopeDiarioDeOrdenes);
+            throw OrdenNoDisponible();
+        }
 
-        RespuestaDelProveedor? respuesta;
+        // Los trabajos se numeran desde 1, como pide el proveedor; sin "end", el vehículo no vuelve. "g" pide la distancia.
+        var respuesta = await EnviarAsync<OrdenDelProveedor>(configuracion.Clave, "optimization", new
+        {
+            jobs = destinos.Select((d, i) => new { id = i + 1, location = new[] { d.Longitud, d.Latitud } }),
+            vehicles = new[] { new { id = 1, profile = Perfil(medio), start = new[] { longitud, latitud } } },
+            options = new { g = true }
+        }, OrdenNoDisponible);
+
+        var ruta = respuesta?.Routes?.FirstOrDefault();
+        if (respuesta is not { Code: 0 } || ruta?.Steps == null)
+        {
+            logger.LogWarning("OpenRouteService no pudo ordenar las visitas (código {Codigo}).", respuesta?.Code);
+            throw OrdenNoDisponible();
+        }
+        var indices = ruta.Steps.Where(p => p.Type == "job" && p.Id is >= 1 && p.Id <= destinos.Count)
+            .Select(p => p.Id!.Value - 1).ToList();
+        indices.AddRange(Enumerable.Range(0, destinos.Count).Where(i => !indices.Contains(i)));
+        return new OrdenCalculado(indices, Redondear(ruta.Duration), Redondear(ruta.Distance));
+    }
+
+    /// <summary>
+    /// Manda el pedido al proveedor, con la clave en el encabezado. Una respuesta de error, la red caída, el tiempo agotado
+    /// (8 s) o una respuesta que no se entiende terminan en <paramref name="noDisponible"/>, con un aviso en el log que
+    /// nunca lleva la clave, la URL ni el cuerpo.
+    /// </summary>
+    private async Task<T?> EnviarAsync<T>(string clave, string ruta, object cuerpo,
+        Func<ServicioNoDisponibleException> noDisponible)
+    {
+        using var pedido = new HttpRequestMessage(HttpMethod.Post, ruta) { Content = JsonContent.Create(cuerpo) };
+        pedido.Headers.TryAddWithoutValidation("Authorization", clave);
         try
         {
             using var recibida = await http.SendAsync(pedido);
@@ -78,25 +130,17 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
             {
                 logger.LogWarning("OpenRouteService respondió {Estado} (código {Codigo}).",
                     (int)recibida.StatusCode, await CodigoDeErrorAsync(recibida));
-                throw NoDisponible();
+                throw noDisponible();
             }
-            respuesta = await recibida.Content.ReadFromJsonAsync<RespuestaDelProveedor>();
+            return await recibida.Content.ReadFromJsonAsync<T>();
         }
-        // El tiempo agotado (8 s) llega como una cancelación.
+        // El tiempo agotado llega como una cancelación.
         catch (Exception e) when (e is HttpRequestException or OperationCanceledException or JsonException)
         {
             logger.LogWarning("OpenRouteService no respondió o respondió algo que no se entiende: {Tipo}: {Mensaje}",
                 e.GetType().Name, e.Message);
-            throw NoDisponible();
+            throw noDisponible();
         }
-
-        var caminos = respuesta?.Routes?.Select(Convertir).Where(c => c != null).Select(c => c!).ToList() ?? [];
-        if (caminos.Count == 0)
-        {
-            logger.LogWarning("OpenRouteService respondió sin ningún camino que se pueda dibujar.");
-            throw NoDisponible();
-        }
-        return new CaminosDTO(caminos[0], caminos[1..]);
     }
 
     /// <summary>El código de error del proveedor ({"error": {"code": 2010}}), sin el resto del cuerpo.</summary>
@@ -222,6 +266,13 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
         return true;
     }
 
+    // Solo lo que se usa de la respuesta de /optimization (VROOM): el código (0 es que salió bien) y los pasos en orden.
+    private sealed record OrdenDelProveedor(int Code, List<RutaOrdenada>? Routes);
+
+    private sealed record RutaOrdenada(double Duration, double Distance, List<PasoOrdenado>? Steps);
+
+    private sealed record PasoOrdenado(string? Type, int? Id);
+
     // Solo lo que se usa de la respuesta de /v2/directions/{perfil}/json.
     private sealed record RespuestaDelProveedor(List<RutaDelProveedor>? Routes);
 
@@ -239,3 +290,6 @@ public class NavegacionService(HttpClient http, IOptions<NavegacionOptions> opci
         [property: JsonPropertyName("way_points")] int[]? WayPoints,
         [property: JsonPropertyName("exit_number")] int? ExitNumber);
 }
+
+/// <summary>El orden más corto: las posiciones de los destinos en el orden nuevo, y lo que tarda y mide el recorrido.</summary>
+public record OrdenCalculado(IReadOnlyList<int> Indices, int DuracionSegundos, int DistanciaMetros);

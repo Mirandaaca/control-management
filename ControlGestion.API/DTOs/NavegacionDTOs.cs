@@ -74,3 +74,28 @@ public record CaminoDTO(int DistanciaMetros, int DuracionSegundos, List<PuntoDTO
 
 /// <summary>El mejor camino y hasta dos alternativas, que la app dibuja en gris para que el promotor elija.</summary>
 public record CaminosDTO(CaminoDTO Principal, List<CaminoDTO> Alternativas);
+
+/// <summary>
+/// Desde dónde pide el orden el promotor, cómo va y por cuáles visitas ausentes vuelve a pasar (query string, parte C de
+/// la tarea 25). Las pendientes entran siempre.
+/// </summary>
+public record OrdenConsultaDTO : CaminoConsultaDTO
+{
+    public List<int> Ausentes { get; init; } = [];
+}
+
+/// <summary>Una visita en el orden propuesto, con el número que tendría. <see cref="Ausente"/>: vuelve a pasar por ella.</summary>
+public record VisitaOrdenadaDTO(int Id, int Orden, string NombreCompleto, bool Ausente);
+
+/// <summary>El orden más corto para lo que falta, con lo que tarda y mide el recorrido. No se guarda hasta aplicarlo.</summary>
+public record OrdenSugeridoDTO(List<VisitaOrdenadaDTO> Visitas, int DuracionSegundos, int DistanciaMetros);
+
+/// <summary>El orden que el promotor aceptó: las visitas que faltan en el orden nuevo y las ausentes que vuelven.</summary>
+public record ReordenarDTO
+{
+    [Required(ErrorMessage = "Falta el orden de las visitas.")]
+    [MinLength(2, ErrorMessage = "Reordenar necesita al menos dos visitas.")]
+    public List<int>? Visitas { get; init; }
+
+    public List<int> AusentesQueVuelven { get; init; } = [];
+}
