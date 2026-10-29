@@ -1,3 +1,4 @@
+import 'package:gestion_control/data/models/camino.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/ruta.dart';
 import 'package:gestion_control/data/repositories/rutas_repository.dart';
@@ -143,6 +144,60 @@ Ruta conVisitaMarcada(Ruta ruta, int visitaId, EstadoVisita resultado, {String h
   return Ruta.fromJson({...json, 'visitas': visitas, 'pendientes': pendientes, 'marcadas': 5 - pendientes});
 }
 
+// El camino de la tarea 25: desde Carmen (la 3, recién visitada) hasta Marco Ortiz Peña (la 4, la siguiente), 530 m al
+// este por la Calle 7 y 390 m al norte por la Calle 8. La alternativa va primero al norte y tarda 3 minutos más.
+const desdeCarmen = (latitud: -17.7765, longitud: -63.1740);
+const esquina = (latitud: -17.7765, longitud: -63.1690);
+const casaDeMarco = (latitud: -17.7730, longitud: -63.1690);
+
+Map<String, dynamic> _puntoJson(PuntoDelCamino p) => {'latitud': p.latitud, 'longitud': p.longitud};
+
+Map<String, dynamic> _pasoJson(String indicacion, int giro, int indice, int distancia, int duracion, {String? calle}) =>
+    {
+      'indicacion': indicacion,
+      'calle': calle,
+      'giro': giro,
+      'distanciaMetros': distancia,
+      'duracionSegundos': duracion,
+      'inicio': {'latitud': 0, 'longitud': 0},
+      'indice': indice,
+    };
+
+/// Los caminos como los manda la API (`CaminosDTO`).
+Map<String, dynamic> caminosJson() => {
+  'principal': {
+    'distanciaMetros': 919,
+    'duracionSegundos': 105,
+    'puntos': [
+      for (final p in [desdeCarmen, esquina, casaDeMarco]) _puntoJson(p),
+    ],
+    'pasos': [
+      _pasoJson('Sigue por Calle 7', 0, 0, 530, 60, calle: 'Calle 7'),
+      _pasoJson('Gira a la izquierda en Calle 8', 2, 1, 389, 45, calle: 'Calle 8'),
+      _pasoJson('Llegas a tu destino', 13, 2, 0, 0),
+    ],
+  },
+  'alternativas': [
+    {
+      'distanciaMetros': 919,
+      'duracionSegundos': 285,
+      'puntos': [
+        for (final p in [desdeCarmen, (latitud: -17.7730, longitud: -63.1740), casaDeMarco]) _puntoJson(p),
+      ],
+      'pasos': [
+        _pasoJson('Sigue el camino marcado', 0, 0, 389, 140),
+        _pasoJson('Gira a la derecha', 3, 1, 530, 145),
+        _pasoJson('Llegas a tu destino', 13, 2, 0, 0),
+      ],
+    },
+  ],
+};
+
+Caminos caminosDePrueba() => Caminos.fromJson(caminosJson());
+
+/// Lo que se le pidió al pedir un camino.
+typedef PedidoDeCamino = ({int rutaId, int visitaId, Posicion desde, MedioDeTransporte medio});
+
 /// Lo que se le mandó al marcar.
 typedef MarcaDePrueba = ({int rutaId, int visitaId, EstadoVisita resultado, Posicion ubicacion, String observacion});
 
@@ -152,12 +207,14 @@ class RutasRepositoryFalso implements RutasRepository {
   Future<Ruta> Function(MarcaDePrueba marca)? alMarcar;
   Future<void> Function(int id, Posicion ubicacion)? alEnviar;
   Future<Ruta> Function(int id)? alTerminar;
+  Future<Caminos> Function(PedidoDeCamino pedido)? alPedirCamino;
 
   var pedidosDelDia = 0;
   final inicios = <int>[];
   final marcas = <MarcaDePrueba>[];
   final ubicaciones = <(int, Posicion)>[];
   final finales = <int>[];
+  final caminos = <PedidoDeCamino>[];
 
   @override
   Future<Ruta?> delDia() {
@@ -194,6 +251,13 @@ class RutasRepositoryFalso implements RutasRepository {
   Future<void> enviarUbicacion(int id, Posicion ubicacion) {
     ubicaciones.add((id, ubicacion));
     return (alEnviar ?? (_, _) async {})(id, ubicacion);
+  }
+
+  @override
+  Future<Caminos> camino(int id, int visitaId, {required Posicion desde, required MedioDeTransporte medio}) {
+    final pedido = (rutaId: id, visitaId: visitaId, desde: desde, medio: medio);
+    caminos.add(pedido);
+    return (alPedirCamino ?? (_) async => caminosDePrueba())(pedido);
   }
 
   @override

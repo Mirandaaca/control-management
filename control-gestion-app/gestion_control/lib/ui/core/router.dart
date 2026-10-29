@@ -29,6 +29,8 @@ import '../pedidos/pedidos_screen.dart';
 import '../perfil/cambiar_contrasena_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../productos/productos_screen.dart';
+import '../rutas/navegacion_screen.dart';
+import '../rutas/navegacion_view_model.dart';
 import '../rutas/ruta_del_dia_screen.dart';
 import '../sesion/arranque_screen.dart';
 import '../territorio/mapa_de_clientes_screen.dart';
@@ -70,6 +72,7 @@ abstract final class Rutas {
   static String evento(int id) => '/eventos/$id';
   static String editarEvento(int id) => '/eventos/$id/editar';
   static const ruta = '/ruta';
+  static const camino = '/ruta/camino';
   static const mapaDeClientes = '/mapa-de-clientes';
   static const porVisitar = '/por-visitar';
 }
@@ -232,6 +235,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'ruta',
             builder: (context, state) => ConPermiso(permisos: PermisosDe.ruta, child: const RutaDelDiaScreen()),
+            routes: [
+              GoRoute(
+                path: 'camino',
+                // Se abre desde una visita de la ruta. Sin ella (por ejemplo, al recargar la web), vuelve a la ruta.
+                redirect: (context, state) => state.extra is AbrirCamino ? null : Rutas.ruta,
+                builder: (context, state) => ConPermiso(
+                  permisos: PermisosDe.ruta,
+                  child: NavegacionScreen(abrir: state.extra! as AbrirCamino),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'mapa-de-clientes',
@@ -245,10 +259,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'bandeja',
             // Después de una entrega, la bandeja vuelve con su aviso.
-            builder: (context, state) => ConPermiso(
-              permisos: PermisosDe.bandeja,
-              child: const BandejaScreen(),
-            ),
+            builder: (context, state) => ConPermiso(permisos: PermisosDe.bandeja, child: const BandejaScreen()),
             routes: [
               GoRoute(
                 path: ':id',

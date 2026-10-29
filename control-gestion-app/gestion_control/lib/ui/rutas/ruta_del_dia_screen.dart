@@ -20,6 +20,7 @@ import '../eventos/formulario_evento_screen.dart';
 import '../sesion/sesion_notifier.dart';
 import '../territorio/marcadores.dart';
 import '../territorio/visitas.dart';
+import 'aviso_del_gps.dart';
 import 'etiqueta_de_ruta.dart';
 import 'mapa_de_la_ruta.dart';
 import 'marcadores.dart';
@@ -91,6 +92,12 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
   Future<void> _marcar(Ruta ruta, VisitaDeRuta visita) async {
     final marcada = await marcarVisita(context, rutaId: ruta.id, visita: visita);
     if (marcada != null) _viewModel.marcada(marcada, visita.id);
+  }
+
+  // Tarea 25: la navegación hasta la visita. Al llegar, "Marcar visita" vuelve aquí y abre la hoja de marcarla.
+  Future<void> _comoLlegar(Ruta ruta, VisitaDeRuta visita) async {
+    final marcar = await context.push<bool>(Rutas.camino, extra: (rutaId: ruta.id, visita: visita));
+    if (marcar == true && mounted) await _marcar(ruta, visita);
   }
 
   // 7.3.20, ext. 5a: la venta de la visita, con el cliente ya elegido.
@@ -165,7 +172,7 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (ruta.estado == EstadoRuta.enCurso && seguimiento.rutaId == ruta.id)
-                            if (_avisoDelGps(seguimiento.problema, ruta) case final aviso?) ...[
+                            if (avisoDelGps(ref, seguimiento.problema, ruta.id) case final aviso?) ...[
                               aviso,
                               const SizedBox(height: 16),
                             ],
@@ -191,6 +198,7 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
                               puedeVender: tiene(Permisos.ventas.registrarHp),
                               puedeRegistrarEvento: tiene(Permisos.eventos.registrarEvento),
                               alMarcar: () => _marcar(ruta, visita),
+                              alComoLlegar: () => _comoLlegar(ruta, visita),
                               alVender: () => _nuevaHoja(visita),
                               alRegistrarEvento: () => _registrarEvento(visita),
                             ),
@@ -225,34 +233,6 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
         _ => null,
       },
     );
-  }
-
-  /// Sin GPS con la ruta en curso: la oficina no la sigue y las visitas no se marcan.
-  Widget? _avisoDelGps(ProblemaDelGps? problema, Ruta ruta) {
-    final gps = ref.read(servicioDeUbicacionProvider);
-    final seguimiento = ref.read(seguimientoDeRutaProvider.notifier);
-    const paraQue = 'para que la oficina siga tu ruta y para marcar tus visitas.';
-    return switch (problema) {
-      null => null,
-      ProblemaDelGps.desactivado => Aviso(
-        'Actívalo $paraQue',
-        tipo: TipoDeAviso.aviso,
-        titulo: 'El GPS está desactivado.',
-        accion: AccionDeAviso('Activar GPS', gps.abrirAjustesDeUbicacion),
-      ),
-      ProblemaDelGps.sinPermiso => Aviso(
-        'Dale permiso $paraQue',
-        tipo: TipoDeAviso.aviso,
-        titulo: 'La app no tiene permiso para usar tu ubicación.',
-        accion: AccionDeAviso('Dar permiso', () => seguimiento.empezar(ruta.id, pedirPermiso: true)),
-      ),
-      ProblemaDelGps.sinPermisoParaSiempre => Aviso(
-        'Dale permiso desde los ajustes de la app $paraQue',
-        tipo: TipoDeAviso.aviso,
-        titulo: 'La app no tiene permiso para usar tu ubicación.',
-        accion: AccionDeAviso('Abrir los ajustes', gps.abrirAjustesDeLaApp),
-      ),
-    };
   }
 }
 
@@ -310,7 +290,8 @@ class _LeyendaDeLaRuta extends StatelessWidget {
 
 /// Una visita de la ruta (8.6.9): su pastilla, el cliente, la dirección y el resultado. Con la ruta en curso, la
 /// siguiente pendiente lleva "Marcar visita" primario; las otras pendientes y las ausentes, secundario (un ausente se
-/// vuelve a marcar: tarea 14). La recién marcada ofrece lo que sigue (decisión 3 de la tarea 17).
+/// vuelve a marcar: tarea 14). La recién marcada ofrece lo que sigue (decisión 3 de la tarea 17). La siguiente, además,
+/// lleva "Cómo llegar" (tarea 25).
 class _TarjetaDeVisita extends StatelessWidget {
   const _TarjetaDeVisita(
     this.visita, {
@@ -320,6 +301,7 @@ class _TarjetaDeVisita extends StatelessWidget {
     required this.puedeVender,
     required this.puedeRegistrarEvento,
     required this.alMarcar,
+    required this.alComoLlegar,
     required this.alVender,
     required this.alRegistrarEvento,
   });
@@ -331,6 +313,7 @@ class _TarjetaDeVisita extends StatelessWidget {
   final bool puedeVender;
   final bool puedeRegistrarEvento;
   final VoidCallback alMarcar;
+  final VoidCallback alComoLlegar;
   final VoidCallback alVender;
   final VoidCallback alRegistrarEvento;
 
@@ -385,9 +368,11 @@ class _TarjetaDeVisita extends StatelessWidget {
                   Text('“$observacion”', style: const TextStyle(color: textoSecundario)),
                 if (marcable) ...[
                   const SizedBox(height: 12),
-                  if (destacada)
-                    FilledButton(onPressed: alMarcar, child: const Text('Marcar visita'))
-                  else
+                  if (destacada) ...[
+                    OutlinedButton(onPressed: alComoLlegar, child: const Text('Cómo llegar')),
+                    const SizedBox(height: 8),
+                    FilledButton(onPressed: alMarcar, child: const Text('Marcar visita')),
+                  ] else
                     OutlinedButton(onPressed: alMarcar, child: const Text('Marcar visita')),
                 ],
                 if (despues != null) ...[const SizedBox(height: 12), despues],
