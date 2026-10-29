@@ -20,6 +20,9 @@ const _marca800 = Color(0xFF1C3A66);
 /// Sin girar ni la rueda del mouse.
 const gestosDelMapa = InteractiveFlag.pinchZoom | InteractiveFlag.pinchMove | InteractiveFlag.doubleTapZoom;
 
+/// Un mapa a pantalla completa (`verMapaCompleto`) o la navegación: un dedo lo mueve. No gira, así el norte queda arriba.
+const gestosDelMapaCompleto = InteractiveFlag.all & ~InteractiveFlag.rotate;
+
 /// Lo que mide un marcador para tocarlo: 48 dp, aunque se vea más chico.
 const toqueDeMarcador = 48.0;
 

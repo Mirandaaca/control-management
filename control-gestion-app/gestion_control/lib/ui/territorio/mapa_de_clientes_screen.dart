@@ -77,7 +77,12 @@ class MapaDeClientesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              _MapaDeClientes(estado: estado, alTocar: viewModel.elegirCliente),
+              _MapaDeClientes(
+                estado: estado,
+                alTocar: viewModel.elegirCliente,
+                alAmpliar: () =>
+                    verMapaCompleto(context, titulo: 'Mapa de clientes', mapa: (_) => const _MapaCompletoDeClientes()),
+              ),
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(16),
@@ -151,13 +156,40 @@ class _ElegirZona extends StatelessWidget {
   }
 }
 
+/// El mapa a pantalla completa: se mueve con un dedo, y el cliente que se toca se ve abajo.
+class _MapaCompletoDeClientes extends ConsumerWidget {
+  const _MapaCompletoDeClientes();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estado = ref.watch(mapaDeClientesProvider);
+    return Stack(
+      children: [
+        _MapaDeClientes(estado: estado, alTocar: ref.read(mapaDeClientesProvider.notifier).elegirCliente),
+        if (estado.elegido case final cliente?)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.45),
+              child: SingleChildScrollView(padding: const EdgeInsets.all(16), child: _ClienteElegido(cliente)),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// El mapa: los límites (el de la zona elegida, resaltado), los puntos de referencia y los clientes. Elegir otra zona lo
-/// vuelve a encuadrar.
+/// vuelve a encuadrar. Dentro de la pantalla, que se desplaza, se mueve con dos dedos y lo avisa; su botón lo abre a
+/// pantalla completa ([alAmpliar]), donde se mueve con uno.
 class _MapaDeClientes extends StatelessWidget {
-  const _MapaDeClientes({required this.estado, required this.alTocar});
+  const _MapaDeClientes({required this.estado, required this.alTocar, this.alAmpliar});
 
   final EstadoDelMapaDeClientes estado;
   final ValueChanged<int?> alTocar;
+
+  /// Null: ya está a pantalla completa, y llena el lugar que tiene.
+  final VoidCallback? alAmpliar;
 
   @override
   Widget build(BuildContext context) {
@@ -174,51 +206,66 @@ class _MapaDeClientes extends StatelessWidget {
       for (final c in clientes) puntoDe(c.latitud, c.longitud),
       for (final p in estado.puntosVisibles) puntoDe(p.latitud, p.longitud),
     ];
-    return SizedBox(
-      height: 360,
-      child: Semantics(
-        container: true,
-        label: 'Mapa de clientes: cada cliente con el color de su estado',
-        child: FlutterMap(
-          key: ValueKey(estado.zonaId),
-          options: MapOptions(
-            initialCenter: _santaCruz,
-            initialZoom: 13,
-            initialCameraFit: paraEncuadrar.isEmpty
-                ? null
-                : CameraFit.coordinates(coordinates: paraEncuadrar, padding: const EdgeInsets.all(32), maxZoom: 17),
-            interactionOptions: const InteractionOptions(flags: gestosDelMapa),
-          ),
-          children: [
-            const MosaicosDeOpenStreetMap(),
-            PolygonLayer(polygons: [for (final z in zonasConLimite) limiteDeZona(z, elegida: z.id == estado.zonaId)]),
-            MarkerLayer(
-              markers: [
-                for (final z in zonasConLimite) nombreDeZona(z),
-                ...marcadoresDePuntos(estado.puntosVisibles),
-                for (final c in clientes)
-                  Marker(
-                    point: puntoDe(c.latitud, c.longitud),
-                    width: toqueDeMarcador,
-                    height: toqueDeMarcador,
-                    child: Semantics(
-                      button: true,
-                      selected: c.id == estado.clienteId,
-                      label: '${c.nombreCompleto}, ${c.estado.nombre}',
-                      excludeSemantics: true,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => alTocar(c.id),
-                        child: Center(child: MarcadorDeCliente(c.estado, elegido: c.id == estado.clienteId)),
+    final chico = alAmpliar != null;
+    final mapa = SizedBox(
+      height: chico ? 360 : null,
+      child: Stack(
+        children: [
+          Semantics(
+            container: true,
+            label: 'Mapa de clientes: cada cliente con el color de su estado',
+            child: FlutterMap(
+              key: ValueKey(estado.zonaId),
+              options: MapOptions(
+                initialCenter: _santaCruz,
+                initialZoom: 13,
+                initialCameraFit: paraEncuadrar.isEmpty
+                    ? null
+                    : CameraFit.coordinates(coordinates: paraEncuadrar, padding: const EdgeInsets.all(32), maxZoom: 17),
+                interactionOptions: InteractionOptions(flags: chico ? gestosDelMapa : gestosDelMapaCompleto),
+              ),
+              children: [
+                const MosaicosDeOpenStreetMap(),
+                PolygonLayer(
+                  polygons: [for (final z in zonasConLimite) limiteDeZona(z, elegida: z.id == estado.zonaId)],
+                ),
+                MarkerLayer(
+                  markers: [
+                    for (final z in zonasConLimite) nombreDeZona(z),
+                    ...marcadoresDePuntos(estado.puntosVisibles),
+                    for (final c in clientes)
+                      Marker(
+                        point: puntoDe(c.latitud, c.longitud),
+                        width: toqueDeMarcador,
+                        height: toqueDeMarcador,
+                        child: Semantics(
+                          button: true,
+                          selected: c.id == estado.clienteId,
+                          label: '${c.nombreCompleto}, ${c.estado.nombre}',
+                          excludeSemantics: true,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => alTocar(c.id),
+                            child: Center(child: MarcadorDeCliente(c.estado, elegido: c.id == estado.clienteId)),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                  ],
+                ),
+                const AtribucionDeOpenStreetMap(),
               ],
             ),
-            const AtribucionDeOpenStreetMap(),
-          ],
-        ),
+          ),
+          if (alAmpliar case final ampliar?) BotonDeMapaCompleto(alTocar: ampliar),
+        ],
       ),
+    );
+    // Dentro de una pantalla que se desplaza, debajo dice cómo se mueve.
+    if (!chico) return mapa;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [mapa, const AvisoDeDosDedos()],
     );
   }
 }

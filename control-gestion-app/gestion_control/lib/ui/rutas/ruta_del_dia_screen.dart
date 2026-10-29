@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/ruta.dart';
 import '../../data/services/error_de_api.dart';
+import '../../data/services/ubicacion.dart';
 import '../../domain/permisos.dart';
 import '../../proveedores.dart';
 import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
+import '../core/ubicacion/mapa_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
 import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
@@ -168,9 +170,12 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
                       ruta: ruta,
                       zona: estado.zona,
                       puntos: estado.puntos,
-                      tu: ruta.estado == EstadoRuta.enCurso && seguimiento.rutaId == ruta.id
-                          ? seguimiento.ultima
-                          : null,
+                      tu: _tuEn(ruta, seguimiento),
+                      alAmpliar: () => verMapaCompleto(
+                        context,
+                        titulo: 'Mapa de la ruta',
+                        mapa: (_) => const _MapaCompletoDeLaRuta(),
+                      ),
                     ),
                     _LeyendaDeLaRuta(conTu: ruta.estado == EstadoRuta.enCurso, conPuntos: estado.puntos.isNotEmpty),
                     Padding(
@@ -250,6 +255,28 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
         ),
         _ => null,
       },
+    );
+  }
+}
+
+/// Dónde está el promotor, para el mapa: solo con la ruta en curso y seguida.
+Posicion? _tuEn(Ruta ruta, EstadoDelSeguimiento seguimiento) =>
+    ruta.estado == EstadoRuta.enCurso && seguimiento.rutaId == ruta.id ? seguimiento.ultima : null;
+
+/// El mapa de la ruta a pantalla completa: se mueve con un dedo, y "Tú" se actualiza con el GPS.
+class _MapaCompletoDeLaRuta extends ConsumerWidget {
+  const _MapaCompletoDeLaRuta();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estado = ref.watch(rutaDelDiaProvider);
+    final ruta = estado.ruta;
+    if (ruta == null) return const SizedBox.shrink();
+    return MapaDeLaRuta(
+      ruta: ruta,
+      zona: estado.zona,
+      puntos: estado.puntos,
+      tu: _tuEn(ruta, ref.watch(seguimientoDeRutaProvider)),
     );
   }
 }

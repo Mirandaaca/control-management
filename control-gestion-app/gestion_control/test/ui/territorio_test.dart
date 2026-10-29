@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/pagina.dart';
 import 'package:gestion_control/data/models/ruta.dart';
@@ -177,6 +178,30 @@ void main() {
       await abrir(tester, const MapaDeClientesScreen());
 
       expect(find.text('Todavía no tienes zonas'), findsOneWidget);
+    });
+
+    testWidgets('el mapa avisa que se mueve con dos dedos; completo, se mueve con uno y muestra el cliente tocado', (
+      tester,
+    ) async {
+      await abrir(tester, const MapaDeClientesScreen());
+      int gestos() => tester.widget<FlutterMap>(find.byType(FlutterMap)).options.interactionOptions.flags;
+      expect(find.text('Mueve el mapa con dos dedos o ábrelo completo.'), findsOneWidget);
+      expect(gestos(), gestosDelMapa);
+
+      await tester.tap(find.byTooltip('Ver el mapa completo'));
+      await tester.pumpAndSettle();
+      expect(gestos(), gestosDelMapaCompleto);
+      expect(find.text('Mueve el mapa con dos dedos o ábrelo completo.'), findsNothing);
+
+      await tester.tap(
+        find.descendant(
+          of: find.bySemanticsLabel('Carmen Rojas Saucedo, Activo'),
+          matching: find.byType(MarcadorDeCliente),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('CLI-00068'), findsOneWidget);
+      await cumpleLasGuias(tester);
     });
 
     testWidgets('con la letra al 200 % cumple las guías', (tester) async {

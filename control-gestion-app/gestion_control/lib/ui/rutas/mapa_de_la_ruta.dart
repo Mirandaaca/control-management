@@ -14,9 +14,10 @@ import 'marcadores.dart';
 
 /// El mapa de la ruta del día (8.6.9; 7.3.20, paso 3.2): el límite de la zona, sus puntos de referencia, las paradas
 /// numeradas con el estado de cada visita, la línea en el orden de visita y "Tú". Se encuadra al abrir y no se mueve al
-/// marcar. Se mueve con el dedo y se acerca con dos dedos, sin girar.
+/// marcar. Dentro de la pantalla, que se desplaza, se mueve con dos dedos y lo avisa; su botón lo abre a pantalla
+/// completa, donde se mueve con uno. No gira.
 class MapaDeLaRuta extends StatefulWidget {
-  const MapaDeLaRuta({super.key, required this.ruta, this.zona, this.puntos = const [], this.tu});
+  const MapaDeLaRuta({super.key, required this.ruta, this.zona, this.puntos = const [], this.tu, this.alAmpliar});
 
   final Ruta ruta;
   final Zona? zona;
@@ -24,6 +25,9 @@ class MapaDeLaRuta extends StatefulWidget {
 
   /// Dónde está el promotor según el GPS del celular; null si no se sabe o la ruta no está en curso.
   final Posicion? tu;
+
+  /// Abre el mapa a pantalla completa. Null: ya lo está, y llena el lugar que tiene.
+  final VoidCallback? alAmpliar;
 
   @override
   State<MapaDeLaRuta> createState() => _MapaDeLaRutaState();
@@ -70,8 +74,9 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
     final tu = widget.tu;
     final zona = widget.zona;
     final conLimite = zona != null && zona.limite != null;
-    return SizedBox(
-      height: 280,
+    final chico = widget.alAmpliar != null;
+    final mapa = SizedBox(
+      height: chico ? 280 : null,
       child: Stack(
         children: [
           Semantics(
@@ -82,7 +87,7 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
                 mapController: _mapa,
                 options: MapOptions(
                   initialCameraFit: _encuadre,
-                  interactionOptions: const InteractionOptions(flags: gestosDelMapa),
+                  interactionOptions: InteractionOptions(flags: chico ? gestosDelMapa : gestosDelMapaCompleto),
                 ),
                 children: [
                   const MosaicosDeOpenStreetMap(),
@@ -108,6 +113,7 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
               ),
             ),
           ),
+          if (widget.alAmpliar case final ampliar?) BotonDeMapaCompleto(alTocar: ampliar),
           if (tu != null)
             Positioned(
               right: 12,
@@ -125,6 +131,13 @@ class _MapaDeLaRutaState extends State<MapaDeLaRuta> {
             ),
         ],
       ),
+    );
+    // Dentro de una pantalla que se desplaza, debajo dice cómo se mueve.
+    if (!chico) return mapa;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [mapa, const AvisoDeDosDedos()],
     );
   }
 }
