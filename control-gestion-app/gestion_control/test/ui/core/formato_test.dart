@@ -68,4 +68,22 @@ void main() {
       expect(centavos(150) > centavos(140), isTrue);
     });
   });
+
+  group('las distancias y los tiempos del camino (tarea 25)', () {
+    test('en metros de 10 en 10 hasta el kilómetro, y en kilómetros con un decimal', () {
+      expect(formatearDistancia(147), '150 m');
+      expect(formatearDistancia(918.6), '920 m');
+      expect(formatearDistancia(994), '990 m');
+      expect(formatearDistancia(996), '1 km');
+      expect(formatearDistancia(1240), '1,2 km');
+      expect(formatearDistancia(2000), '2 km');
+    });
+
+    test('en minutos redondeados hacia arriba, nunca menos de 1, y en horas desde la hora', () {
+      expect(formatearDuracion(0), '1 min');
+      expect(formatearDuracion(105), '2 min');
+      expect(formatearDuracion(3600), '1 h');
+      expect(formatearDuracion(3900), '1 h 5 min');
+    });
+  });
 }

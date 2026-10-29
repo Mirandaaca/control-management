@@ -16,7 +16,11 @@ import 'data/services/almacen_de_sesion.dart';
 import 'data/services/camara.dart';
 import 'data/services/cliente_api.dart';
 import 'data/services/conexion.dart';
+import 'data/services/gps_simulado.dart';
+import 'data/services/pantalla_encendida.dart';
+import 'data/services/preferencias.dart';
 import 'data/services/ubicacion.dart';
+import 'data/services/voz.dart';
 import 'ui/sesion/sesion_notifier.dart';
 
 // Dónde se arma cada pieza de la app. Las pruebas reemplazan las que necesitan con overrides de Riverpod.
@@ -28,7 +32,10 @@ final almacenDeSesionProvider = Provider<AlmacenDeSesion>((ref) => AlmacenDeSesi
 
 final verificadorDeConexionProvider = Provider<VerificadorDeConexion>((ref) => VerificadorConConnectivity());
 
-final servicioDeUbicacionProvider = Provider<ServicioDeUbicacion>((ref) => ServicioConGeolocator());
+// En debug, con --dart-define=GPS_SIMULADO=true, un GPS de mentira para mostrar la navegación (tarea 25).
+final servicioDeUbicacionProvider = Provider<ServicioDeUbicacion>(
+  (ref) => gpsSimulado ? GpsSimulado() : ServicioConGeolocator(),
+);
 
 final clienteApiProvider = Provider<Dio>(
   (ref) => crearClienteApi(
@@ -81,3 +88,9 @@ final usuariosRepositoryProvider = Provider<UsuariosRepository>(
 );
 
 final camaraProvider = Provider<Camara>((ref) => CamaraConImagePicker());
+
+final preferenciasProvider = Provider<Preferencias>((ref) => PreferenciasDelCelular());
+
+final vozProvider = Provider<Voz>((ref) => VozDelCelular());
+
+final pantallaEncendidaProvider = Provider<PantallaEncendida>((ref) => PantallaConWakelock());

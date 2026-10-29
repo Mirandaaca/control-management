@@ -7,6 +7,7 @@ import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/core/ubicacion/mapa_de_ubicacion.dart';
 import 'package:gestion_control/ui/rutas/marcar_visita_hoja.dart';
+import 'package:gestion_control/ui/rutas/navegacion_view_model.dart';
 import 'package:gestion_control/ui/rutas/ruta_del_dia_screen.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,18 @@ void main() {
         GoRoute(path: 'ruta', builder: (context, state) => const RutaDelDiaScreen()),
         destino('hojas-pedido/nueva'),
         destino('eventos/nuevo'),
+        // La navegación de mentira: muestra a qué visita va y vuelve con la orden de marcarla, como al llegar.
+        GoRoute(
+          path: 'ruta/camino',
+          builder: (context, state) => Scaffold(
+            body: Column(
+              children: [
+                Text('Camino a ${(state.extra! as AbrirCamino).visita.cliente.nombreCompleto}'),
+                FilledButton(onPressed: () => context.pop(true), child: const Text('Llegué')),
+              ],
+            ),
+          ),
+        ),
       ],
     ),
   ];
@@ -105,6 +118,23 @@ void main() {
       expect(primario, lessThan(tester.getTopLeft(find.text('Luis Fernández Áñez')).dy));
     });
 
+    testWidgets('"Cómo llegar" va solo en la siguiente, y abre el camino hasta ella (tarea 25)', (tester) async {
+      await abrir(tester);
+      expect(boton<OutlinedButton>('Cómo llegar'), findsOneWidget);
+      final comoLlegar = tester.getTopLeft(boton<OutlinedButton>('Cómo llegar')).dy;
+      expect(comoLlegar, greaterThan(tester.getTopLeft(find.text('Marco Ortiz Peña')).dy));
+      expect(comoLlegar, lessThan(tester.getTopLeft(boton<FilledButton>('Marcar visita')).dy));
+
+      await tocar(tester, boton<OutlinedButton>('Cómo llegar'));
+      expect(find.text('Camino a Marco Ortiz Peña'), findsOneWidget);
+
+      // Al llegar, vuelve con la orden de marcar: se abre la hoja de esa visita.
+      await tester.tap(find.text('Llegué'));
+      await esperar(tester);
+      expect(find.byType(HojaDeMarcarVisita), findsOneWidget);
+      expect(enLaHoja('4 · Marco Ortiz Peña'), findsOneWidget);
+    });
+
     testWidgets('con visitas sin marcar, "Terminar ruta" es secundario y avisa cuántas quedan (ext. 7.1a)', (
       tester,
     ) async {
@@ -169,6 +199,8 @@ void main() {
 
       expect(find.text('Planificada'), findsOneWidget);
       expect(find.text('Marcar visita'), findsNothing);
+      // La API da el camino solo con la ruta en curso.
+      expect(find.text('Cómo llegar'), findsNothing);
       expect(find.text('Pendiente · 14 días de atraso'), findsOneWidget);
     });
 

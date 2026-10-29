@@ -43,6 +43,21 @@ String formatearCantidad(num cantidad) {
   return texto.contains(',') ? texto.replaceFirst(RegExp(r',?0+$'), '') : texto;
 }
 
+/// Una distancia del camino (tarea 25): "150 m", de 10 en 10, o "1,2 km" desde el kilómetro.
+String formatearDistancia(double metros) {
+  final redondeados = (metros / 10).round() * 10;
+  if (redondeados < 1000) return '$redondeados m';
+  return '${_numero(metros / 1000, decimales: 1).replaceFirst(RegExp(r',0$'), '')} km';
+}
+
+/// Un tiempo del camino (tarea 25): "8 min" o "1 h 5 min". Lo que falta nunca baja de 1 minuto hasta llegar.
+String formatearDuracion(double segundos) {
+  final minutos = (segundos / 60).ceil().clamp(1, 1 << 30);
+  if (minutos < 60) return '$minutos min';
+  final resto = minutos % 60;
+  return resto == 0 ? '${minutos ~/ 60} h' : '${minutos ~/ 60} h $resto min';
+}
+
 /// Una coordenada con sus 6 decimales (unos 10 cm), con coma decimal: "-17,783412".
 String formatearCoordenada(double valor) => valor.toStringAsFixed(6).replaceFirst('.', ',');
 

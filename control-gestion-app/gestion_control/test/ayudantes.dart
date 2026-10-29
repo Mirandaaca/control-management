@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:go_router/go_router.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gestion_control/data/models/camino.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/cobranza.dart';
 import 'package:gestion_control/data/models/evento.dart';
@@ -28,7 +29,10 @@ import 'package:gestion_control/data/repositories/sesion_repository.dart';
 import 'package:gestion_control/data/repositories/zonas_repository.dart';
 import 'package:gestion_control/data/services/camara.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
+import 'package:gestion_control/data/services/pantalla_encendida.dart';
+import 'package:gestion_control/data/services/preferencias.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
+import 'package:gestion_control/data/services/voz.dart';
 import 'package:gestion_control/ui/core/tema.dart';
 import 'package:gestion_control/ui/core/widgets/campo_de_texto.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
@@ -231,6 +235,50 @@ class UbicacionFalsa implements ServicioDeUbicacion {
 
   @override
   Future<void> abrirAjustesDeLaApp() async => ajustesDeLaApp++;
+}
+
+/// Lo que la app recuerda, en memoria.
+class PreferenciasFalsas implements Preferencias {
+  MedioDeTransporte? medioGuardado;
+  var silenciada = false;
+
+  @override
+  Future<MedioDeTransporte?> medio() async => medioGuardado;
+
+  @override
+  Future<void> guardarMedio(MedioDeTransporte medio) async => medioGuardado = medio;
+
+  @override
+  Future<bool> vozSilenciada() async => silenciada;
+
+  @override
+  Future<void> guardarVozSilenciada(bool silenciada) async => this.silenciada = silenciada;
+}
+
+/// La voz sin parlante: anota lo que dijo.
+class VozFalsa implements Voz {
+  var enEspanol = true;
+  final dichos = <String>[];
+  var calladas = 0;
+
+  @override
+  Future<bool> preparar() async => enEspanol;
+
+  @override
+  Future<void> decir(String texto) async => dichos.add(texto);
+
+  @override
+  Future<void> callar() async => calladas++;
+}
+
+class PantallaFalsa implements PantallaEncendida {
+  var encendida = false;
+
+  @override
+  Future<void> mantener() async => encendida = true;
+
+  @override
+  Future<void> soltar() async => encendida = false;
 }
 
 /// Las tres guías de accesibilidad de cada pantalla, sin excepciones de dibujo (como un texto que se desborda).

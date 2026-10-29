@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gestion_control/data/models/camino.dart';
 import 'package:gestion_control/data/models/ruta.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/rutas_repository.dart';
@@ -184,6 +185,52 @@ void main() {
     expect(api.pedidos.single.queryParameters, {'buscar': 'Elena', 'zonaId': 1, 'pagina': 1, 'tamano': 25});
     expect(pagina.items.single.diasDeAtraso, 14);
     expect(pagina.items.single.promotor, 'Carlos Mendoza Flores');
+  });
+
+  group('el camino (tarea 25)', () {
+    test('pide desde dónde está el promotor y cómo va, y lee el camino, sus pasos y la alternativa', () async {
+      final (dio, api) = _api((_) => _json(caminosJson()));
+
+      final caminos = await RutasRepository(
+        dio,
+      ).camino(8, 4, desde: const Posicion(-17.7765001, -63.1740004, 5), medio: MedioDeTransporte.moto);
+
+      expect(api.pedidos.single.path, '/rutas/8/visitas/4/camino');
+      expect(api.pedidos.single.queryParameters, {'latitud': '-17.776500', 'longitud': '-63.174000', 'medio': 'moto'});
+      expect(caminos.principal.puntos, [desdeCarmen, esquina, casaDeMarco]);
+      expect(caminos.principal.pasos.map((p) => (p.giro, p.indice)), [
+        (Giro.salida, 0),
+        (Giro.izquierda, 1),
+        (Giro.llegada, 2),
+      ]);
+      expect(caminos.principal.pasos[1].calle, 'Calle 8');
+      expect(caminos.alternativas.single.duracion, 285);
+      expect(caminos.todos, hasLength(2));
+    });
+
+    test('sin camino, el error trae el mensaje de la API', () async {
+      final (dio, _) = _api(
+        (_) => _json({
+          'title': 'Servicio no disponible',
+          'detail': 'No se pudo calcular el camino. Sigue el mapa.',
+          'codigo': 'navegacion_no_disponible',
+          'traceId': 't',
+        }, estado: 503),
+      );
+
+      final pedido = RutasRepository(
+        dio,
+      ).camino(8, 4, desde: const Posicion(-17.77, -63.17, 5), medio: MedioDeTransporte.auto);
+
+      await expectLater(
+        pedido,
+        throwsA(
+          isA<ErrorDeApi>()
+              .having((e) => e.codigo, 'codigo', 'navegacion_no_disponible')
+              .having((e) => e.mensaje, 'mensaje', 'No se pudo calcular el camino. Sigue el mapa.'),
+        ),
+      );
+    });
   });
 
   test('los puntos de referencia de una zona', () async {
