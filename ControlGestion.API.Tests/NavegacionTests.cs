@@ -238,12 +238,12 @@ public class NavegacionTests(ApiDePrueba api)
         var reloj = new RelojAjustable();
         var cupo = new CupoDeNavegacion(reloj, Options.Create(new NavegacionOptions { TopeDiario = 2 }));
 
-        Assert.True(cupo.Consumir());
-        Assert.True(cupo.Consumir());
-        Assert.False(cupo.Consumir());
+        Assert.True(cupo.Consumir(PedidoAlProveedor.Camino));
+        Assert.True(cupo.Consumir(PedidoAlProveedor.Camino));
+        Assert.False(cupo.Consumir(PedidoAlProveedor.Camino));
 
         reloj.Adelantar(TimeSpan.FromDays(1));
-        Assert.True(cupo.Consumir());
+        Assert.True(cupo.Consumir(PedidoAlProveedor.Camino));
     }
 
     public static TheoryData<string> Fallas => new() { "500", "429", "403", "404", "sin caminos", "red", "tiempo" };

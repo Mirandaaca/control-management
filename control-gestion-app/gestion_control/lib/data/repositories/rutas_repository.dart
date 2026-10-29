@@ -92,6 +92,44 @@ class RutasRepository {
     }
   }
 
+  /// El orden más corto para lo que le falta al promotor, desde donde está (parte C de la tarea 25): las pendientes y las
+  /// [ausentes] por las que vuelve a pasar. No guarda nada.
+  Future<OrdenSugerido> ordenSugerido(
+    int id, {
+    required Posicion desde,
+    required MedioDeTransporte medio,
+    List<int> ausentes = const [],
+  }) async {
+    try {
+      final respuesta = await _api.get<Map<String, dynamic>>(
+        '/rutas/$id/orden-sugerido',
+        queryParameters: {
+          'latitud': desde.latitud.toStringAsFixed(6),
+          'longitud': desde.longitud.toStringAsFixed(6),
+          'medio': medio.valor,
+          'ausentes': [for (final a in ausentes) '$a'],
+        },
+      );
+      return OrdenSugerido.fromJson(respuesta.data!);
+    } catch (e) {
+      throw ErrorDeApi.desde(e, porDefecto: 'No se pudo calcular el orden. Sigue con el que tienes.');
+    }
+  }
+
+  /// Guarda el orden que el promotor aceptó. Las [ausentesQueVuelven] quedan pendientes otra vez. Si mientras tanto se
+  /// marcó una visita, la API responde 409 `ruta_cambio`.
+  Future<Ruta> reordenar(int id, {required List<int> visitas, List<int> ausentesQueVuelven = const []}) async {
+    try {
+      final respuesta = await _api.post<Map<String, dynamic>>(
+        '/rutas/$id/reordenar',
+        data: {'visitas': visitas, 'ausentesQueVuelven': ausentesQueVuelven},
+      );
+      return Ruta.fromJson(respuesta.data!);
+    } catch (e) {
+      throw ErrorDeApi.desde(e, porDefecto: 'No se pudo reordenar la ruta.');
+    }
+  }
+
   /// Las visitas sin marcar quedan pendientes (ext. 7.1a).
   Future<Ruta> terminar(int id) async {
     try {

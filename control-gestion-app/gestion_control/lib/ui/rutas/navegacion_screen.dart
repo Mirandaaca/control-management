@@ -241,7 +241,7 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
                   initialZoom: 16,
                   onMapReady: () => setState(() => _listo = true),
                   onPositionChanged: _alMoverElMapa,
-                  interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+                  interactionOptions: const InteractionOptions(flags: gestosDelMapaCompleto),
                 ),
                 children: [
                   const MosaicosDeOpenStreetMap(),

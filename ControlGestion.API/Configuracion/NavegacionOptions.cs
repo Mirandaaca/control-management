@@ -24,6 +24,13 @@ public class NavegacionOptions
 
     /// <summary>Cuánto se guarda un camino ya pedido, por si se vuelve a pedir desde casi el mismo punto.</summary>
     public int SegundosDeCache { get; set; } = 60;
+
+    /// <summary>Órdenes de las visitas (la optimización del proveedor) por día de Bolivia, entre todos.</summary>
+    public int TopeDiarioDeOrdenes { get; set; } = 400;
+
+    public int OrdenesPorUsuarioAlDia { get; set; } = 50;
+
+    public int SegundosEntreOrdenes { get; set; } = 20;
 }
 
 /// <summary>Detiene la API al arrancar si la dirección del proveedor no es válida o un límite no es mayor que cero.</summary>
@@ -42,6 +49,12 @@ public class NavegacionOptionsValidator : IValidateOptions<NavegacionOptions>
             errores.Add("'Navegacion:SegundosEntreCaminos' debe ser mayor que cero.");
         if (opciones.SegundosDeCache <= 0)
             errores.Add("'Navegacion:SegundosDeCache' debe ser mayor que cero.");
+        if (opciones.TopeDiarioDeOrdenes <= 0)
+            errores.Add("'Navegacion:TopeDiarioDeOrdenes' debe ser mayor que cero.");
+        if (opciones.OrdenesPorUsuarioAlDia <= 0)
+            errores.Add("'Navegacion:OrdenesPorUsuarioAlDia' debe ser mayor que cero.");
+        if (opciones.SegundosEntreOrdenes <= 0)
+            errores.Add("'Navegacion:SegundosEntreOrdenes' debe ser mayor que cero.");
         return errores.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errores);
     }
 }

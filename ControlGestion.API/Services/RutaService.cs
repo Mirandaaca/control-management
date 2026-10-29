@@ -193,6 +193,86 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
             destino.Longitud, consulta.Medio);
     }
 
+    /// <summary>
+    /// El orden más corto para lo que le falta al promotor, desde donde está (parte C de la tarea 25): las pendientes y
+    /// las ausentes por las que vuelve a pasar. No guarda nada: el promotor lo ve y lo aplica con <see cref="ReordenarAsync"/>.
+    /// </summary>
+    public async Task<OrdenSugeridoDTO> OrdenSugeridoAsync(int id, OrdenConsultaDTO consulta)
+    {
+        var ruta = await SuyaAsync(id);
+        ExigirEnCurso(ruta);
+        var visitas = await db.RutasDetalle.Where(d => d.RutaId == id)
+            .Select(d => new { d.Id, d.EstadoVisita, d.Cliente!.NombreCompleto, d.Cliente.Latitud, d.Cliente.Longitud })
+            .ToListAsync();
+        var ausentes = consulta.Ausentes.ToHashSet();
+        if (ausentes.Any(a => !visitas.Any(v => v.Id == a && v.EstadoVisita == EstadoVisita.Ausente)))
+            throw RutaCambio();
+        var porOrdenar = visitas
+            .Where(v => v.EstadoVisita == EstadoVisita.Pendiente || ausentes.Contains(v.Id))
+            .ToList();
+        if (porOrdenar.Count < 2)
+            throw new ReglaDeNegocioException("nada_que_reordenar", "Para reordenar hacen falta al menos dos visitas por hacer.");
+
+        var orden = await navegacion.OrdenAsync(consulta.Latitud!.Value, consulta.Longitud!.Value,
+            porOrdenar.Select(v => (v.Latitud, v.Longitud)).ToList(), consulta.Medio);
+        var hechas = visitas.Count - porOrdenar.Count;
+        return new OrdenSugeridoDTO(
+            orden.Indices.Select((i, n) => new VisitaOrdenadaDTO(porOrdenar[i].Id, hechas + n + 1,
+                porOrdenar[i].NombreCompleto, porOrdenar[i].EstadoVisita == EstadoVisita.Ausente)).ToList(),
+            orden.DuracionSegundos, orden.DistanciaMetros);
+    }
+
+    /// <summary>
+    /// Aplica el orden que el promotor aceptó (parte C de la tarea 25). Primero van las visitas hechas, en el orden en que se
+    /// marcaron, y después las del orden nuevo. Las ausentes por las que vuelve a pasar quedan pendientes otra vez (la
+    /// bitácora guarda la marca que tenían): así la app las toma como la siguiente cuando les toca.
+    /// </summary>
+    public async Task<RutaDTO> ReordenarAsync(int id, ReordenarDTO dto)
+    {
+        var ruta = await SuyaAsync(id);
+        ExigirEnCurso(ruta);
+        await using (var tx = await db.Database.BeginTransactionAsync())
+        {
+            // Marcar una visita mientras tanto espera a que esto termine: no se cruzan.
+            await db.Database.ExecuteSqlAsync($"SELECT Id FROM RutasDetalle WHERE RutaId = {id} FOR UPDATE");
+            var detalles = await db.RutasDetalle.Where(d => d.RutaId == id).ToListAsync();
+            var vuelven = dto.AusentesQueVuelven.ToHashSet();
+            var porOrdenar = detalles
+                .Where(d => d.EstadoVisita == EstadoVisita.Pendiente
+                    || (d.EstadoVisita == EstadoVisita.Ausente && vuelven.Contains(d.Id)))
+                .Select(d => d.Id)
+                .ToHashSet();
+            // Se marcó una visita después de calcular el orden, o la lista no es la de las visitas que faltan.
+            var visitas = dto.Visitas!;
+            if (vuelven.Any(v => !detalles.Any(d => d.Id == v && d.EstadoVisita == EstadoVisita.Ausente))
+                || visitas.Count != visitas.Distinct().Count() || !porOrdenar.SetEquals(visitas))
+                throw RutaCambio();
+
+            var numero = 1;
+            foreach (var hecha in detalles.Where(d => !porOrdenar.Contains(d.Id))
+                         .OrderBy(d => d.HoraVisita).ThenBy(d => d.Orden))
+                hecha.Orden = numero++;
+            foreach (var visita in visitas.Select(v => detalles.Single(d => d.Id == v)))
+            {
+                if (visita.EstadoVisita == EstadoVisita.Ausente)
+                {
+                    visita.EstadoVisita = EstadoVisita.Pendiente;
+                    visita.HoraVisita = null;
+                    visita.Latitud = null;
+                    visita.Longitud = null;
+                    visita.Observaciones = null;
+                }
+                visita.Orden = numero++;
+            }
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        return await ObtenerAsync(id);
+    }
+
+    private static ConflictoException RutaCambio() =>
+        new("ruta_cambio", "La ruta cambió mientras calculabas el orden: vuelve a calcularlo.");
+
     /// <summary>Terminar (pasos 7.1 y 7.2). Las visitas sin marcar quedan pendientes (ext. 7.1a): la app avisa cuántas antes.</summary>
     public async Task<RutaDTO> TerminarAsync(int id)
     {

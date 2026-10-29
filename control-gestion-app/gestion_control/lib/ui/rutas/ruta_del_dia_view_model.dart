@@ -150,6 +150,10 @@ class RutaDelDiaViewModel extends Notifier<EstadoDeLaRuta> {
   void marcada(Ruta ruta, int visitaId) =>
       state = state.copiar(ruta: ruta, recienMarcada: visitaId, mensaje: null, errorDeAccion: null);
 
+  /// La ruta con el orden nuevo (parte C de la tarea 25).
+  void reordenada(Ruta ruta) =>
+      state = state.copiar(ruta: ruta, recienMarcada: null, errorDeAccion: null, mensaje: 'La ruta quedó reordenada.');
+
   /// Una ruta que cambió por otro lado (ya iniciada o ya terminada) se vuelve a pedir, con el aviso de la API.
   Future<void> _fallo(ErrorDeApi e) async {
     if (!ref.mounted) return;

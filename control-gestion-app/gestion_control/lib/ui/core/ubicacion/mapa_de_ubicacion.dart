@@ -103,3 +103,67 @@ class AtribucionDeOpenStreetMap extends StatelessWidget {
     ),
   );
 }
+
+/// Debajo de un mapa dentro de una pantalla que se desplaza, donde un dedo baja la pantalla (`gestosDelMapa`): cómo se
+/// mueve el mapa. Va abajo y no encima: encima tapaba las paradas del borde.
+class AvisoDeDosDedos extends StatelessWidget {
+  const AvisoDeDosDedos({super.key});
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+    color: Colors.white,
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        children: [
+          ExcludeSemantics(child: Icon(Icons.pan_tool_alt_outlined, size: 18, color: textoSecundario)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Mueve el mapa con dos dedos o ábrelo completo.',
+              style: TextStyle(fontSize: 14, color: textoSecundario),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// El botón que abre el mapa a pantalla completa ([verMapaCompleto]), arriba a la derecha del mapa chico.
+class BotonDeMapaCompleto extends StatelessWidget {
+  const BotonDeMapaCompleto({super.key, required this.alTocar});
+
+  final VoidCallback alTocar;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topRight,
+    child: Padding(
+      padding: const EdgeInsets.all(8),
+      child: Material(
+        color: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 3,
+        child: IconButton(
+          tooltip: 'Ver el mapa completo',
+          icon: const Icon(Icons.open_in_full, color: marca600),
+          onPressed: alTocar,
+        ),
+      ),
+    ),
+  );
+}
+
+/// Abre un mapa a pantalla completa, donde se mueve con un dedo. [mapa] lo arma con lo que se muestre en ese momento:
+/// si mira sus providers, se actualiza solo (por ejemplo, "Tú" en la ruta del día).
+Future<void> verMapaCompleto(BuildContext context, {required String titulo, required WidgetBuilder mapa}) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text(titulo)),
+          body: mapa(context),
+        ),
+      ),
+    );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/ruta.dart';
 import 'package:gestion_control/data/models/zona.dart';
@@ -10,6 +11,7 @@ import 'package:gestion_control/ui/rutas/marcar_visita_hoja.dart';
 import 'package:gestion_control/ui/rutas/navegacion_view_model.dart';
 import 'package:gestion_control/ui/rutas/ruta_del_dia_screen.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
+import 'package:gestion_control/ui/territorio/marcadores.dart';
 import 'package:go_router/go_router.dart';
 
 import '../ayudantes.dart';
@@ -187,6 +189,40 @@ void main() {
       expect(find.text('Punto de referencia'), findsOneWidget);
       expect(find.text('Tú'), findsNWidgets(2)); // En el mapa y en la leyenda.
       expect(find.byTooltip('Centrar el mapa en tu ubicación'), findsOneWidget);
+      await cumpleLasGuias(tester);
+    });
+
+    // Lo pidió Cristopher después de la prueba en la calle de la tarea 25: con un dedo se baja la pantalla, y el mapa no se
+    // movía con un dedo en ningún lado.
+    testWidgets('el mapa avisa que se mueve con dos dedos, y su botón lo abre completo, donde se mueve con uno', (
+      tester,
+    ) async {
+      await abrir(tester);
+      int gestos() => tester.widget<FlutterMap>(find.byType(FlutterMap)).options.interactionOptions.flags;
+      expect(find.text('Mueve el mapa con dos dedos o ábrelo completo.'), findsOneWidget);
+      expect(gestos(), gestosDelMapa);
+
+      await tester.tap(find.byTooltip('Ver el mapa completo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mapa de la ruta'), findsOneWidget);
+      expect(find.text('Mueve el mapa con dos dedos o ábrelo completo.'), findsNothing);
+      expect(gestos(), gestosDelMapaCompleto);
+      // "Tú" se actualiza con el GPS también aquí.
+      gps.leer(-17.7725, -63.1712, 6);
+      await esperar(tester);
+      expect(find.text('Tú'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Visitas · 3 de 5 marcadas'), findsOneWidget);
+    });
+
+    testWidgets('el mapa completo, con la letra al 200 %, cumple las guías', (tester) async {
+      await abrir(tester, letra: 2);
+      await tester.tap(find.byTooltip('Ver el mapa completo'));
+      await tester.pumpAndSettle();
+
       await cumpleLasGuias(tester);
     });
   });

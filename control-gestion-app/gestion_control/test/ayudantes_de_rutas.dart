@@ -195,6 +195,21 @@ Map<String, dynamic> caminosJson() => {
 
 Caminos caminosDePrueba() => Caminos.fromJson(caminosJson());
 
+/// Lo que se le pidió al pedir el orden.
+typedef PedidoDeOrden = ({int rutaId, Posicion desde, MedioDeTransporte medio, List<int> ausentes});
+
+/// El orden de la ruta del 8.6.9 en curso (3 de 5 marcadas): Luis antes que Marco, y Pedro (la ausente, la 2) al final
+/// si vuelve a pasar.
+OrdenSugerido ordenDePrueba(List<int> ausentes) => OrdenSugerido(
+  visitas: [
+    const VisitaOrdenada(id: 5, orden: 4, nombreCompleto: 'Luis Fernández Áñez', ausente: false),
+    VisitaOrdenada(id: 4, orden: 5, nombreCompleto: 'Marco Ortiz Peña', ausente: false),
+    if (ausentes.contains(2)) const VisitaOrdenada(id: 2, orden: 6, nombreCompleto: 'Pedro Mamani Cruz', ausente: true),
+  ],
+  duracion: 1500,
+  distancia: 7400,
+);
+
 /// Lo que se le pidió al pedir un camino.
 typedef PedidoDeCamino = ({int rutaId, int visitaId, Posicion desde, MedioDeTransporte medio});
 
@@ -208,6 +223,8 @@ class RutasRepositoryFalso implements RutasRepository {
   Future<void> Function(int id, Posicion ubicacion)? alEnviar;
   Future<Ruta> Function(int id)? alTerminar;
   Future<Caminos> Function(PedidoDeCamino pedido)? alPedirCamino;
+  Future<OrdenSugerido> Function(PedidoDeOrden pedido)? alPedirOrden;
+  Future<Ruta> Function(int id, List<int> visitas, List<int> vuelven)? alReordenar;
 
   var pedidosDelDia = 0;
   final inicios = <int>[];
@@ -215,6 +232,8 @@ class RutasRepositoryFalso implements RutasRepository {
   final ubicaciones = <(int, Posicion)>[];
   final finales = <int>[];
   final caminos = <PedidoDeCamino>[];
+  final ordenes = <PedidoDeOrden>[];
+  final reordenadas = <(List<int>, List<int>)>[];
 
   @override
   Future<Ruta?> delDia() {
@@ -258,6 +277,24 @@ class RutasRepositoryFalso implements RutasRepository {
     final pedido = (rutaId: id, visitaId: visitaId, desde: desde, medio: medio);
     caminos.add(pedido);
     return (alPedirCamino ?? (_) async => caminosDePrueba())(pedido);
+  }
+
+  @override
+  Future<OrdenSugerido> ordenSugerido(
+    int id, {
+    required Posicion desde,
+    required MedioDeTransporte medio,
+    List<int> ausentes = const [],
+  }) {
+    final pedido = (rutaId: id, desde: desde, medio: medio, ausentes: ausentes);
+    ordenes.add(pedido);
+    return (alPedirOrden ?? (p) async => ordenDePrueba(p.ausentes))(pedido);
+  }
+
+  @override
+  Future<Ruta> reordenar(int id, {required List<int> visitas, List<int> ausentesQueVuelven = const []}) {
+    reordenadas.add((visitas, ausentesQueVuelven));
+    return (alReordenar ?? (_, _, _) async => rutaDePrueba())(id, visitas, ausentesQueVuelven);
   }
 
   @override

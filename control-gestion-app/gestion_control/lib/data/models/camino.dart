@@ -114,3 +114,38 @@ class Caminos {
   /// El principal primero: el índice que se elige en la pantalla.
   List<Camino> get todos => [principal, ...alternativas];
 }
+
+/// Una visita en el orden propuesto (`VisitaOrdenadaDTO`, parte C de la tarea 25), con el número que tendría.
+/// [ausente]: estaba ausente y el promotor vuelve a pasar por ella.
+class VisitaOrdenada {
+  const VisitaOrdenada({required this.id, required this.orden, required this.nombreCompleto, required this.ausente});
+
+  factory VisitaOrdenada.fromJson(Map<String, dynamic> json) => VisitaOrdenada(
+    id: json['id'] as int,
+    orden: json['orden'] as int,
+    nombreCompleto: json['nombreCompleto'] as String,
+    ausente: json['ausente'] as bool,
+  );
+
+  final int id;
+  final int orden;
+  final String nombreCompleto;
+  final bool ausente;
+}
+
+/// El orden más corto para lo que le falta al promotor (`OrdenSugeridoDTO`): todavía no está guardado.
+class OrdenSugerido {
+  const OrdenSugerido({required this.visitas, required this.duracion, required this.distancia});
+
+  factory OrdenSugerido.fromJson(Map<String, dynamic> json) => OrdenSugerido(
+    visitas: [for (final v in json['visitas'] as List) VisitaOrdenada.fromJson(v as Map<String, dynamic>)],
+    duracion: json['duracionSegundos'] as int,
+    distancia: json['distanciaMetros'] as int,
+  );
+
+  final List<VisitaOrdenada> visitas;
+
+  /// En segundos y en metros.
+  final int duracion;
+  final int distancia;
+}

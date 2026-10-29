@@ -69,6 +69,19 @@ public class RutasController(RutaService rutas) : ControllerBase
     public async Task<ActionResult<CaminosDTO>> GetCamino(int id, int visitaId, [FromQuery] CaminoConsultaDTO consulta) =>
         await rutas.CaminoAsync(id, visitaId, consulta);
 
+    // Parte C de la tarea 25: el orden más corto de lo que le falta al promotor, desde donde está. No guarda nada; tiene su
+    // propio límite, porque usa otro cupo del proveedor.
+    [HttpGet("{id:int}/orden-sugerido")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    [EnableRateLimiting(LimiteDeCaminos.PoliticaDeOrdenes)]
+    public async Task<ActionResult<OrdenSugeridoDTO>> GetOrdenSugerido(int id, [FromQuery] OrdenConsultaDTO consulta) =>
+        await rutas.OrdenSugeridoAsync(id, consulta);
+
+    [HttpPost("{id:int}/reordenar")]
+    [Permiso(Permisos.Territorial.RecorrerRuta)]
+    public async Task<ActionResult<RutaDTO>> Reordenar(int id, [FromBody] ReordenarDTO dto) =>
+        await rutas.ReordenarAsync(id, dto);
+
     [HttpPost("{id:int}/ubicaciones")]
     // La app la manda sola cada 30 s con la ruta en curso: no es una operación del usuario.
     [SinBitacora]

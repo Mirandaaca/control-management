@@ -31,8 +31,40 @@ public class OpenRouteServiceFalso : HttpMessageHandler
         var cuerpo = JsonDocument.Parse(await pedido.Content!.ReadAsStringAsync(cancelacion)).RootElement.Clone();
         var clave = pedido.Headers.TryGetValues("Authorization", out var valores) ? valores.Single() : null;
         Pedidos.Enqueue(new Pedido(pedido.RequestUri!, clave, cuerpo));
-        return Responder?.Invoke() ?? Json(HttpStatusCode.OK, Ejemplo);
+        if (Responder != null) return Responder();
+        return pedido.RequestUri!.AbsolutePath.EndsWith("/optimization")
+            ? Json(HttpStatusCode.OK, OrdenAlReves(cuerpo))
+            : Json(HttpStatusCode.OK, Ejemplo);
     }
+
+    /// <summary>
+    /// La optimización (VROOM) de mentira: visita los trabajos al revés de como llegaron, así la prueba ve que el orden
+    /// cambia. Tarda 900,4 s y mide 7.400,2 m.
+    /// </summary>
+    public static object OrdenAlReves(JsonElement cuerpo)
+    {
+        var ids = cuerpo.GetProperty("jobs").EnumerateArray().Select(j => j.GetProperty("id").GetInt32()).Reverse();
+        return OrdenCon([.. ids], []);
+    }
+
+    public static object OrdenCon(int[] trabajos, int[] sinAsignar) => new
+    {
+        code = 0,
+        summary = new { cost = 900, duration = 900, distance = 7400 },
+        unassigned = sinAsignar.Select(id => new { id, location = new[] { 0.0, 0.0 } }),
+        routes = new[]
+        {
+            new
+            {
+                vehicle = 1,
+                duration = 900.4,
+                distance = 7400.2,
+                steps = new object[] { new { type = "start", location = new[] { -63.19, -17.78 } } }
+                    .Concat(trabajos.Select(id => (object)new { type = "job", id, location = new[] { 0.0, 0.0 } }))
+                    .ToArray()
+            }
+        }
+    };
 
     public static HttpResponseMessage Json(HttpStatusCode estado, object cuerpo) =>
         new(estado) { Content = new StringContent(JsonSerializer.Serialize(cuerpo), Encoding.UTF8, "application/json") };
