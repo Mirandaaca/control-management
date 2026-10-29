@@ -233,6 +233,43 @@ void main() {
     });
   });
 
+  group('reordenar (parte C de la tarea 25)', () {
+    test('el orden sugerido manda la ubicación, el medio y las ausentes que vuelven, y lee el orden', () async {
+      final (dio, api) = _api(
+        (_) => _json({
+          'visitas': [
+            {'id': 5, 'orden': 4, 'nombreCompleto': 'Luis Fernández Áñez', 'ausente': false},
+            {'id': 2, 'orden': 5, 'nombreCompleto': 'Pedro Mamani Cruz', 'ausente': true},
+          ],
+          'duracionSegundos': 900,
+          'distanciaMetros': 7400,
+        }),
+      );
+
+      final orden = await RutasRepository(
+        dio,
+      ).ordenSugerido(8, desde: const Posicion(-17.7765, -63.174, 5), medio: MedioDeTransporte.auto, ausentes: [2]);
+
+      expect(api.pedidos.single.path, '/rutas/8/orden-sugerido');
+      expect(api.pedidos.single.uri.query, 'latitud=-17.776500&longitud=-63.174000&medio=auto&ausentes=2');
+      expect(orden.visitas.map((v) => (v.id, v.orden, v.ausente)), [(5, 4, false), (2, 5, true)]);
+      expect((orden.duracion, orden.distancia), (900, 7400));
+    });
+
+    test('reordenar manda el orden y las ausentes que vuelven, y devuelve la ruta', () async {
+      final (dio, api) = _api((_) => _json(rutaJson()));
+
+      final ruta = await RutasRepository(dio).reordenar(8, visitas: [5, 4, 2], ausentesQueVuelven: [2]);
+
+      expect(api.pedidos.single.path, '/rutas/8/reordenar');
+      expect(api.pedidos.single.data, {
+        'visitas': [5, 4, 2],
+        'ausentesQueVuelven': [2],
+      });
+      expect(ruta.id, 8);
+    });
+  });
+
   test('los puntos de referencia de una zona', () async {
     final (dio, api) = _api(
       (_) => _json([

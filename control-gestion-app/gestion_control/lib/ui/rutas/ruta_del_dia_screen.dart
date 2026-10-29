@@ -25,6 +25,7 @@ import 'etiqueta_de_ruta.dart';
 import 'mapa_de_la_ruta.dart';
 import 'marcadores.dart';
 import 'marcar_visita_hoja.dart';
+import 'reordenar_hoja.dart';
 import 'ruta_del_dia_view_model.dart';
 import 'seguimiento_de_ruta.dart';
 
@@ -98,6 +99,12 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
   Future<void> _comoLlegar(Ruta ruta, VisitaDeRuta visita) async {
     final marcar = await context.push<bool>(Rutas.camino, extra: (rutaId: ruta.id, visita: visita));
     if (marcar == true && mounted) await _marcar(ruta, visita);
+  }
+
+  // Parte C de la tarea 25: el orden más corto de lo que falta, desde donde está el promotor.
+  Future<void> _reordenar(Ruta ruta) async {
+    final reordenada = await reordenarRuta(context, ruta: ruta);
+    if (reordenada != null) _viewModel.reordenada(reordenada);
   }
 
   // 7.3.20, ext. 5a: la venta de la visita, con el cliente ya elegido.
@@ -189,6 +196,17 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          // Con la ubicación del GPS y al menos dos visitas por hacer (las ausentes se pueden repetir).
+                          if (ruta.estado == EstadoRuta.enCurso &&
+                              seguimiento.rutaId == ruta.id &&
+                              seguimiento.ultima != null &&
+                              ruta.visitas.where((v) => v.resultado != EstadoVisita.visitado).length >= 2) ...[
+                            OutlinedButton(
+                              onPressed: () => _reordenar(ruta),
+                              child: const Text('Reordenar desde aquí'),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
                           for (final visita in ruta.visitas) ...[
                             _TarjetaDeVisita(
                               visita,
