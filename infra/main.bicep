@@ -3,7 +3,7 @@
 // presupuesto. Todo es gratis o cuesta centavos; el grupo de recursos se crea a mano, y esto lo corre
 // infra/scripts/desplegar-infra.ps1.
 //
-// Ningún secreto sale de aquí: los tres llegan como @secure() y solo van a las configuraciones de la API.
+// Ningún secreto sale de aquí: los cuatro llegan como @secure() y solo van a las configuraciones de la API.
 
 @description('La región de todo. Es la del grupo: spaincentral, la más cerca de Bolivia de las que permiten MySQL en esta suscripción.')
 param region string = resourceGroup().location
@@ -22,6 +22,10 @@ param claveJwt string
 @secure()
 @description('La contraseña de admin@control.com, que la API siembra al arrancar (Seed__AdminPassword).')
 param claveAdmin string
+
+@secure()
+@description('La clave de OpenRouteService, para el camino por calles de la app (Navegacion__Clave, tarea 25).')
+param claveNavegacion string
 
 // GitHub firma el token de cada trabajo con el sujeto "repo:<cuenta>@<id de la cuenta>/<repo>@<id del repo>:environment:<entorno>".
 // Los id no cambian aunque se renombre la cuenta o el repo. Salen de https://api.github.com/repos/Mirandaaca/control-management
@@ -104,6 +108,7 @@ module api 'modulos/api.bicep' = {
     claveMysql: claveMysql
     claveJwt: claveJwt
     claveAdmin: claveAdmin
+    claveNavegacion: claveNavegacion
     idDelQueDespliega: identidad.outputs.idDelPrincipal
   }
 }

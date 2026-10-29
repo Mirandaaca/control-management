@@ -12,6 +12,10 @@ param([switch] $SoloVerCambios, [switch] $SinFirewall)
 Comprobar-Suscripcion
 $secretos = Leer-Secretos
 $ambiente = Leer-Ambiente
+# La clave de OpenRouteService llegó después (tarea 25): un secretos.txt de antes no la trae.
+if (-not $secretos['navegacion']) {
+    throw "Falta la línea navegacion=<clave de OpenRouteService> en $ArchivoDeSecretos. Ver docs/despliegue.md."
+}
 
 if ((az group exists -n $Grupo) -ne 'true') {
     if ($SoloVerCambios) { Write-Host "El grupo $Grupo todavía no existe."; return }
@@ -24,6 +28,7 @@ $env:CONTROL_CORREO_PRESUPUESTO = $ambiente['correo']
 $env:CONTROL_CLAVE_MYSQL = $secretos['mysql']
 $env:CONTROL_CLAVE_JWT = $secretos['jwt']
 $env:CONTROL_CLAVE_ADMIN = $secretos['admin']
+$env:CONTROL_CLAVE_NAVEGACION = $secretos['navegacion']
 $env:CONTROL_ACTUALIZAR_FIREWALL = if ($SinFirewall) { 'false' } else { 'true' }
 $parametros = Join-Path $RaizDelRepo 'infra/pruebas.bicepparam'
 try {
@@ -37,6 +42,6 @@ try {
     Write-Host 'Listo. Si es la primera vez, sigue con infra/scripts/activar-sitios-estaticos.ps1.' -ForegroundColor Green
 }
 finally {
-    Remove-Item Env:CONTROL_CORREO_PRESUPUESTO, Env:CONTROL_CLAVE_MYSQL, Env:CONTROL_CLAVE_JWT, Env:CONTROL_CLAVE_ADMIN, Env:CONTROL_ACTUALIZAR_FIREWALL `
-        -ErrorAction SilentlyContinue
+    Remove-Item Env:CONTROL_CORREO_PRESUPUESTO, Env:CONTROL_CLAVE_MYSQL, Env:CONTROL_CLAVE_JWT, Env:CONTROL_CLAVE_ADMIN, `
+        Env:CONTROL_CLAVE_NAVEGACION, Env:CONTROL_ACTUALIZAR_FIREWALL -ErrorAction SilentlyContinue
 }
