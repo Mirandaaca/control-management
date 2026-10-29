@@ -87,13 +87,17 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
     _seguir(posicion, zoom: math.max(_mapa.camera.zoom, 16));
   }
 
-  // El primer camino se ve entero; después el mapa sigue al promotor con ese acercamiento.
-  void _encuadrar(Camino camino) {
+  // Los primeros caminos se ven enteros, con las alternativas y sus etiquetas; después el mapa sigue al promotor con ese
+  // acercamiento. Abajo deja lugar a la atribución, que con dos renglones tapaba el punto de partida.
+  void _encuadrar(Caminos caminos) {
     if (!_listo) return;
     _mapa.fitCamera(
       CameraFit.coordinates(
-        coordinates: [for (final p in camino.puntos) puntoDe(p.latitud, p.longitud)],
-        padding: const EdgeInsets.all(56),
+        coordinates: [
+          for (final camino in caminos.todos)
+            for (final p in camino.puntos) puntoDe(p.latitud, p.longitud),
+        ],
+        padding: const EdgeInsets.fromLTRB(48, 48, 48, 88),
         maxZoom: 17,
       ),
     );
@@ -123,7 +127,7 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
       if (posicion != null && _siguiendo) _seguir(posicion);
     });
     ref.listen(provider.select((e) => e.caminos), (anterior, caminos) {
-      if (anterior == null && caminos != null) _encuadrar(caminos.principal);
+      if (anterior == null && caminos != null) _encuadrar(caminos);
     });
 
     final camino = estado.camino;
