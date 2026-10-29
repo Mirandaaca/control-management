@@ -80,6 +80,15 @@ body {
   min-height: 100vh;
 }
 
+/* La barra de desplazamiento del menú lateral: sin ella, el navegador la dibuja blanca y gris sobre marca-900. La guía va
+   en marca-400 (4,1:1 contra el menú; marca-500 no llega al 3:1 de un control). color-scheme la oscurece donde
+   scrollbar-color no existe (Safari). */
+.desplazamiento-del-menu {
+  color-scheme: dark;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-marca-400) transparent;
+}
+
 /* Login: la ruta se dibuja una sola vez y al final aparece el promotor. */
 .ruta-login {
   stroke-dasharray: 1;
