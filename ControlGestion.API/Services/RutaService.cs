@@ -15,7 +15,7 @@ namespace ControlGestion.API.Services;
 /// usuario ve solo sus rutas.
 /// </summary>
 public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, RevisitaService revisitas,
-    TimeProvider reloj)
+    NavegacionService navegacion, TimeProvider reloj)
 {
     private static readonly TimeSpan DiasDeUbicaciones = TimeSpan.FromDays(30);
 
@@ -175,6 +175,22 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
             Fecha = Ahora,
         });
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// El camino por calles desde donde está el promotor hasta el cliente de una visita (tarea 25). Solo el dueño y con la
+    /// ruta en curso, como el resto del recorrido. El destino sale de la base: el celular solo manda dónde está.
+    /// </summary>
+    public async Task<CaminosDTO> CaminoAsync(int id, int visitaId, CaminoConsultaDTO consulta)
+    {
+        var ruta = await SuyaAsync(id);
+        ExigirEnCurso(ruta);
+        var destino = await db.RutasDetalle.Where(d => d.Id == visitaId && d.RutaId == id)
+            .Select(d => new { d.Cliente!.Latitud, d.Cliente.Longitud })
+            .FirstOrDefaultAsync()
+            ?? throw new NoEncontradoException("No se encontró la visita en la ruta.");
+        return await navegacion.CaminoAsync(consulta.Latitud!.Value, consulta.Longitud!.Value, destino.Latitud,
+            destino.Longitud, consulta.Medio);
     }
 
     /// <summary>Terminar (pasos 7.1 y 7.2). Las visitas sin marcar quedan pendientes (ext. 7.1a): la app avisa cuántas antes.</summary>

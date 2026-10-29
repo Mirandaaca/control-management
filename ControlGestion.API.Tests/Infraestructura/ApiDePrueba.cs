@@ -83,6 +83,9 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Seed:AdminPassword", ContrasenaAdmin);
         builder.UseSetting("Almacenamiento:Ruta", CarpetaDeArchivos);
         builder.UseSetting("Cors:Origenes:0", OrigenDePrueba);
+        // Sin clave y con una dirección que no existe: una prueba que no use el proveedor falso (ConNavegacion) nunca sale
+        // a internet.
+        builder.UseSetting("Navegacion:Url", "https://ors.invalid/");
 
         builder.ConfigureServices(servicios =>
         {

@@ -149,6 +149,7 @@ jobs:
           CONTROL_CLAVE_MYSQL: falsa
           CONTROL_CLAVE_JWT: falsa
           CONTROL_CLAVE_ADMIN: falsa
+          CONTROL_CLAVE_NAVEGACION: falsa
 
   resumen:
     if: always()

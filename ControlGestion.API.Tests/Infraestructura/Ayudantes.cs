@@ -2,9 +2,12 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ControlGestion.API.Configuracion;
+using ControlGestion.API.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace ControlGestion.API.Tests.Infraestructura;
 
@@ -44,6 +47,23 @@ public static class Ayudantes
     /// </summary>
     public static WebApplicationFactory<Program> ConReloj(this ApiDePrueba api, TimeProvider reloj) =>
         api.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton(reloj)));
+
+    /// <summary>
+    /// La misma API con un OpenRouteService falso (tarea 25). Cada una trae su caché, su límite por usuario y su tope
+    /// diario. Sin clave, el camino responde 503 sin llamar al proveedor. Levanta otro servidor, como ConReloj.
+    /// </summary>
+    public static WebApplicationFactory<Program> ConNavegacion(this ApiDePrueba api, OpenRouteServiceFalso proveedor,
+        string? clave, LogsCapturados? logs = null, IReadOnlyDictionary<string, string>? ajustes = null) =>
+        api.WithWebHostBuilder(b =>
+        {
+            if (clave != null) b.UseSetting("Navegacion:Clave", clave);
+            foreach (var (nombre, valor) in ajustes ?? new Dictionary<string, string>())
+                b.UseSetting(nombre, valor);
+            b.ConfigureTestServices(s =>
+                s.AddHttpClient<NavegacionService>().ConfigurePrimaryHttpMessageHandler(() => proveedor));
+            if (logs != null)
+                b.ConfigureLogging(l => l.AddProvider(logs).AddFilter<LogsCapturados>(null, LogLevel.Trace));
+        });
 
     public static async Task<HttpClient> AdminAsync(this ApiDePrueba api) =>
         api.ClienteCon(await api.IniciarSesionAsync(ApiDePrueba.CorreoAdmin, api.ContrasenaAdmin));

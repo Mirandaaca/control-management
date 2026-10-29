@@ -22,6 +22,9 @@ param claveJwt string
 @secure()
 param claveAdmin string
 
+@secure()
+param claveNavegacion string
+
 @description('La identidad de GitHub Actions, que despliega el código.')
 param idDelQueDespliega string
 
@@ -55,6 +58,7 @@ var configuraciones = concat(
     }
     { name: 'Jwt__Key', value: claveJwt }
     { name: 'Seed__AdminPassword', value: claveAdmin }
+    { name: 'Navegacion__Clave', value: claveNavegacion }
     // En Information, EF escribe cada SQL en el log: gasta disco y CPU, que en el F1 son pocos. Va la categoría Microsoft
     // entera (incluye Microsoft.EntityFrameworkCore) porque en Linux un punto en el nombre se cambia por guion bajo.
     { name: 'Logging__LogLevel__Microsoft', value: 'Warning' }

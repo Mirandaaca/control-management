@@ -51,3 +51,10 @@ public class ConflictoException(string codigo, string mensaje)
 
 public class NoAutenticadoException(string codigo, string mensaje)
     : ExcepcionDeNegocio(StatusCodes.Status401Unauthorized, codigo, "No autenticado", mensaje);
+
+/// <summary>
+/// Un servicio externo que no respondió, o un límite de uso alcanzado, como el camino por calles (tarea 25): el usuario
+/// sigue sin él.
+/// </summary>
+public class ServicioNoDisponibleException(string codigo, string mensaje)
+    : ExcepcionDeNegocio(StatusCodes.Status503ServiceUnavailable, codigo, "Servicio no disponible", mensaje);
