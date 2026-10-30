@@ -118,7 +118,7 @@ public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, Time
     }
 
     /// <summary>
-    /// Los cinco estados, también los que no tienen pedidos. Los anulados se ven en su fila, pero no suman al total:
+    /// Los cuatro estados, también los que no tienen pedidos. Los anulados se ven en su fila, pero no suman al total:
     /// ese pedido ya no se entrega ni se cobra.
     /// </summary>
     private async Task<(List<TotalPorEstadoDTO> PorEstado, int Cantidad, decimal Monto)> TotalesAsync(IQueryable<Pedido> consulta)

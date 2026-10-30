@@ -5,12 +5,12 @@ import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { Alert, AreaDeTexto, Confirmar } from '../ui';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { formatearHora } from '../../utils/formato';
-import { EN_PROCESO, EN_RUTA, SIGUIENTE } from './estados';
+import { SIGUIENTE } from './estados';
 
 /**
- * Avanzar varios pedidos a la vez (1.2): cada uno pasa a su estado siguiente, con una sola confirmación. Los que no
- * avanzan (En ruta: lo que sigue es la entrega, en la app) quedan igual. La API lo hace todo o nada y con el estado que
- * se ve aquí: si uno cambió mientras tanto, no avanza ninguno y avisa con "pedido_cambio".
+ * Pasar varios pedidos a En ruta a la vez (1.2), con una sola confirmación. Los que no avanzan (los que ya están En
+ * ruta: lo que sigue es la entrega, en la app) quedan igual. La API lo hace todo o nada y con el estado que se ve aquí:
+ * si uno cambió mientras tanto, no avanza ninguno y avisa con "pedido_cambio".
  */
 export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron }) {
   const [texto, setTexto] = useState('');
@@ -21,20 +21,11 @@ export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron
 
   const avanzan = pedidos.filter((p) => SIGUIENTE[p.estado.id]);
   const quedan = pedidos.filter((p) => !SIGUIENTE[p.estado.id]);
-  const aProceso = avanzan.filter((p) => SIGUIENTE[p.estado.id].id === EN_PROCESO);
-  const aRuta = avanzan.filter((p) => SIGUIENTE[p.estado.id].id === EN_RUTA);
   // En ruta sin promotor no se puede entregar: la entrega la registra el promotor asignado.
-  const sinPromotor = aRuta.filter((p) => !p.repartidor);
+  const sinPromotor = avanzan.filter((p) => !p.repartidor);
   const unoSolo = avanzan.length === 1 ? avanzan[0] : null;
 
-  const exito = () => {
-    if (unoSolo) return `${unoSolo.numero} pasó a ${SIGUIENTE[unoSolo.estado.id].nombre}.`;
-    const partes = [
-      aProceso.length > 0 && `${aProceso.length} a En proceso`,
-      aRuta.length > 0 && `${aRuta.length} a En ruta`,
-    ].filter(Boolean);
-    return `${avanzan.length} pedidos avanzaron: ${partes.join(' y ')}.`;
-  };
+  const exito = () => (unoSolo ? `${unoSolo.numero} pasó a En ruta.` : `${avanzan.length} pedidos pasaron a En ruta.`);
 
   const enviar = async () => {
     setEnviando(true);
@@ -55,7 +46,7 @@ export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron
       flushSync(() => {
         const campos = erroresPorCampo(err);
         setErrores(campos);
-        if (!campos.observacion) setError(mensajeDeError(err, 'No se pudieron avanzar los pedidos.'));
+        if (!campos.observacion) setError(mensajeDeError(err, 'No se pudieron pasar los pedidos a En ruta.'));
       });
       mostrarPrimerProblema(contenedorRef.current);
     } finally {
@@ -82,8 +73,8 @@ export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron
   return (
     <Confirmar
       abierto
-      titulo={unoSolo ? `¿Pasar ${unoSolo.numero} a ${SIGUIENTE[unoSolo.estado.id].nombre}?` : `¿Avanzar ${avanzan.length} pedidos?`}
-      textoAccion={unoSolo ? `Pasar a ${SIGUIENTE[unoSolo.estado.id].nombre}` : `Avanzar ${avanzan.length} pedidos`}
+      titulo={unoSolo ? `¿Pasar ${unoSolo.numero} a En ruta?` : `¿Pasar ${avanzan.length} pedidos a En ruta?`}
+      textoAccion={unoSolo ? 'Pasar a En ruta' : `Pasar ${avanzan.length} pedidos a En ruta`}
       variante="primary"
       enviando={enviando}
       error={error}
@@ -92,12 +83,11 @@ export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron
     >
       <div ref={contenedorRef} className="space-y-3">
         <p>
-          {aRuta.length > 0
-            ? 'Los que pasan a En ruta salen a entregarse: ya no se modifican, y el promotor asignado registra la entrega.'
-            : 'Se están armando. Todavía se pueden modificar.'}
+          {unoSolo
+            ? 'Sale a entregarse: ya no se modifica, y el promotor asignado registra la entrega.'
+            : 'Salen a entregarse: ya no se modifican, y el promotor asignado registra la entrega.'}
         </p>
-        {grupo('Pasan a En proceso', aProceso)}
-        {grupo('Pasan a En ruta', aRuta)}
+        {grupo(unoSolo ? 'Pasa a En ruta' : 'Pasan a En ruta', avanzan)}
         {sinPromotor.length > 0 && (
           <Alert type="warning">
             {sinPromotor.length === 1

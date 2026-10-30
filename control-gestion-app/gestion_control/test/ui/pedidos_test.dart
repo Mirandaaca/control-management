@@ -122,10 +122,10 @@ void main() {
 
       await tester.tap(find.text('Todos los estados'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('En proceso').last);
+      await tester.tap(find.text('En ruta').last);
       await tester.pumpAndSettle();
 
-      expect(pedidos.listados.last.estadoId, EstadosDePedido.enProceso);
+      expect(pedidos.listados.last.estadoId, EstadosDePedido.enRuta);
     });
 
     testWidgets('vacía, lo dice', (tester) async {

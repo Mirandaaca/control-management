@@ -37,11 +37,8 @@ public class PedidosModificacionTests(ApiDePrueba api)
         string motivo = "El cliente no estará") =>
         cliente.PostAsJsonAsync($"/api/pedidos/{pedidoId}/reprogramar", new { fechaEntregaEstimada = fecha, motivo });
 
-    private static async Task AvanzarAsync(HttpClient cliente, int pedidoId, int veces)
-    {
-        for (var i = 0; i < veces; i++)
-            (await cliente.PostAsJsonAsync($"/api/pedidos/{pedidoId}/avanzar", new { })).EnsureSuccessStatusCode();
-    }
+    private static async Task PasarAEnRutaAsync(HttpClient cliente, int pedidoId) =>
+        (await cliente.PostAsJsonAsync($"/api/pedidos/{pedidoId}/avanzar", new { })).EnsureSuccessStatusCode();
 
     private static async Task<(int PedidoId, int ClienteId)> PedidoNuevoAsync(HttpClient operador, int? zonaId = null)
     {
@@ -54,7 +51,6 @@ public class PedidosModificacionTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var (pedidoId, clienteId) = await PedidoNuevoAsync(operador);
-        await AvanzarAsync(operador, pedidoId, 1);
         var otroProducto = await operador.CrearProductoAsync(7.5m);
 
         var pedido = await (await ModificarAsync(operador, pedidoId, otroProducto, cantidad: 4, fecha: EnBolivia(Manana, 16),
@@ -69,10 +65,10 @@ public class PedidosModificacionTests(ApiDePrueba api)
         Assert.Equal(Manana.ToDateTime(new TimeOnly(20, 0)), pedido.GetProperty("fechaEntregaEstimada").GetDateTime());
         Assert.Equal(clienteId, pedido.GetProperty("cliente").GetProperty("id").GetInt32());
         // Modificar no cambia el estado.
-        Assert.Equal(2, EstadoDe(pedido));
+        Assert.Equal(1, EstadoDe(pedido));
         var entrada = pedido.GetProperty("historial").EnumerateArray().Last();
         Assert.Equal("Pedido modificado", entrada.GetProperty("observacion").GetString());
-        Assert.Equal(2, entrada.GetProperty("estado").GetProperty("id").GetInt32());
+        Assert.Equal(1, entrada.GetProperty("estado").GetProperty("id").GetInt32());
     }
 
     [Fact]
@@ -81,11 +77,12 @@ public class PedidosModificacionTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var productoId = await operador.CrearProductoAsync(10m);
         var (enRuta, _) = await PedidoNuevoAsync(operador);
-        await AvanzarAsync(operador, enRuta, 2);
+        await PasarAEnRutaAsync(operador, enRuta);
         var (anulado, _) = await PedidoNuevoAsync(operador);
         (await operador.PostAsJsonAsync($"/api/pedidos/{anulado}/anular", new { motivo = "Prueba" })).EnsureSuccessStatusCode();
 
-        await (await ModificarAsync(operador, enRuta, productoId)).ProblemaAsync(400, "pedido_no_modificable");
+        var problema = await (await ModificarAsync(operador, enRuta, productoId)).ProblemaAsync(400, "pedido_no_modificable");
+        Assert.EndsWith("está en ruta: solo se modifica mientras está pendiente.", problema.GetProperty("detail").GetString());
         await (await ModificarAsync(operador, anulado, productoId)).ProblemaAsync(400, "pedido_no_modificable");
     }
 
@@ -125,7 +122,7 @@ public class PedidosModificacionTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
         var (pedidoId, _) = await PedidoNuevoAsync(operador);
-        await AvanzarAsync(operador, pedidoId, 2);
+        await PasarAEnRutaAsync(operador, pedidoId);
         var pasadoManana = Manana.AddDays(1);
 
         var pedido = await (await ReprogramarAsync(operador, pedidoId, EnBolivia(pasadoManana, 9, 30), "  El cliente viaja  "))

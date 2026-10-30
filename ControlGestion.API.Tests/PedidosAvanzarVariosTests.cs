@@ -10,7 +10,7 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class PedidosAvanzarVariosTests(ApiDePrueba api)
 {
-    private const int Pendiente = 1, EnProceso = 2, EnRuta = 3, Anulado = 5;
+    private const int Pendiente = 1, EnRuta = 3, Anulado = 5;
 
     private static async Task<JsonElement> PedidoDe(HttpClient cliente, int pedidoId) =>
         await (await cliente.GetAsync($"/api/pedidos/{pedidoId}")).LeerJsonAsync();
@@ -30,20 +30,18 @@ public class PedidosAvanzarVariosTests(ApiDePrueba api)
             await operador.CrearProductoAsync(10m), 1);
 
     [Fact]
-    public async Task Cada_pedido_pasa_a_su_estado_siguiente_con_la_observacion_en_el_historial()
+    public async Task Cada_pedido_pasa_a_en_ruta_con_la_observacion_en_el_historial()
     {
         using var operador = await api.OperadorAsync();
         var primero = await PedidoNuevoAsync(operador);
         var segundo = await PedidoNuevoAsync(operador);
-        var enProceso = await PedidoNuevoAsync(operador);
-        await AvanzarUnoAsync(operador, enProceso);
 
         var avanzados = (await (await AvanzarVariosAsync(operador, "  Salen en la camioneta  ",
-                (primero, Pendiente), (segundo, Pendiente), (enProceso, EnProceso))).LeerJsonAsync())
+                (primero, Pendiente), (segundo, Pendiente))).LeerJsonAsync())
             .EnumerateArray().ToDictionary(p => p.GetProperty("id").GetInt32(), EstadoDe);
 
-        Assert.Equal(new Dictionary<int, int> { [primero] = EnProceso, [segundo] = EnProceso, [enProceso] = EnRuta }, avanzados);
-        var entrada = (await PedidoDe(operador, enProceso)).GetProperty("historial").EnumerateArray().Last();
+        Assert.Equal(new Dictionary<int, int> { [primero] = EnRuta, [segundo] = EnRuta }, avanzados);
+        var entrada = (await PedidoDe(operador, segundo)).GetProperty("historial").EnumerateArray().Last();
         Assert.Equal(EnRuta, entrada.GetProperty("estado").GetProperty("id").GetInt32());
         Assert.Equal("Salen en la camioneta", entrada.GetProperty("observacion").GetString());
     }
@@ -54,7 +52,8 @@ public class PedidosAvanzarVariosTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var quieto = await PedidoNuevoAsync(operador);
         var movido = await PedidoNuevoAsync(operador);
-        // Otra persona lo pasó a En proceso después de que se eligió como Pendiente: no debe saltar a En ruta.
+        // Otra persona lo pasó a En ruta después de que se eligió como Pendiente: el 409 dice que cambió, en vez de un
+        // 400 por un estado que quien lo eligió no vio.
         await AvanzarUnoAsync(operador, movido);
 
         var problema = await (await AvanzarVariosAsync(operador, null, (quieto, Pendiente), (movido, Pendiente)))
@@ -63,7 +62,7 @@ public class PedidosAvanzarVariosTests(ApiDePrueba api)
         Assert.Contains((await PedidoDe(operador, movido)).GetProperty("numero").GetString()!,
             problema.GetProperty("detail").GetString());
         Assert.Equal(Pendiente, EstadoDe(await PedidoDe(operador, quieto)));
-        Assert.Equal(EnProceso, EstadoDe(await PedidoDe(operador, movido)));
+        Assert.Equal(EnRuta, EstadoDe(await PedidoDe(operador, movido)));
     }
 
     [Fact]
@@ -72,7 +71,6 @@ public class PedidosAvanzarVariosTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var pendiente = await PedidoNuevoAsync(operador);
         var enRuta = await PedidoNuevoAsync(operador);
-        await AvanzarUnoAsync(operador, enRuta);
         await AvanzarUnoAsync(operador, enRuta);
         var anulado = await PedidoNuevoAsync(operador);
         (await operador.PostAsJsonAsync($"/api/pedidos/{anulado}/anular", new { motivo = "Prueba" })).EnsureSuccessStatusCode();
@@ -141,7 +139,7 @@ public class PedidosAvanzarVariosTests(ApiDePrueba api)
         Assert.Single(respuestas, r => r.StatusCode == HttpStatusCode.OK);
         Assert.Single(respuestas, r => r.StatusCode == HttpStatusCode.Conflict);
         var pedido = await PedidoDe(operador, pedidoId);
-        Assert.Equal(EnProceso, EstadoDe(pedido));
+        Assert.Equal(EnRuta, EstadoDe(pedido));
         Assert.Equal(2, pedido.GetProperty("historial").GetArrayLength());
     }
 }

@@ -52,7 +52,7 @@ public class PedidosDistribucionTests(ApiDePrueba api)
         Assert.Equal([dia.ToDateTime(new TimeOnly(14, 0)), dia.ToDateTime(new TimeOnly(19, 30))],
             asignados.Select(p => p.GetProperty("fechaEntregaEstimada").GetDateTime()));
         Assert.All(asignados, p => Assert.Equal(promotor.Id, p.GetProperty("repartidor").GetProperty("id").GetString()));
-        Assert.Equal([1, 2], asignados.Select(p => p.GetProperty("estado").GetProperty("id").GetInt32()));
+        Assert.Equal([1, 3], asignados.Select(p => p.GetProperty("estado").GetProperty("id").GetInt32()));
 
         var entrada = (await PedidoDe(operador, deLasDiez)).GetProperty("historial").EnumerateArray().Last();
         Assert.Equal($"Asignado a Prueba {Roles.Promotor} para el {dia:dd/MM/yyyy}.", entrada.GetProperty("observacion").GetString());

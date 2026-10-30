@@ -184,7 +184,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         Observacion = observacion
     };
 
-    /// <summary>Pasa el pedido al estado siguiente: de Pendiente a En proceso, y de ahí a En ruta.</summary>
+    /// <summary>Pasa el pedido al estado siguiente: de Pendiente a En ruta.</summary>
     public async Task<PedidoDTO> AvanzarAsync(int id, string? observacion)
     {
         var pedido = await BuscarAbiertoAsync(id);
@@ -199,9 +199,9 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     }
 
     /// <summary>
-    /// Avanzar varios a la vez (1.2): cada pedido pasa a su estado siguiente, como con <see cref="AvanzarAsync"/>. Es
-    /// todo o nada. Cada uno llega con el estado que vio quien lo eligió: si alguno cambió mientras tanto, no avanza
-    /// ninguno, así ninguno pasa un estado de más.
+    /// Avanzar varios a la vez (1.2): cada pedido pasa a su estado siguiente (En ruta), como con
+    /// <see cref="AvanzarAsync"/>. Es todo o nada. Cada uno llega con el estado que vio quien lo eligió: si alguno cambió
+    /// mientras tanto (otra persona lo avanzó, lo reprogramó o lo anuló), no avanza ninguno.
     /// </summary>
     public async Task<List<PedidoListaDTO>> AvanzarVariosAsync(AvanzarPedidosDTO dto)
     {
@@ -238,14 +238,14 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     }
 
     /// <summary>
-    /// Modificar (1.1): todo menos el cliente, y solo mientras el pedido no salió a entregarse (Pendiente o En
-    /// proceso). Para otro cliente se anula el pedido y se registra uno nuevo.
+    /// Modificar (1.1): todo menos el cliente, y solo mientras el pedido no salió a entregarse (Pendiente). Para otro
+    /// cliente se anula el pedido y se registra uno nuevo.
     /// </summary>
     public async Task<PedidoDTO> ModificarAsync(int id, ModificarPedidoDTO dto)
     {
         var pedido = await Visibles.Include(p => p.Detalles).FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new NoEncontradoException("No se encontró el pedido.");
-        if (pedido.EstadoPedidoId is not (EstadosDePedido.Pendiente or EstadosDePedido.EnProceso))
+        if (pedido.EstadoPedidoId != EstadosDePedido.Pendiente)
         {
             var estado = pedido.EstadoPedidoId switch
             {
@@ -254,7 +254,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
                 _ => "está anulado",
             };
             throw new ReglaDeNegocioException("pedido_no_modificable",
-                $"El pedido {pedido.Numero} {estado}: solo se modifica mientras está pendiente o en proceso.");
+                $"El pedido {pedido.Numero} {estado}: solo se modifica mientras está pendiente.");
         }
 
         var entrega = HoraBolivia.AUtc(dto.FechaEntregaEstimada!.Value);

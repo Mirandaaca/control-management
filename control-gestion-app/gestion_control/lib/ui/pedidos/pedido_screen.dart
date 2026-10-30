@@ -130,8 +130,7 @@ class _Contenido extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        if (desdeLaBandeja &&
-            (pedido.estado.id == EstadosDePedido.pendiente || pedido.estado.id == EstadosDePedido.enProceso)) ...[
+        if (desdeLaBandeja && pedido.estado.id == EstadosDePedido.pendiente) ...[
           const Aviso('Se entrega cuando salga a ruta.', tipo: TipoDeAviso.informacion),
           const SizedBox(height: 16),
         ],

@@ -94,7 +94,7 @@ void main() {
       expect(find.text('Bs 76,00'), findsOneWidget);
     });
 
-    testWidgets('solo los que están en ruta tienen "Registrar entrega"; el en proceso dice por qué', (tester) async {
+    testWidgets('solo los que están en ruta tienen "Registrar entrega"; el pendiente dice por qué', (tester) async {
       await abrir(tester);
       await tester.pump();
 
@@ -148,8 +148,8 @@ void main() {
       expect(find.widgetWithText(FilledButton, 'Registrar entrega'), findsOneWidget);
     });
 
-    testWidgets('el detalle de uno en proceso dice que se entrega cuando salga a ruta, sin el botón', (tester) async {
-      pedidos.alObtener = (_) async => pedidoDePrueba(id: 34, estado: EstadosDePedido.enProceso);
+    testWidgets('el detalle de uno pendiente dice que se entrega cuando salga a ruta, sin el botón', (tester) async {
+      pedidos.alObtener = (_) async => pedidoDePrueba(id: 34, estado: EstadosDePedido.pendiente);
       await abrir(tester, inicio: '/bandeja/34');
       await tester.pump();
 
