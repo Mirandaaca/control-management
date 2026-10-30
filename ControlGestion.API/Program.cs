@@ -137,7 +137,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PuntoReferenciaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.BitacoraService>();
-builder.Services.AddHostedService<ControlGestion.API.Services.MoraDetectionService>();
+builder.Services.AddHostedService<ControlGestion.API.Services.ProcesoDiarioService>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 // El camino por calles de la navegación (tarea 25): OpenRouteService, con un caché, un tope diario entre todos y un límite

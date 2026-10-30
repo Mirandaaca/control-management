@@ -89,7 +89,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
 
         builder.ConfigureServices(servicios =>
         {
-            servicios.Remove(servicios.Single(d => d.ImplementationType == typeof(MoraDetectionService)));
+            servicios.Remove(servicios.Single(d => d.ImplementationType == typeof(ProcesoDiarioService)));
             // Cada usuario de prueba pasa tres veces por el hash (crearlo, y entrar el admin y él): con las 100.000
             // iteraciones de Identity, unos 700 hashes por corrida sumaban unos 40 s. El formato del hash no cambia.
             servicios.Configure<PasswordHasherOptions>(opciones => opciones.IterationCount = 1_000);

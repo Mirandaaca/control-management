@@ -80,8 +80,8 @@ public class DespliegueTests(ApiDePrueba api)
             await db.Cobranzas.Where(c => c.Id == cobranzaId)
                 .ExecuteUpdateAsync(s => s.SetProperty(c => c.FechaVencimiento, DateTime.UtcNow.AddDays(-2)));
         }
-        var proceso = new MoraDetectionService(api.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
-            NullLogger<MoraDetectionService>.Instance);
+        var proceso = new ProcesoDiarioService(api.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
+            NullLogger<ProcesoDiarioService>.Instance);
 
         await proceso.StartAsync(CancellationToken.None);
         var estado = 0;
