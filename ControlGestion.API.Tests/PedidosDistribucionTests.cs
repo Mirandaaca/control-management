@@ -218,4 +218,109 @@ public class PedidosDistribucionTests(ApiDePrueba api)
 
         await (await secretaria.GetAsync("/api/pedidos/bandeja")).ProblemaAsync(403, "sin_permiso");
     }
+
+    // "Ya salen a ruta" (tarea 28): asignar y pasar a En ruta en un solo paso.
+    private static Task<HttpResponseMessage> DespacharAsync(HttpClient cliente, string promotorId, DateOnly dia, params int[] pedidoIds) =>
+        cliente.PostAsJsonAsync("/api/pedidos/asignar",
+            new { pedidoIds, promotorId, dia = dia.ToString("yyyy-MM-dd"), salenARuta = true });
+
+    /// <summary>Un pedido de hoy a las 23:59 de Bolivia: a esa hora todavía no pasó, así que se puede asignar para hoy.</summary>
+    private static async Task<int> PedidoDeHoyAsync(HttpClient operador)
+    {
+        var pedidoId = await PedidoNuevoAsync(operador);
+        (await ReprogramarAsync(operador, pedidoId, Hoy, 23, 59)).EnsureSuccessStatusCode();
+        return pedidoId;
+    }
+
+    private static async Task<List<JsonElement>> HistorialDe(HttpClient cliente, int pedidoId) =>
+        (await (await cliente.GetAsync($"/api/pedidos/{pedidoId}/historial")).LeerJsonAsync()).EnumerateArray().ToList();
+
+    [Fact]
+    public async Task Ya_salen_a_ruta_asigna_y_pasa_a_En_ruta_y_el_promotor_los_ve_en_su_bandeja()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var primero = await PedidoDeHoyAsync(operador);
+        var segundo = await PedidoDeHoyAsync(operador);
+
+        var despachados = (await (await DespacharAsync(operador, promotor.Id, Hoy, primero, segundo)).LeerJsonAsync())
+            .EnumerateArray().ToList();
+
+        Assert.Equal([primero, segundo], despachados.Select(p => p.GetProperty("id").GetInt32()));
+        Assert.All(despachados, p =>
+        {
+            Assert.Equal(promotor.Id, p.GetProperty("repartidor").GetProperty("id").GetString());
+            Assert.Equal(3, p.GetProperty("estado").GetProperty("id").GetInt32());
+        });
+
+        // Como si se hubiera asignado y pasado a En ruta por separado: dos entradas, en ese orden.
+        var ultimas = (await HistorialDe(operador, primero)).TakeLast(2).ToList();
+        Assert.Equal(1, ultimas[0].GetProperty("estado").GetProperty("id").GetInt32());
+        Assert.Equal($"Asignado a Prueba {Roles.Promotor} para el {Hoy:dd/MM/yyyy}.", ultimas[0].GetProperty("observacion").GetString());
+        Assert.Equal(3, ultimas[1].GetProperty("estado").GetProperty("id").GetInt32());
+        Assert.Equal(JsonValueKind.Null, ultimas[1].GetProperty("observacion").ValueKind);
+
+        // En la bandeja de hoy, En ruta: ya puede registrar la entrega.
+        using var clientePromotor = api.ClienteCon(promotor.Token);
+        var bandeja = (await (await clientePromotor.GetAsync("/api/pedidos/bandeja")).LeerJsonAsync()).EnumerateArray().ToList();
+        Assert.Equal([primero, segundo], bandeja.Select(p => p.GetProperty("id").GetInt32()));
+        Assert.All(bandeja, p => Assert.Equal(3, p.GetProperty("estado").GetProperty("id").GetInt32()));
+    }
+
+    [Fact]
+    public async Task Sin_permiso_para_cambiar_el_estado_no_salen_a_ruta_ni_se_asignan()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var pedidoId = await PedidoDeHoyAsync(operador);
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Pedidos.AsignarPedidos, Permisos.Seguridad.VerCarteraCompleta);
+        using var soloAsigna = api.ClienteCon((await api.CrearUsuarioAsync(rol)).Token);
+
+        var problema = await (await DespacharAsync(soloAsigna, promotor.Id, Hoy, pedidoId)).ProblemaAsync(403, "sin_permiso");
+
+        Assert.Equal("No tienes permiso para pasar los pedidos a En ruta.", problema.GetProperty("detail").GetString());
+        var sinCambios = await PedidoDe(operador, pedidoId);
+        Assert.Equal(JsonValueKind.Null, sinCambios.GetProperty("repartidor").ValueKind);
+        Assert.Equal(1, sinCambios.GetProperty("estado").GetProperty("id").GetInt32());
+
+        // Sin la casilla, el mismo rol asigna como siempre, y el pedido sigue Pendiente.
+        var asignado = (await (await AsignarAsync(soloAsigna, promotor.Id, Hoy, pedidoId)).LeerJsonAsync()).EnumerateArray().Single();
+        Assert.Equal(1, asignado.GetProperty("estado").GetProperty("id").GetInt32());
+    }
+
+    [Fact]
+    public async Task Solo_salen_a_ruta_los_pedidos_que_se_entregan_hoy()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var pedidoId = await PedidoNuevoAsync(operador);
+        var original = (await PedidoDe(operador, pedidoId)).GetProperty("fechaEntregaEstimada").GetDateTime();
+
+        await (await DespacharAsync(operador, promotor.Id, Hoy.AddDays(1), pedidoId)).ProblemaAsync(400, "despacho_fuera_del_dia");
+
+        var sinCambios = await PedidoDe(operador, pedidoId);
+        Assert.Equal(JsonValueKind.Null, sinCambios.GetProperty("repartidor").ValueKind);
+        Assert.Equal(1, sinCambios.GetProperty("estado").GetProperty("id").GetInt32());
+        Assert.Equal(original, sinCambios.GetProperty("fechaEntregaEstimada").GetDateTime());
+    }
+
+    [Fact]
+    public async Task Uno_que_ya_estaba_En_ruta_se_asigna_y_queda_igual()
+    {
+        using var operador = await api.OperadorAsync();
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        var pedidoId = await PedidoDeHoyAsync(operador);
+        (await operador.PostAsJsonAsync($"/api/pedidos/{pedidoId}/avanzar", new { })).EnsureSuccessStatusCode();
+        var entradasAntes = (await HistorialDe(operador, pedidoId)).Count;
+
+        var despachado = (await (await DespacharAsync(operador, promotor.Id, Hoy, pedidoId)).LeerJsonAsync()).EnumerateArray().Single();
+
+        Assert.Equal(promotor.Id, despachado.GetProperty("repartidor").GetProperty("id").GetString());
+        Assert.Equal(3, despachado.GetProperty("estado").GetProperty("id").GetInt32());
+        var historial = await HistorialDe(operador, pedidoId);
+        Assert.Equal(entradasAntes + 1, historial.Count);
+        Assert.Equal(3, historial[^1].GetProperty("estado").GetProperty("id").GetInt32());
+        Assert.StartsWith("Asignado a ", historial[^1].GetProperty("observacion").GetString());
+    }
 }
