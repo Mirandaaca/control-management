@@ -285,11 +285,25 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     }
 
     /// <summary>
-    /// Distribución (1.3): asigna los pedidos a un promotor y a un día de reparto, sin cambiar su estado. Cada pedido
-    /// pasa a ese día con su misma hora. Es todo o nada: si uno no se puede asignar, no se asigna ninguno.
+    /// Distribución (1.3): asigna los pedidos a un promotor y a un día de reparto. Cada pedido pasa a ese día con su
+    /// misma hora. Con "Ya salen a ruta" (tarea 28), los pendientes pasan además a En ruta, como con
+    /// <see cref="AvanzarAsync"/>; sin la casilla, el estado no cambia. Es todo o nada: si uno no se puede asignar, no se
+    /// asigna ninguno.
     /// </summary>
     public async Task<List<PedidoListaDTO>> AsignarAsync(AsignarPedidosDTO dto)
     {
+        var dia = dto.Dia!.Value;
+        if (dto.SalenARuta)
+        {
+            // Pasar a En ruta es cambiar el estado: un rol que solo asigna no despacha.
+            if (!usuario.Tiene(Permisos.Pedidos.CambiarEstado))
+                throw new SinPermisoException("No tienes permiso para pasar los pedidos a En ruta.");
+            // Un pedido En ruta ya no se modifica y la bandeja muestra solo los del día: despachar hoy uno de otro día lo
+            // dejaría En ruta sin que nadie pueda corregirlo.
+            if (dia != HoraBolivia.Hoy(reloj))
+                throw new ReglaDeNegocioException("despacho_fuera_del_dia", "Solo salen a ruta los pedidos que se entregan hoy.");
+        }
+
         // Promotor es quien recorre rutas, como en /usuarios/promotores: así no depende del nombre del rol.
         var promotor = await db.Users
             .Where(u => u.Id == dto.PromotorId && u.Activo)
@@ -303,7 +317,6 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         if (pedidos.Count != ids.Count)
             throw new NoEncontradoException("No se encontró uno de los pedidos.");
 
-        var dia = dto.Dia!.Value;
         foreach (var pedido in pedidos)
         {
             if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
@@ -324,6 +337,14 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             pedido.FechaEntregaEstimada = entrega;
             pedido.Historial.Add(Entrada(pedido.EstadoPedidoId,
                 $"Asignado a {promotor.NombreCompleto} para el {dia.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}."));
+
+            // El historial queda como si se hubiera asignado y pasado a En ruta por separado. Uno que ya estaba En ruta
+            // solo se asigna.
+            if (dto.SalenARuta && pedido.EstadoPedidoId == EstadosDePedido.Pendiente)
+            {
+                pedido.EstadoPedidoId = EstadosDePedido.EnRuta;
+                pedido.Historial.Add(Entrada(EstadosDePedido.EnRuta, null));
+            }
         }
 
         await GuardarAsync("Uno de los pedidos cambió mientras los asignabas. Vuelve a intentarlo.");

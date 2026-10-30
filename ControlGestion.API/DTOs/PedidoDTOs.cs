@@ -102,6 +102,9 @@ public record AsignarPedidosDTO
     /// <summary>Día de Bolivia del reparto: cada pedido pasa a ese día con su misma hora.</summary>
     [Required(ErrorMessage = "Elige el día de entrega.")]
     public DateOnly? Dia { get; init; }
+
+    /// <summary>"Ya salen a ruta": los pendientes pasan además a En ruta. Solo con el día de hoy.</summary>
+    public bool SalenARuta { get; init; }
 }
 
 public record AnularPedidoDTO
