@@ -1,11 +1,10 @@
-import { Ban, CircleCheck, Hourglass, Package, Route } from 'lucide-react';
+import { Ban, CircleCheck, Hourglass, Route } from 'lucide-react';
 import { Badge } from '../ui';
-import { ANULADO, EN_PROCESO, EN_RUTA, ENTREGADO, PENDIENTE } from './estados';
+import { ANULADO, EN_RUTA, ENTREGADO, PENDIENTE } from './estados';
 
 // El color y el ícono de cada estado, con la tabla de docs/diseno.md ("Etiquetas de estado").
 const ESTILOS = {
   [PENDIENTE]: { color: 'yellow', icono: Hourglass },
-  [EN_PROCESO]: { color: 'blue', icono: Package },
   [EN_RUTA]: { color: 'purple', icono: Route },
   [ENTREGADO]: { color: 'green', icono: CircleCheck },
   [ANULADO]: { color: 'red', icono: Ban },

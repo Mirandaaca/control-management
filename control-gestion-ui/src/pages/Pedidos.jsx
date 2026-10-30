@@ -162,7 +162,7 @@ export default function Pedidos() {
     if (listaDeElegidos.some((p) => SIGUIENTE[p.estado.id]))
       setAvanzando(true);
     else
-      avisar.error('Ninguno de los pedidos elegidos puede avanzar: los que están En ruta se entregan desde la app.');
+      avisar.error('Ninguno de los pedidos elegidos puede pasar a En ruta: los que ya están En ruta se entregan desde la app.');
   };
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -212,7 +212,7 @@ export default function Pedidos() {
             {puedeAvanzar && (
               <Btn variant="outline" onClick={abrirAvanzar}>
                 <ArrowRight size={14} aria-hidden="true" />
-                Avanzar
+                Pasar a En ruta
               </Btn>
             )}
             {puedeAsignar && (
@@ -307,9 +307,9 @@ export default function Pedidos() {
                 </Btn>
                 {puedeAvanzarlo(p) && (
                   <Btn variant="ghost" onClick={() => abrirCambio('avanzar', p)}
-                    aria-label={`Avanzar ${p.numero} a ${SIGUIENTE[p.estado.id].nombre}`}>
+                    aria-label={`Pasar a ${SIGUIENTE[p.estado.id].nombre} el pedido ${p.numero}`}>
                     <ArrowRight size={14} aria-hidden="true" />
-                    Avanzar
+                    Pasar a {SIGUIENTE[p.estado.id].nombre}
                   </Btn>
                 )}
               </div>

@@ -128,7 +128,7 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
       titulo={esNuevo ? 'Nuevo pedido' : `Editar ${pedido.numero}`}
       descripcion={esNuevo
         ? 'La zona y el promotor son los del cliente. El stock se descuenta recién al entregarlo.'
-        : 'Se modifica mientras está pendiente o en proceso. El cliente no cambia: para otro, anula este pedido y registra uno nuevo.'}
+        : 'Se modifica mientras está pendiente. El cliente no cambia: para otro, anula este pedido y registra uno nuevo.'}
       pie={(
         <>
           <Btn variant="outline" size="md" onClick={onCerrar} disabled={guardando}>Cancelar</Btn>

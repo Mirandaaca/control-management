@@ -113,7 +113,7 @@ export default function ReportePedidos() {
       )}
 
       {cargando && (
-        <ZonaDeCarga><EsqueletoDeIndicadores cantidad={6} grilla="mb-5 grid gap-4 sm:grid-cols-3" /></ZonaDeCarga>
+        <ZonaDeCarga><EsqueletoDeIndicadores cantidad={5} grilla="mb-5 grid gap-4 sm:grid-cols-3" /></ZonaDeCarga>
       )}
       {reporte && (
         <section aria-label="Totales por estado" className="mb-5 grid gap-4 sm:grid-cols-3">

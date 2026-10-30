@@ -5,7 +5,7 @@ import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { AreaDeTexto, CampoFechaHora, Confirmar } from '../ui';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { ahoraEnBolivia, formatearFecha } from '../../utils/formato';
-import { EN_RUTA, SIGUIENTE } from './estados';
+import { SIGUIENTE } from './estados';
 
 /**
  * Avanzar, reprogramar o anular un pedido (1.1 y 1.2), cada uno con su confirmación. Se monta al abrirse: empieza
@@ -55,9 +55,7 @@ export default function CambioDeEstado({ cambio, onCerrar, onHecho }) {
     avanzar: {
       titulo: `¿Pasar ${pedido.numero} a ${siguiente?.nombre}?`,
       accion: `Pasar a ${siguiente?.nombre}`,
-      explicacion: siguiente?.id === EN_RUTA
-        ? 'Sale a entregarse: desde En ruta ya no se modifica, y el promotor asignado registra la entrega.'
-        : 'Se está armando. Todavía se puede modificar.',
+      explicacion: 'Sale a entregarse: desde En ruta ya no se modifica, y el promotor asignado registra la entrega.',
       ejemplo: 'Algo que deba saber quien lo entregue…',
     },
     reprogramar: {
