@@ -24,9 +24,9 @@ export default function AsignarPedidos({ pedidos, promotores, onCerrar, onHecho 
     setErrores({});
     setError('');
     try {
-      await api.post('/pedidos/asignar', { pedidoIds: pedidos.map((p) => p.id), promotorId, dia: dia || null });
+      const { data } = await api.post('/pedidos/asignar', { pedidoIds: pedidos.map((p) => p.id), promotorId, dia: dia || null });
       const nombre = promotores.find((p) => p.id === promotorId)?.nombreCompleto;
-      onHecho(`${pedidos.length === 1 ? `${pedidos[0].numero} quedó asignado` : `${pedidos.length} pedidos quedaron asignados`} a ${nombre} para el ${formatearDia(dia)}.`);
+      onHecho(`${pedidos.length === 1 ? `${pedidos[0].numero} quedó asignado` : `${pedidos.length} pedidos quedaron asignados`} a ${nombre} para el ${formatearDia(dia)}.`, data);
     } catch (err) {
       const { codigo, detail } = err.response?.data ?? {};
       flushSync(() => {

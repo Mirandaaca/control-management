@@ -5,6 +5,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import AsignarPedidos from '../components/pedidos/AsignarPedidos';
+import AvanzarPedidos from '../components/pedidos/AvanzarPedidos';
 import CambioDeEstado from '../components/pedidos/CambioDeEstado';
 import DetallePedido from '../components/pedidos/DetallePedido';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
@@ -37,6 +38,7 @@ export default function Pedidos() {
   const puedeReprogramar = tiene(permisos.reprogramarEntrega);
   const puedeAnular = tiene(permisos.anularPedido);
   const puedeAsignar = tiene(permisos.asignarPedidos);
+  const puedeElegir = puedeAsignar || puedeAvanzar;
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
@@ -55,9 +57,23 @@ export default function Pedidos() {
   const [formulario, setFormulario] = useState(null);
   // { tipo: 'avanzar' | 'reprogramar' | 'anular', pedido }
   const [cambio, setCambio] = useState(null);
-  // Los pedidos elegidos para asignar, por id: se conservan al cambiar de página.
+  // Los pedidos elegidos para asignar o avanzar, por id: se conservan al cambiar de página y después de cada acción,
+  // así se asignan y se avanzan sin volver a elegirlos.
   const [elegidos, setElegidos] = useState({});
   const [asignando, setAsignando] = useState(false);
+  const [avanzando, setAvanzando] = useState(false);
+
+  // Cada elegido, con su estado más reciente: avanzar los manda con el estado que se ve. Uno entregado o anulado sale.
+  const actualizarElegidos = useCallback((actualizados) => setElegidos((e) => {
+    const presentes = actualizados.filter((p) => e[p.id]);
+    if (presentes.length === 0) return e;
+    const nuevos = { ...e };
+    for (const p of presentes) {
+      if (esFinal(p.estado.id)) delete nuevos[p.id];
+      else nuevos[p.id] = p;
+    }
+    return nuevos;
+  }), []);
 
   // Los catálogos de los filtros. Si fallan, la lista igual funciona: se avisa arriba.
   useEffect(() => {
@@ -84,10 +100,11 @@ export default function Pedidos() {
       hasta: filtros.hasta || undefined,
     },
   })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
+    .then(({ data }) => { setPagina(data); actualizarElegidos(data.items); setErrorCarga(''); })
     .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de pedidos.')))
     .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde, filtros.hasta]);
+  [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde, filtros.hasta,
+    actualizarElegidos]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -118,6 +135,7 @@ export default function Pedidos() {
   const alCambiar = (mensaje) => {
     setCambio(null);
     setAsignando(false);
+    setAvanzando(false);
     setDetalle(null);
     avisar.exito(mensaje);
     cargar();
@@ -139,6 +157,14 @@ export default function Pedidos() {
   const puedeEditarlo = (pedido) => puedeModificar && esModificable(pedido.estado.id);
   const puedeAvanzarlo = (pedido) => puedeAvanzar && SIGUIENTE[pedido.estado.id] !== undefined;
 
+  const abrirAvanzar = () => {
+    avisar.quitarError();
+    if (listaDeElegidos.some((p) => SIGUIENTE[p.estado.id]))
+      setAvanzando(true);
+    else
+      avisar.error('Ninguno de los pedidos elegidos puede avanzar: los que están En ruta se entregan desde la app.');
+  };
+
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pedidos = pagina?.items ?? [];
 
@@ -155,7 +181,7 @@ export default function Pedidos() {
 
   const opcionesDePromotor = promotores.map((p) => ({ valor: p.id, texto: p.nombreCompleto }));
   const encabezados = [
-    ...(puedeAsignar ? [{ texto: 'Elegir para asignar', oculto: true }] : []),
+    ...(puedeElegir ? [{ texto: 'Elegir', oculto: true }] : []),
     'Número', 'Cliente', ...(veCarteraCompleta ? ['Promotor'] : []), 'Entrega', 'Asignado a',
     { texto: 'Total', derecha: true }, 'Estado', '',
   ];
@@ -181,12 +207,20 @@ export default function Pedidos() {
           <p className="text-sm font-medium text-marca-800" aria-live="polite">
             {listaDeElegidos.length === 1 ? '1 pedido elegido' : `${listaDeElegidos.length} pedidos elegidos`}
           </p>
-          <div className="flex gap-2">
-            <Btn variant="outline" onClick={() => setElegidos({})}>Quitar la selección</Btn>
-            <Btn onClick={() => setAsignando(true)}>
-              <UserCheck size={14} aria-hidden="true" />
-              Asignar
-            </Btn>
+          <div className="flex flex-wrap gap-2">
+            <Btn variant="ghost" onClick={() => setElegidos({})}>Quitar la selección</Btn>
+            {puedeAvanzar && (
+              <Btn variant="outline" onClick={abrirAvanzar}>
+                <ArrowRight size={14} aria-hidden="true" />
+                Avanzar
+              </Btn>
+            )}
+            {puedeAsignar && (
+              <Btn onClick={() => setAsignando(true)}>
+                <UserCheck size={14} aria-hidden="true" />
+                Asignar
+              </Btn>
+            )}
           </div>
         </div>
       )}
@@ -240,11 +274,11 @@ export default function Pedidos() {
       >
         {pedidos.map((p) => (
           <Tr key={p.id}>
-            {puedeAsignar && (
+            {puedeElegir && (
               <Td>
                 <Casilla checked={Boolean(elegidos[p.id])} disabled={esFinal(p.estado.id)}
                   onCheckedChange={(valor) => elegir(p, valor === true)}>
-                  <span className="sr-only">Elegir {p.numero} para asignar</span>
+                  <span className="sr-only">Elegir {p.numero}</span>
                 </Casilla>
               </Td>
             )}
@@ -320,7 +354,16 @@ export default function Pedidos() {
           pedidos={listaDeElegidos}
           promotores={promotores}
           onCerrar={() => setAsignando(false)}
-          onHecho={(mensaje) => { setElegidos({}); alCambiar(mensaje); }}
+          onHecho={(mensaje, asignados) => { actualizarElegidos(asignados); alCambiar(mensaje); }}
+        />
+      )}
+
+      {avanzando && (
+        <AvanzarPedidos
+          pedidos={listaDeElegidos}
+          onCerrar={() => setAvanzando(false)}
+          onHecho={(mensaje, avanzados) => { actualizarElegidos(avanzados); alCambiar(mensaje); }}
+          onCambiaron={(mensaje) => { setAvanzando(false); avisar.error(mensaje); cargar(); }}
         />
       )}
 
