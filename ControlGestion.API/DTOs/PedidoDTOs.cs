@@ -55,6 +55,28 @@ public record AvanzarPedidoDTO
     public string? Observacion { get; init; }
 }
 
+/// <summary>Un pedido elegido para avanzar, con el estado en que lo vio quien lo eligió.</summary>
+public record PedidoQueAvanzaDTO
+{
+    [Range(1, int.MaxValue, ErrorMessage = "Elige un pedido.")]
+    public int Id { get; init; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Falta el estado del pedido.")]
+    public int EstadoId { get; init; }
+}
+
+/// <summary>Avanzar varios pedidos a la vez (1.2): cada uno a su estado siguiente, con la misma observación.</summary>
+public record AvanzarPedidosDTO
+{
+    [Required(ErrorMessage = "Elige al menos un pedido.")]
+    [MinLength(1, ErrorMessage = "Elige al menos un pedido.")]
+    [MaxLength(100, ErrorMessage = "Se avanzan hasta 100 pedidos a la vez.")]
+    public List<PedidoQueAvanzaDTO> Pedidos { get; init; } = [];
+
+    [MaxLength(500, ErrorMessage = "La observación no puede superar los 500 caracteres.")]
+    public string? Observacion { get; init; }
+}
+
 public record ReprogramarPedidoDTO
 {
     /// <summary>Sin zona se entiende como hora de Bolivia, que es lo que manda el panel.</summary>

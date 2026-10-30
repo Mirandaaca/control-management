@@ -199,6 +199,45 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
     }
 
     /// <summary>
+    /// Avanzar varios a la vez (1.2): cada pedido pasa a su estado siguiente, como con <see cref="AvanzarAsync"/>. Es
+    /// todo o nada. Cada uno llega con el estado que vio quien lo eligió: si alguno cambió mientras tanto, no avanza
+    /// ninguno, así ninguno pasa un estado de más.
+    /// </summary>
+    public async Task<List<PedidoListaDTO>> AvanzarVariosAsync(AvanzarPedidosDTO dto)
+    {
+        var ids = dto.Pedidos.Select(p => p.Id).ToList();
+        if (ids.Distinct().Count() != ids.Count)
+            throw new ReglaDeNegocioException("pedido_repetido", "Elegiste el mismo pedido más de una vez.");
+        var pedidos = await Visibles.Where(p => ids.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+        if (pedidos.Count != ids.Count)
+            throw new NoEncontradoException("No se encontró uno de los pedidos.");
+
+        var observacion = string.IsNullOrWhiteSpace(dto.Observacion) ? null : dto.Observacion.Trim();
+        foreach (var elegido in dto.Pedidos)
+        {
+            var pedido = pedidos[elegido.Id];
+            if (pedido.EstadoPedidoId != elegido.EstadoId)
+                throw new ConflictoException("pedido_cambio",
+                    $"El pedido {pedido.Numero} cambió mientras lo elegías. No se avanzó ningún pedido: revisa su estado y vuelve a intentarlo.");
+            if (EstadosDePedido.Finales.Contains(pedido.EstadoPedidoId))
+                throw new ReglaDeNegocioException("pedido_en_estado_final",
+                    $"El pedido {pedido.Numero} ya se entregó o está anulado: no cambia más.");
+            var siguiente = EstadosDePedido.Siguiente(pedido.EstadoPedidoId)
+                ?? throw new ReglaDeNegocioException("transicion_no_permitida",
+                    $"El pedido {pedido.Numero} ya está en ruta: lo que sigue es registrar la entrega.");
+
+            pedido.EstadoPedidoId = siguiente;
+            pedido.Historial.Add(Entrada(siguiente, observacion));
+        }
+
+        await GuardarAsync("Uno de los pedidos cambió mientras los avanzabas. Vuelve a intentarlo.");
+        return await Visibles.Where(p => ids.Contains(p.Id))
+            .OrderBy(p => p.FechaEntregaEstimada).ThenBy(p => p.Id)
+            .Select(PedidoConsultas.ComoLista)
+            .ToListAsync();
+    }
+
+    /// <summary>
     /// Modificar (1.1): todo menos el cliente, y solo mientras el pedido no salió a entregarse (Pendiente o En
     /// proceso). Para otro cliente se anula el pedido y se registra uno nuevo.
     /// </summary>
