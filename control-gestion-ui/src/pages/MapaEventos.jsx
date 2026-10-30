@@ -19,9 +19,8 @@ import { useRecarga } from '../hooks/useRecarga';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
+import { CENTRO_DE_SANTA_CRUZ } from '../utils/mapa';
 
-// Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay puntos.
-const SANTA_CRUZ = [-17.7833, -63.1821];
 const SIN_FILTROS = { tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 const numero = new Intl.NumberFormat('es-BO');
 
@@ -132,7 +131,7 @@ export default function MapaEventos() {
     <>
       {/* isolate: las capas de Leaflet (z-index 400 a 1000) quedan dentro del mapa y no tapan el modal del detalle. */}
       <div className="relative isolate h-104 sm:h-128" role="group" aria-label="Mapa de eventos: cada punto es un evento; elige uno para ver su detalle">
-        <MapContainer center={SANTA_CRUZ} zoom={13} scrollWheelZoom={false} className="h-full w-full">
+        <MapContainer center={CENTRO_DE_SANTA_CRUZ} zoom={13} scrollWheelZoom={false} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

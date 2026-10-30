@@ -4,10 +4,9 @@ import L from 'leaflet';
 import { MapContainer, Marker, Polygon, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { comoPosiciones, ESTILO_ZONA, ICONO_PUNTO } from '../zonas/marcadores';
 import { formatearHora } from '../../utils/formato';
+import { CENTRO_DE_SANTA_CRUZ } from '../../utils/mapa';
 import { AUSENTE, ESTILO_LINEA, iconoDeParada, iconoDelPromotor, PASTILLAS, PENDIENTE, VISITADO } from './marcadores';
 import Pastilla from './Pastilla';
-
-const SANTA_CRUZ = [-17.7833, -63.1821];
 
 // Encuadra la zona y las paradas solo cuando cambia "encuadre" (otra ruta, otra zona): la actualización de cada 30 s no
 // mueve el mapa que el gerente está mirando. Dentro de un modal, además, vuelve a medir el tamaño del mapa.
@@ -80,7 +79,7 @@ export default function MapaDeRuta({ zona, puntos = [], paradas, promotor, encua
     // isolate: las capas de Leaflet quedan dentro del mapa y no tapan los modales.
     <div className={`relative isolate ${className}`} role="group" aria-label={etiqueta}>
       {/* zoomSnap 0.5: con zoom entero, una zona chica quedaba encuadrada con mucho margen. */}
-      <MapContainer center={SANTA_CRUZ} zoom={13} zoomSnap={0.5} scrollWheelZoom={false} className="h-full w-full">
+      <MapContainer center={CENTRO_DE_SANTA_CRUZ} zoom={13} zoomSnap={0.5} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
