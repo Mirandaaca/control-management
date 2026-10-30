@@ -14,7 +14,6 @@ class EtiquetaDePedido extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icono, color) = switch (estado.id) {
       EstadosDePedido.pendiente => (Icons.hourglass_empty, ColorDeEstado.ambar),
-      EstadosDePedido.enProceso => (Icons.inventory_2, ColorDeEstado.azul),
       EstadosDePedido.enRuta => (Icons.route, ColorDeEstado.violeta),
       EstadosDePedido.entregado => (Icons.check_circle, ColorDeEstado.verde),
       EstadosDePedido.anulado => (Icons.block, ColorDeEstado.rojo),

@@ -1,9 +1,9 @@
 import 'hoja_pedido.dart';
 
-/// Los estados de un pedido, por su id: la app nunca compara nombres (el texto sale de la API).
+/// Los estados de un pedido, por su id: la app nunca compara nombres (el texto sale de la API). El 2 era "En proceso",
+/// que ya no existe (tarea 27); los demás no se renumeraron.
 abstract final class EstadosDePedido {
   static const pendiente = 1;
-  static const enProceso = 2;
   static const enRuta = 3;
   static const entregado = 4;
   static const anulado = 5;

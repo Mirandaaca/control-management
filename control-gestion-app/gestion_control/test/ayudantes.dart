@@ -860,7 +860,6 @@ class CamaraFalsa implements Camara {
 // Los pedidos de datos-ejemplo.md.
 const estadosDePedido = [
   EstadoPedido(id: EstadosDePedido.pendiente, nombre: 'Pendiente'),
-  EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
   EstadoPedido(id: EstadosDePedido.enRuta, nombre: 'En ruta'),
   EstadoPedido(id: EstadosDePedido.entregado, nombre: 'Entregado'),
   EstadoPedido(id: EstadosDePedido.anulado, nombre: 'Anulado'),
@@ -929,12 +928,6 @@ Pedido pedidoDePrueba({
       usuario: 'Lucía Vargas Rojas',
       observacion: 'Asignado a Carlos Mendoza Flores para el 30/10/2026.',
     ),
-    if (estado != EstadosDePedido.pendiente)
-      CambioDelPedido(
-        estado: estadoDePedido(EstadosDePedido.enProceso),
-        fecha: '2026-10-30T11:00:00',
-        usuario: 'Lucía Vargas Rojas',
-      ),
     if (estado == EstadosDePedido.enRuta || estado == EstadosDePedido.entregado)
       CambioDelPedido(
         estado: estadoDePedido(EstadosDePedido.enRuta),
@@ -962,7 +955,7 @@ PedidoResumen resumenDePedido(Pedido pedido) => PedidoResumen(
   repartidor: pedido.repartidor,
 );
 
-/// La bandeja del 8.6.10: el 31 y el 32 en ruta, y el 34 en proceso.
+/// La bandeja del 8.6.10: el 31 y el 32 en ruta, y el 34 pendiente (en el diseño, "En proceso", que ya no existe).
 final bandejaDePrueba = [
   resumenDePedido(pedidoDePrueba()),
   const PedidoResumen(
@@ -978,7 +971,7 @@ final bandejaDePrueba = [
   const PedidoResumen(
     id: 34,
     numero: 'PED-2026-00034',
-    estado: EstadoPedido(id: EstadosDePedido.enProceso, nombre: 'En proceso'),
+    estado: EstadoPedido(id: EstadosDePedido.pendiente, nombre: 'Pendiente'),
     total: 66,
     fechaEntrega: '2026-10-30T19:00:00',
     direccionEntrega: 'Calle 3 N.º 402',
