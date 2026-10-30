@@ -616,15 +616,25 @@ export function Combobox({
   );
 }
 
-export function Casilla({ checked, onCheckedChange, disabled, children, id }) {
+/** Una casilla con su etiqueta a la derecha y, si hace falta, una ayuda debajo, que el lector de pantalla lee con ella. */
+export function Casilla({ checked, onCheckedChange, disabled, children, id, ayuda }) {
   const generado = useId();
   const casillaId = id ?? generado;
+  const etiqueta = (
+    <label htmlFor={casillaId} className={`text-sm leading-snug ${disabled ? 'text-slate-600' : 'text-slate-900 cursor-pointer'}`}>
+      {children}
+    </label>
+  );
   return (
     <div className="flex items-start gap-2.5">
-      <Checkbox id={casillaId} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} className="mt-0.5" />
-      <label htmlFor={casillaId} className={`text-sm leading-snug ${disabled ? 'text-slate-600' : 'text-slate-900 cursor-pointer'}`}>
-        {children}
-      </label>
+      <Checkbox id={casillaId} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} className="mt-0.5"
+        aria-describedby={ayuda ? `${casillaId}-ayuda` : undefined} />
+      {ayuda ? (
+        <div>
+          {etiqueta}
+          <p id={`${casillaId}-ayuda`} className="mt-0.5 text-sm text-slate-600">{ayuda}</p>
+        </div>
+      ) : etiqueta}
     </div>
   );
 }
