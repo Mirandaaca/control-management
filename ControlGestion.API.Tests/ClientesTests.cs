@@ -284,7 +284,7 @@ public class ClientesTests(ApiDePrueba api)
         var creado = await (await operador.PostAsJsonAsync("/api/clientes", Cliente(zonaId))).LeerJsonAsync();
         var id = creado.GetProperty("id").GetInt32();
 
-        Assert.Equal("Disponible para Re-visita", creado.GetProperty("estado").GetProperty("nombre").GetString());
+        Assert.Equal("Disponible para re-visita", creado.GetProperty("estado").GetProperty("nombre").GetString());
         Assert.Equal(JsonValueKind.Null, creado.GetProperty("proximaVisita").ValueKind);
         Assert.Contains(id, await IdsAsync(operador, $"?zonaId={zonaId}&porVisitar=true"));
     }
@@ -300,7 +300,7 @@ public class ClientesTests(ApiDePrueba api)
 
         var editado = await (await operador.PutAsJsonAsync($"/api/clientes/{id}", Cliente(zonaId))).LeerJsonAsync();
 
-        Assert.Equal("Disponible para Re-visita", EstadoDe(editado));
+        Assert.Equal("Disponible para re-visita", EstadoDe(editado));
     }
 
     [Fact]
@@ -328,7 +328,7 @@ public class ClientesTests(ApiDePrueba api)
         var deVuelta = await (await cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = (int?)null }))
             .LeerJsonAsync();
 
-        Assert.Equal("Disponible para Re-visita", EstadoDe(deVuelta));
+        Assert.Equal("Disponible para re-visita", EstadoDe(deVuelta));
         Assert.Contains(id, await IdsAsync(cliente, $"?zonaId={zonaId}&porVisitar=true"));
         Assert.True(await enOpciones());
     }

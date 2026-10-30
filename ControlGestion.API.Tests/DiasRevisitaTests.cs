@@ -75,7 +75,7 @@ public class DiasRevisitaTests(ApiDePrueba api)
         try
         {
             var conOcho = await CambiarDiasAsync(sesion.Cliente, 8);
-            Assert.Equal(("Disponible para Re-visita", ultima.AddDays(8)), await ClienteAsync(sesion.Cliente, id));
+            Assert.Equal(("Disponible para re-visita", ultima.AddDays(8)), await ClienteAsync(sesion.Cliente, id));
             Assert.Equal(8, conOcho.GetProperty("dias").GetInt32());
             Assert.True(conOcho.GetProperty("pasaronADisponible").GetInt32() >= 1);
             Assert.True(conOcho.GetProperty("clientesRecalculados").GetInt32() >= 1);
@@ -102,7 +102,7 @@ public class DiasRevisitaTests(ApiDePrueba api)
             await CambiarDiasAsync(sesion.Cliente, 10);
 
             Assert.Equal(("Inactivo", ultima.AddDays(10)), await ClienteAsync(sesion.Cliente, inactivo));
-            Assert.Equal(("Disponible para Re-visita", (DateTime?)null), await ClienteAsync(sesion.Cliente, sinVisitas));
+            Assert.Equal(("Disponible para re-visita", (DateTime?)null), await ClienteAsync(sesion.Cliente, sinVisitas));
         }
         finally
         {
@@ -122,7 +122,7 @@ public class DiasRevisitaTests(ApiDePrueba api)
         try
         {
             await CambiarDiasAsync(sesion.Cliente, 15);
-            Assert.Equal(("Disponible para Re-visita", masTarde), await ClienteAsync(sesion.Cliente, id));
+            Assert.Equal(("Disponible para re-visita", masTarde), await ClienteAsync(sesion.Cliente, id));
 
             var porVisitar = (await (await sesion.Cliente.GetAsync($"/api/clientes?porVisitar=true&zonaId={zonaId}")).LeerJsonAsync())
                 .GetProperty("items").EnumerateArray().Select(c => c.GetProperty("id").GetInt32());
@@ -132,7 +132,7 @@ public class DiasRevisitaTests(ApiDePrueba api)
                 .EnsureSuccessStatusCode();
             var deVuelta = await (await sesion.Cliente.PutAsJsonAsync($"/api/clientes/{id}/estado", new { estadoClienteId = (int?)null }))
                 .LeerJsonAsync();
-            Assert.Equal("Disponible para Re-visita", deVuelta.GetProperty("estado").GetProperty("nombre").GetString());
+            Assert.Equal("Disponible para re-visita", deVuelta.GetProperty("estado").GetProperty("nombre").GetString());
         }
         finally
         {

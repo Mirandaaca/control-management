@@ -101,9 +101,21 @@ public class EstadosClienteTests(ApiDePrueba api)
         }
 
         await (await ModificarAsync(admin, EstadosDeCliente.Activo, "Visitado", PaletaDeEstados.Activo)).ProblemaAsync(400, "estado_protegido");
-        await (await ModificarAsync(admin, EstadosDeCliente.DisponibleParaRevisita, "Disponible para Re-visita", Azul))
+        await (await ModificarAsync(admin, EstadosDeCliente.DisponibleParaRevisita, "Disponible para re-visita", Azul))
             .ProblemaAsync(400, "estado_protegido");
         await (await admin.DeleteAsync($"/api/estados-cliente/{EstadosDeCliente.DisponibleParaRevisita}")).ProblemaAsync(400, "estado_protegido");
+    }
+
+    // Con minúscula, como la tesis y los diseños (tarea 26): hasta la migración NombreDisponibleParaRevisita decía "Re-visita".
+    [Fact]
+    public async Task El_catalogo_llama_al_estado_Disponible_para_re_visita_como_la_tesis()
+    {
+        using var promotor = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Promotor)).Token);
+
+        var estados = (await (await promotor.GetAsync("/api/clientes/estados")).LeerJsonAsync()).EnumerateArray();
+
+        var disponible = estados.Single(e => e.GetProperty("id").GetInt32() == EstadosDeCliente.DisponibleParaRevisita);
+        Assert.Equal("Disponible para re-visita", disponible.GetProperty("nombre").GetString());
     }
 
     [Fact]
