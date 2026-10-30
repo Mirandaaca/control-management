@@ -69,6 +69,11 @@ public class PedidosController(PedidoService pedidos, ReportePedidosService repo
     public async Task<ActionResult<List<PedidoListaDTO>>> Asignar([FromBody] AsignarPedidosDTO dto) =>
         await pedidos.AsignarAsync(dto);
 
+    [HttpPost("avanzar")]
+    [Permiso(Permisos.Pedidos.CambiarEstado)]
+    public async Task<ActionResult<List<PedidoListaDTO>>> AvanzarVarios([FromBody] AvanzarPedidosDTO dto) =>
+        await pedidos.AvanzarVariosAsync(dto);
+
     [HttpPut("{id:int}")]
     [Permiso(Permisos.Pedidos.ModificarPedido)]
     public async Task<ActionResult<PedidoDTO>> Modificar(int id, [FromBody] ModificarPedidoDTO dto) =>
