@@ -7,9 +7,10 @@ import EstadoHP from '../hojas/EstadoHP';
 import EstadoPedido from './EstadoPedido';
 import { ANULADO, CREDITO, ENTREGADO } from './estados';
 
-function Dato({ titulo, children }) {
+// El div va directo dentro del <dl>: otro div en medio deja el dt y el dd fuera de la lista (axe: dlitem).
+function Dato({ titulo, children, className = '' }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${className}`}>
       <dt className="text-xs font-semibold text-slate-600">{titulo}</dt>
       <dd className="mt-0.5 text-sm text-slate-900 wrap-break-word">{children || '—'}</dd>
     </div>
@@ -56,7 +57,7 @@ export default function DetallePedido({ pedido, onCerrar, acciones }) {
             <Dato titulo="Registrado">
               {formatearFecha(pedido.fechaRegistro, { hora: true })} por {pedido.registradoPor.nombreCompleto}
             </Dato>
-            <div className="sm:col-span-2"><Dato titulo="Observaciones">{pedido.observaciones}</Dato></div>
+            <Dato titulo="Observaciones" className="sm:col-span-2">{pedido.observaciones}</Dato>
           </dl>
 
           <Table headers={['Producto', { texto: 'Cantidad', derecha: true }, { texto: 'Precio', derecha: true },
