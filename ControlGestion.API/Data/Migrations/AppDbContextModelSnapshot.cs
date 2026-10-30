@@ -17,7 +17,7 @@ namespace ControlGestion.API.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -501,19 +501,11 @@ namespace ControlGestion.API.Data.Migrations
                         },
                         new
                         {
-                            Id = 2,
-                            Color = "#3b82f6",
-                            EsEstadoFinal = false,
-                            Nombre = "En proceso",
-                            Orden = 2
-                        },
-                        new
-                        {
                             Id = 3,
                             Color = "#8b5cf6",
                             EsEstadoFinal = false,
                             Nombre = "En ruta",
-                            Orden = 3
+                            Orden = 2
                         },
                         new
                         {
@@ -521,7 +513,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#10b981",
                             EsEstadoFinal = true,
                             Nombre = "Entregado",
-                            Orden = 4
+                            Orden = 3
                         },
                         new
                         {
@@ -529,7 +521,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#ef4444",
                             EsEstadoFinal = true,
                             Nombre = "Anulado",
-                            Orden = 5
+                            Orden = 4
                         });
                 });
 

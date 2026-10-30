@@ -218,7 +218,7 @@ public record HistorialPedidoDTO(
 public record TotalPorEstadoDTO(int EstadoId, string Estado, int Cantidad, decimal Monto);
 
 /// <summary>
-/// El reporte de pedidos (1.4): los cinco estados con su cantidad y su monto, el total sin los anulados y los pedidos,
+/// El reporte de pedidos (1.4): los cuatro estados con su cantidad y su monto, el total sin los anulados y los pedidos,
 /// paginados.
 /// </summary>
 public record ReportePedidosDTO(IReadOnlyList<TotalPorEstadoDTO> PorEstado, int Cantidad, decimal Monto, Pagina<PedidoListaDTO> Pedidos);

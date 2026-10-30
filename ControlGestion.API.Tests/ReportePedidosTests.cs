@@ -11,9 +11,9 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class ReportePedidosTests(ApiDePrueba api)
 {
-    private record Escenario(int ZonaId, UsuarioDePrueba Promotor, int Pendiente, int EnProceso, int Anulado);
+    private record Escenario(int ZonaId, UsuarioDePrueba Promotor, int Pendiente, int EnRuta, int Anulado);
 
-    /// <summary>En una zona propia: un pedido pendiente de 10, uno en proceso de 20 y uno anulado de 30.</summary>
+    /// <summary>En una zona propia: un pedido pendiente de 10, uno en ruta de 20 y uno anulado de 30.</summary>
     private async Task<Escenario> TresPedidosAsync(HttpClient operador)
     {
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
@@ -21,11 +21,11 @@ public class ReportePedidosTests(ApiDePrueba api)
         var clienteId = await operador.CrearClienteAsync(zonaId);
         var productoId = await operador.CrearProductoAsync(10m);
         var pendiente = await operador.CrearPedidoAsync(clienteId, productoId, 1);
-        var enProceso = await operador.CrearPedidoAsync(clienteId, productoId, 2);
+        var enRuta = await operador.CrearPedidoAsync(clienteId, productoId, 2);
         var anulado = await operador.CrearPedidoAsync(clienteId, productoId, 3);
-        (await operador.PostAsJsonAsync($"/api/pedidos/{enProceso}/avanzar", new { })).EnsureSuccessStatusCode();
+        (await operador.PostAsJsonAsync($"/api/pedidos/{enRuta}/avanzar", new { })).EnsureSuccessStatusCode();
         (await operador.PostAsJsonAsync($"/api/pedidos/{anulado}/anular", new { motivo = "Prueba" })).EnsureSuccessStatusCode();
-        return new Escenario(zonaId, promotor, pendiente, enProceso, anulado);
+        return new Escenario(zonaId, promotor, pendiente, enRuta, anulado);
     }
 
     private static async Task<JsonElement> ReporteAsync(HttpClient cliente, string consulta) =>
@@ -35,7 +35,7 @@ public class ReportePedidosTests(ApiDePrueba api)
         reporte.GetProperty("pedidos").GetProperty("items").EnumerateArray().Select(p => p.GetProperty("id").GetInt32()).ToList();
 
     [Fact]
-    public async Task El_reporte_da_los_cinco_estados_con_su_cantidad_y_su_monto_y_el_total_sin_los_anulados()
+    public async Task El_reporte_da_los_cuatro_estados_con_su_cantidad_y_su_monto_y_el_total_sin_los_anulados()
     {
         using var operador = await api.OperadorAsync();
         var e = await TresPedidosAsync(operador);
@@ -46,8 +46,7 @@ public class ReportePedidosTests(ApiDePrueba api)
         var porEstado = reporte.GetProperty("porEstado").EnumerateArray()
             .Select(t => (t.GetProperty("estado").GetString(), t.GetProperty("cantidad").GetInt32(), t.GetProperty("monto").GetDecimal()))
             .ToList();
-        Assert.Equal([("Pendiente", 1, 10m), ("En proceso", 1, 20m), ("En ruta", 0, 0m), ("Entregado", 0, 0m), ("Anulado", 1, 30m)],
-            porEstado);
+        Assert.Equal([("Pendiente", 1, 10m), ("En ruta", 1, 20m), ("Entregado", 0, 0m), ("Anulado", 1, 30m)], porEstado);
         Assert.Equal(2, reporte.GetProperty("cantidad").GetInt32());
         Assert.Equal(30m, reporte.GetProperty("monto").GetDecimal());
         Assert.Equal(3, reporte.GetProperty("pedidos").GetProperty("total").GetInt32());
@@ -96,9 +95,9 @@ public class ReportePedidosTests(ApiDePrueba api)
         Assert.True(pedidos.Cell(2, 6).IsEmpty());
 
         var totales = libro.Worksheet("Totales por estado");
-        Assert.Equal("Total sin anulados", totales.Cell(7, 1).GetString());
-        Assert.Equal(2, (int)totales.Cell(7, 2).GetDouble());
-        Assert.Equal(30m, (decimal)totales.Cell(7, 3).GetDouble());
+        Assert.Equal("Total sin anulados", totales.Cell(6, 1).GetString());
+        Assert.Equal(2, (int)totales.Cell(6, 2).GetDouble());
+        Assert.Equal(30m, (decimal)totales.Cell(6, 3).GetDouble());
     }
 
     [Fact]

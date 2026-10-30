@@ -376,12 +376,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<UbicacionPromotor>().Property(u => u.Longitud).HasPrecision(11, 8);
 
         // Seed estados de pedido. Los nombres llevan mayúscula solo en la primera palabra, como los diseños del 8.6.
+        // Sin el 2 ("En proceso", quitado en la tarea 27): los ids no se renumeran.
         builder.Entity<EstadoPedido>().HasData(
             new EstadoPedido { Id = 1, Nombre = "Pendiente",     Orden = 1, Color = "#f59e0b" },
-            new EstadoPedido { Id = 2, Nombre = "En proceso",    Orden = 2, Color = "#3b82f6" },
-            new EstadoPedido { Id = 3, Nombre = "En ruta",       Orden = 3, Color = "#8b5cf6" },
-            new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 4, Color = "#10b981", EsEstadoFinal = true },
-            new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 5, Color = "#ef4444", EsEstadoFinal = true }
+            new EstadoPedido { Id = 3, Nombre = "En ruta",       Orden = 2, Color = "#8b5cf6" },
+            new EstadoPedido { Id = 4, Nombre = "Entregado",     Orden = 3, Color = "#10b981", EsEstadoFinal = true },
+            new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 4, Color = "#ef4444", EsEstadoFinal = true }
         );
 
         // Seed tipos de evento

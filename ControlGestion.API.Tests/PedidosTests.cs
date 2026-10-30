@@ -115,14 +115,14 @@ public class PedidosTests(ApiDePrueba api)
     }
 
     [Fact]
-    public async Task El_catalogo_de_estados_trae_los_cinco_en_orden()
+    public async Task El_catalogo_de_estados_trae_los_cuatro_en_orden_sin_renumerar()
     {
         using var operador = await api.OperadorAsync();
 
         var estados = (await (await operador.GetAsync("/api/pedidos/estados")).LeerJsonAsync()).EnumerateArray()
             .Select(e => (e.GetProperty("id").GetInt32(), e.GetProperty("nombre").GetString())).ToList();
 
-        Assert.Equal([(1, "Pendiente"), (2, "En proceso"), (3, "En ruta"), (4, "Entregado"), (5, "Anulado")], estados);
+        Assert.Equal([(1, "Pendiente"), (3, "En ruta"), (4, "Entregado"), (5, "Anulado")], estados);
     }
 
     [Fact]

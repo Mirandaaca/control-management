@@ -25,18 +25,17 @@ public class PedidosEstadosTests(ApiDePrueba api)
             await operador.CrearProductoAsync(10m), 1);
 
     [Fact]
-    public async Task Avanzar_recorre_pendiente_en_proceso_y_en_ruta_y_ahi_se_detiene()
+    public async Task Avanzar_pasa_de_pendiente_a_en_ruta_y_ahi_se_detiene()
     {
         using var operador = await api.OperadorAsync();
         var pedidoId = await PedidoNuevoAsync(operador);
 
-        Assert.Equal(2, EstadoDe(await (await AvanzarAsync(operador, pedidoId, "Armando el pedido")).LeerJsonAsync()));
-        Assert.Equal(3, EstadoDe(await (await AvanzarAsync(operador, pedidoId)).LeerJsonAsync()));
+        Assert.Equal(3, EstadoDe(await (await AvanzarAsync(operador, pedidoId, "Sale en la camioneta")).LeerJsonAsync()));
         await (await AvanzarAsync(operador, pedidoId)).ProblemaAsync(400, "transicion_no_permitida");
 
         var historial = (await PedidoDe(operador, pedidoId)).GetProperty("historial").EnumerateArray().ToList();
-        Assert.Equal([1, 2, 3], historial.Select(h => h.GetProperty("estado").GetProperty("id").GetInt32()));
-        Assert.Equal("Armando el pedido", historial[1].GetProperty("observacion").GetString());
+        Assert.Equal([1, 3], historial.Select(h => h.GetProperty("estado").GetProperty("id").GetInt32()));
+        Assert.Equal("Sale en la camioneta", historial[1].GetProperty("observacion").GetString());
     }
 
     [Fact]
@@ -108,18 +107,18 @@ public class PedidosEstadosTests(ApiDePrueba api)
     }
 
     [Fact]
-    public async Task Dos_avances_a_la_vez_no_pierden_ninguno()
+    public async Task Dos_avances_a_la_vez_lo_avanzan_una_sola_vez()
     {
         using var operador = await api.OperadorAsync();
         var pedidoId = await PedidoNuevoAsync(operador);
 
         var respuestas = await Ayudantes.EnviarALaVezAsync(2, _ => AvanzarAsync(operador, pedidoId));
 
-        // Si las dos leyeron "Pendiente", la segunda choca con el token (409). Si no, la segunda lo lleva a "En ruta".
-        Assert.All(respuestas, r => Assert.Contains(r.StatusCode, new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }));
-        var exitos = respuestas.Count(r => r.StatusCode == HttpStatusCode.OK);
+        // Si las dos leyeron "Pendiente", la segunda choca con el token (409). Si no, ve que ya está En ruta (400).
+        Assert.Single(respuestas, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.Single(respuestas, r => r.StatusCode is HttpStatusCode.Conflict or HttpStatusCode.BadRequest);
         var pedido = await PedidoDe(operador, pedidoId);
-        Assert.Equal(1 + exitos, EstadoDe(pedido));
-        Assert.Equal(1 + exitos, pedido.GetProperty("historial").GetArrayLength());
+        Assert.Equal(3, EstadoDe(pedido));
+        Assert.Equal(2, pedido.GetProperty("historial").GetArrayLength());
     }
 }

@@ -25,11 +25,8 @@ public class PedidosEntregaTests(ApiDePrueba api)
             recibidoPor, tipoVenta, latitud, longitud, precisionGPS = 8, observacion = "Dejado en el mostrador"
         });
 
-    private static async Task AvanzarAsync(HttpClient cliente, int pedidoId, int veces)
-    {
-        for (var i = 0; i < veces; i++)
-            (await cliente.PostAsJsonAsync($"/api/pedidos/{pedidoId}/avanzar", new { })).EnsureSuccessStatusCode();
-    }
+    private static async Task PasarAEnRutaAsync(HttpClient cliente, int pedidoId) =>
+        (await cliente.PostAsJsonAsync($"/api/pedidos/{pedidoId}/avanzar", new { })).EnsureSuccessStatusCode();
 
     private static async Task<decimal> StockDe(HttpClient cliente, int productoId) =>
         (await JsonDe(cliente, $"/api/productos/{productoId}")).GetProperty("stockActual").GetDecimal();
@@ -38,10 +35,10 @@ public class PedidosEntregaTests(ApiDePrueba api)
         (await JsonDe(cliente, $"/api/hojas-pedido?clienteId={clienteId}")).GetProperty("items").EnumerateArray().ToList();
 
     /// <summary>
-    /// Un pedido de 3 unidades a 12,50 de un cliente de la cartera del promotor, asignado a él y en ruta (o en el estado
-    /// que se pida: 0 avances es Pendiente).
+    /// Un pedido de 3 unidades a 12,50 de un cliente de la cartera del promotor, asignado a él y en ruta (o Pendiente, si se
+    /// pide).
     /// </summary>
-    private async Task<Escenario> PedidoAsignadoAsync(HttpClient operador, decimal stock = 100, int avances = 2,
+    private async Task<Escenario> PedidoAsignadoAsync(HttpClient operador, decimal stock = 100, bool enRuta = true,
         decimal cantidad = 3)
     {
         var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
@@ -54,7 +51,7 @@ public class PedidosEntregaTests(ApiDePrueba api)
             promotorId = promotor.Id,
             dia = HoraBolivia.Hoy(TimeProvider.System).AddDays(1).ToString("yyyy-MM-dd")
         })).EnsureSuccessStatusCode();
-        await AvanzarAsync(operador, pedidoId, avances);
+        if (enRuta) await PasarAEnRutaAsync(operador, pedidoId);
         return new Escenario(promotor, pedidoId, clienteId, productoId);
     }
 
@@ -153,7 +150,7 @@ public class PedidosEntregaTests(ApiDePrueba api)
             promotorId = promotor.Id,
             dia = HoraBolivia.Hoy(TimeProvider.System).AddDays(1).ToString("yyyy-MM-dd")
         })).EnsureSuccessStatusCode();
-        await AvanzarAsync(operador, pedidoId, 2);
+        await PasarAEnRutaAsync(operador, pedidoId);
 
         var problema = await (await EntregarAsync(api.ClienteCon(promotor.Token), pedidoId)).ProblemaAsync(400, "stock_insuficiente");
 
@@ -170,7 +167,7 @@ public class PedidosEntregaTests(ApiDePrueba api)
         var asignado = await api.CrearUsuarioAsync(Roles.Promotor);
         var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotorDelCliente.Id));
         var pedidoId = await operador.CrearPedidoAsync(clienteId, await operador.CrearProductoAsync(10m), 1);
-        await AvanzarAsync(operador, pedidoId, 2);
+        await PasarAEnRutaAsync(operador, pedidoId);
 
         // En ruta pero sin asignar: nadie lo puede entregar todavía.
         await (await EntregarAsync(operador, pedidoId)).ProblemaAsync(400, "pedido_sin_asignar");
@@ -191,11 +188,11 @@ public class PedidosEntregaTests(ApiDePrueba api)
     public async Task Solo_se_entrega_un_pedido_en_ruta_y_una_sola_vez()
     {
         using var operador = await api.OperadorAsync();
-        var e = await PedidoAsignadoAsync(operador, avances: 1);
+        var e = await PedidoAsignadoAsync(operador, enRuta: false);
         using var promotor = api.ClienteCon(e.Promotor.Token);
 
         await (await EntregarAsync(promotor, e.PedidoId)).ProblemaAsync(400, "pedido_no_esta_en_ruta");
-        await AvanzarAsync(operador, e.PedidoId, 1);
+        await PasarAEnRutaAsync(operador, e.PedidoId);
         (await EntregarAsync(promotor, e.PedidoId)).EnsureSuccessStatusCode();
 
         await (await EntregarAsync(promotor, e.PedidoId)).ProblemaAsync(400, "pedido_en_estado_final");
