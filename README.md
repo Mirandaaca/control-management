@@ -1,212 +1,65 @@
-# Control Gestión — Sistema de Gestión de Promotores de Campo
+# Control de Gestión — Del Campo SRL
 
-Sistema full-stack para la gestión integral de promotores de campo: clientes, hojas de pedido, inventario, cobranzas, rutas, pedidos y reportes.
+Sistema de ventas directas en campo para Del Campo SRL (Santa Cruz, Bolivia): pedidos, hojas de pedido, cobranzas,
+eventos con fotos, rutas de re-visita y reportes, con la ubicación de cada operación. Es el sistema de un proyecto de
+grado.
 
----
+## Las tres partes
 
-## Stack Tecnológico
-
-| Capa | Tecnología |
-|---|---|
-| Backend | .NET 9 / ASP.NET Core Web API |
-| Frontend | React 19 + Vite + Tailwind CSS v4 |
-| Base de datos | MySQL 8 (Docker) |
-| ORM | Entity Framework Core 9 + Pomelo |
-| Auth | ASP.NET Core Identity + JWT Bearer |
-| Mapas | React-Leaflet + OpenStreetMap |
-| Gráficos | Recharts |
-| Exportación | ClosedXML (Excel .xlsx) |
-
----
-
-## Requisitos previos
-
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Node.js 20+](https://nodejs.org/)
-- Un servidor MySQL 8. Si no tienes uno, puedes usar [Docker Desktop](https://www.docker.com/products/docker-desktop/) para levantarlo en tu máquina.
-
----
-
-## Puesta en marcha
-
-### 1. Base de datos
-
-La API necesita una base MySQL 8 vacía: crea las tablas sola al arrancar. Sirve un MySQL en otro servidor de tu red o uno local. Para levantar uno local con Docker:
-
-```bash
-docker run -d \
-  --name control-db \
-  -e MYSQL_ROOT_PASSWORD=<contraseña-root> \
-  -e MYSQL_DATABASE=control \
-  -p 3306:3306 \
-  mysql:8.0
-```
-
-Uses el servidor que uses, la cadena de conexión no va en `appsettings.json`: se guarda en user-secrets (ver "Secretos").
-
-### 2. Backend
-
-Antes del primer arranque, configura los secretos (ver "Secretos" más abajo). Luego:
-
-```bash
-cd ControlGestion.API
-dotnet run
-# API disponible en http://localhost:5124
-```
-
-Las migraciones se aplican automáticamente al iniciar. Si no existe, se crea el usuario administrador:
-
-- **Email:** `admin@control.com`
-- **Contraseña:** la que guardaste en `Seed:AdminPassword` (ver "Secretos")
-
-En Development, si existe `Seed:DemoPassword`, también se crean `supervisor@control.com` (Supervisor) y `promotor@control.com` (Promotor) con esa contraseña. La siembra nunca cambia la contraseña de un usuario que ya existe.
-
-### 3. Frontend
-
-```bash
-cd control-gestion-ui
-npm install
-npm run dev
-# UI disponible en http://localhost:5173
-```
-
----
-
-## Estructura del proyecto
-
-```
-/
-├── ControlGestion.API/          # Backend .NET 9
-│   ├── Controllers/             # 12 controllers REST
-│   ├── Models/                  # Entidades EF Core
-│   ├── DTOs/                    # Data Transfer Objects
-│   ├── Data/                    # DbContext + Migrations
-│   ├── Services/                # InventarioService, MoraDetectionService
-│   ├── Middleware/              # AuditoriaMiddleware
-│   └── appsettings.json         # Configuración (ver nota de seguridad)
-│
-├── control-gestion-ui/          # Frontend React 19
-│   ├── src/
-│   │   ├── pages/               # Dashboard, Clientes, HP, Inventario...
-│   │   ├── components/          # Layout, Table, UI primitivos
-│   │   ├── api/                 # axios con interceptor JWT
-│   │   └── context/             # AuthContext
-│   └── package.json
-│
-├── README.md                    # Este archivo
-├── DOCUMENTACION.md             # Diagramas técnicos (Mermaid)
-└── MANUAL_USUARIO.md            # Manual de uso para operadores
-```
-
----
-
-## Módulos del sistema
-
-| Módulo | Descripción |
-|---|---|
-| **Dashboard** | KPIs generales + 4 gráficos de ventas |
-| **Clientes** | CRUD de clientes con geolocalización y límite de crédito |
-| **Hojas de Pedido** | Registro de ventas en campo con GPS, contado/crédito |
-| **Inventario** | Stock con control de concurrencia y movimientos |
-| **Pedidos** | Gestión de despacho con máquina de estados |
-| **Eventos** | Incidencias y seguimiento en campo |
-| **Cobranzas** | Registro de pagos, detección automática de mora |
-| **Rutas** | Planificación de visitas con mapa interactivo |
-| **Reportes** | Análisis de ventas, cobranzas, inventario, promotores + exportación Excel |
-| **Configuraciones** | Parámetros del sistema (días de vencimiento, etc.) |
-| **Usuarios** | Administración de cuentas y roles |
-
----
-
-## Roles y permisos
-
-| Rol | Acceso |
-|---|---|
-| **Admin** | Acceso total, incluyendo auditoría y configuraciones |
-| **Supervisor** | Gestión operativa, sin configuraciones del sistema |
-| **Promotor** | Solo puede ver sus propios datos de campo |
-
----
-
-## API Endpoints principales
-
-```
-POST   /api/auth/login        (único endpoint sin sesión)
-
-GET    /api/usuarios          (solo Admin)
-POST   /api/usuarios          (solo Admin: crea un usuario con rol Admin, Supervisor o Promotor)
-
-GET    /api/clientes
-POST   /api/clientes
-PUT    /api/clientes/{id}
-
-GET    /api/hojas-pedido
-POST   /api/hojas-pedido
-POST   /api/hojas-pedido/{id}/confirmar
-POST   /api/hojas-pedido/{id}/anular
-
-GET    /api/inventario
-POST   /api/inventario/{productoId}/ajuste
-
-GET    /api/cobranzas
-POST   /api/cobranzas/{id}/pagos
-POST   /api/cobranzas/{id}/incobrable
-
-GET    /api/rutas
-POST   /api/rutas
-POST   /api/rutas/{id}/iniciar
-POST   /api/rutas/{id}/completar
-
-GET    /api/reportes/dashboard
-GET    /api/reportes/ventas
-GET    /api/reportes/cobranzas
-GET    /api/reportes/export/ventas
-GET    /api/reportes/export/cobranzas
-```
-
----
-
-## Secretos
-
-`appsettings.json` no guarda secretos: solo `Jwt:Issuer` y `Jwt:Audience`. Los secretos se configuran aparte:
-
-| Clave | Para qué | ¿Obligatoria? |
+| Carpeta | Qué es | Con qué |
 |---|---|---|
-| `ConnectionStrings:DefaultConnection` | Cadena de conexión a MySQL | Sí. Sin ella la API no arranca. |
-| `Jwt:Key` | Clave para firmar los tokens. Mínimo 32 bytes. | Sí. Sin ella, o si es corta, la API no arranca. |
-| `Seed:AdminPassword` | Contraseña del admin al crearlo por primera vez | Si falta, el admin no se crea y se avisa en el log. |
-| `Seed:DemoPassword` | Contraseña del Supervisor y el Promotor de prueba | Opcional. Solo se usa en Development. |
+| `ControlGestion.API/` | La API REST, con sus pruebas de integración en `ControlGestion.API.Tests/` | .NET 10, ASP.NET Core, EF Core 10 y MySQL 8.4 |
+| `control-gestion-ui/` | El panel web de la oficina: el gerente, la secretaria y el administrador | React 19, Vite y Tailwind CSS |
+| `control-gestion-app/gestion_control/` | La app de los promotores, para Android | Flutter |
 
-**En desarrollo** se guardan con `dotnet user-secrets`, fuera del repositorio. Desde `ControlGestion.API/`:
+Los roles (administrador del sistema, gerente general, secretaria y promotor) son datos: cada uno tiene los permisos
+que le asigna el administrador.
+
+## Cómo levantarlo en local
+
+Hace falta el SDK de .NET 10, Node.js 24, Flutter 3.44 (solo para la app) y un MySQL 8.4.
+
+### La API
+
+Los secretos no van en el repositorio: en desarrollo se guardan con user-secrets. Desde `ControlGestion.API/`:
 
 ```bash
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=<host>;Port=<puerto>;Database=control;User=<usuario>;Password=<contraseña>"
-dotnet user-secrets set "Jwt:Key" "<clave aleatoria de al menos 32 bytes>"
-dotnet user-secrets set "Seed:AdminPassword" "<contraseña del admin>"
-dotnet user-secrets set "Seed:DemoPassword" "<contraseña de los usuarios de prueba>"
+dotnet user-secrets set "Jwt:Key" "<una clave al azar de al menos 32 bytes>"
+dotnet user-secrets set "Seed:AdminPassword" "<la contraseña del administrador>"
+dotnet run
 ```
 
-Para generar una clave JWT aleatoria en PowerShell:
+- Queda en http://localhost:5124. Al arrancar, aplica las migraciones: basta con una base vacía.
+- Crea el administrador `admin@control.com`, con la contraseña de `Seed:AdminPassword`. Con `Seed:DemoPassword`, crea
+  además `gerente@control.com`, `secretaria@control.com` y `promotor@control.com`.
+- `Navegacion:Clave` es opcional: la clave de OpenRouteService para el camino por calles de la app. Sin ella, todo
+  funciona menos ese camino.
 
-```powershell
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+### El panel
+
+```bash
+cd control-gestion-ui
+cp .env.example .env.local   # VITE_API_URL: la raíz de la API, sin /api
+npm install
+npm run dev                  # http://localhost:5173
 ```
 
-**En producción** se usan variables de entorno, con `__` en lugar de `:`: `ConnectionStrings__DefaultConnection`, `Jwt__Key` y `Seed__AdminPassword`. Una variable de entorno tiene prioridad sobre user-secrets y sobre `appsettings.json`.
+### La app
 
-Las contraseñas deben tener al menos 6 caracteres y un dígito.
+Cómo correrla en un celular Android o como web, con la URL de la API, está en
+[`control-gestion-app/gestion_control/README.md`](control-gestion-app/gestion_control/README.md).
 
----
+## Las pruebas
 
-## Servicios en segundo plano
+- **API:** `dotnet test ControlGestion.sln`. Cada corrida crea una base `control_test_*` y la borra al terminar. Necesita
+  un MySQL 8.4 con `lower_case_table_names=1` y un usuario que pueda crear y borrar bases, en
+  `ConnectionStrings:Pruebas` (user-secrets de `ControlGestion.API.Tests`).
+- **Panel:** `npm run lint` y `npm run build`.
+- **App:** `flutter analyze` y `flutter test`.
 
-**MoraDetectionService** — corre cada noche a las 02:00 UTC. Detecta cobranzas vencidas y actualiza su estado automáticamente.
+GitHub Actions las corre en cada pull request.
 
----
+## Los documentos anteriores
 
-## Documentación técnica
-
-Ver [DOCUMENTACION.md](DOCUMENTACION.md) para diagramas de clases, ER, secuencia y flujos en formato Mermaid.
-
-Ver [MANUAL_USUARIO.md](MANUAL_USUARIO.md) para el manual de uso del sistema.
-# management_control
+`historico/` guarda los documentos del desarrollador anterior. No describen el sistema actual.

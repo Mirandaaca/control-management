@@ -1,3 +1,5 @@
+> **Histórico.** Documento del desarrollador anterior: no describe el sistema actual. Se conserva solo como referencia.
+
 # Manual de Usuario — Control Gestión
 
 **Versión:** 1.0  

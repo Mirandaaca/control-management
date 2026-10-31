@@ -1,3 +1,5 @@
+> **Histórico.** Documento del desarrollador anterior: no describe el sistema actual. Se conserva solo como referencia.
+
 # Documentación Técnica: Sistema de Control Gestión (Admin Panel)
 
 ## 1. Descripción General
