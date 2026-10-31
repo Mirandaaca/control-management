@@ -449,7 +449,10 @@ void main() {
       expect(eventos.modificados.single.datos.descripcion, 'Volví en la tarde y tampoco estaba.');
       expect(exito('EVT-2026-00005 quedó modificado.'), findsOneWidget);
       // No empuja el contenido: el aviso no está en la lista del detalle.
-      expect(find.descendant(of: find.byType(ListView), matching: find.text('EVT-2026-00005 quedó modificado.')), findsNothing);
+      expect(
+        find.descendant(of: find.byType(ListView), matching: find.text('EVT-2026-00005 quedó modificado.')),
+        findsNothing,
+      );
 
       // A los 5 segundos se va solo; una segunda edición, con el mismo texto, avisa otra vez.
       await tester.pump(const Duration(seconds: 6));
