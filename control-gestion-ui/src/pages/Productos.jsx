@@ -13,6 +13,7 @@ import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearMonto } from '../utils/formato';
 
@@ -47,13 +48,16 @@ export default function Productos() {
   const [errorDesactivar, setErrorDesactivar] = useState('');
   const [enviandoDesactivar, setEnviandoDesactivar] = useState(false);
 
-  const cargar = useCallback(() => api.get('/productos', {
-    params: { pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined },
-  })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de productos.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/productos', {
+      params: { pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de productos.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

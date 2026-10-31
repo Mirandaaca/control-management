@@ -17,6 +17,7 @@ import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { diasDesdeHoy, formatearFecha, formatearMonto } from '../utils/formato';
 
@@ -97,20 +98,23 @@ export default function Clientes() {
       .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar las zonas y los estados.')));
   }, []);
 
-  const cargar = useCallback(() => api.get('/clientes', {
-    params: {
-      pagina: numeroPagina,
-      tamano: TAMANO_PAGINA,
-      buscar: busqueda || undefined,
-      zonaId: filtros.zonaId || undefined,
-      estadoId: filtros.estadoId || undefined,
-      porVisitar: filtros.porVisitar || undefined,
-    },
-  })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de clientes.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.zonaId, filtros.estadoId, filtros.porVisitar]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/clientes', {
+      params: {
+        pagina: numeroPagina,
+        tamano: TAMANO_PAGINA,
+        buscar: busqueda || undefined,
+        zonaId: filtros.zonaId || undefined,
+        estadoId: filtros.estadoId || undefined,
+        porVisitar: filtros.porVisitar || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de clientes.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.zonaId, filtros.estadoId, filtros.porVisitar, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

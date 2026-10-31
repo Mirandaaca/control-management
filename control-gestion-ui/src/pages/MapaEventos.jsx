@@ -16,6 +16,7 @@ import {
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -88,20 +89,23 @@ export default function MapaEventos() {
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
-  const cargar = useCallback(() => api.get('/eventos/mapa', {
-    params: {
-      tipoEventoId: filtros.tipo || undefined,
-      estado: filtros.estado || undefined,
-      zonaId: filtros.zona || undefined,
-      promotorId: filtros.promotor || undefined,
-      desde: filtros.desde || undefined,
-      hasta: filtros.hasta || undefined,
-    },
-  })
-    .then(({ data }) => { setMapa(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar el mapa de eventos.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [filtros]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/eventos/mapa', {
+      params: {
+        tipoEventoId: filtros.tipo || undefined,
+        estado: filtros.estado || undefined,
+        zonaId: filtros.zona || undefined,
+        promotorId: filtros.promotor || undefined,
+        desde: filtros.desde || undefined,
+        hasta: filtros.hasta || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setMapa(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar el mapa de eventos.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [filtros, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

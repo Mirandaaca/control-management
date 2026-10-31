@@ -20,6 +20,7 @@ import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -79,7 +80,9 @@ export default function Cobranzas() {
   const motivoRef = useRef(null);
   const [enviando, setEnviando] = useState(false);
 
+  const nuevaPeticion = usePeticionVigente();
   const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
     const params = {
       buscar: busqueda || undefined,
       estado: filtros.estado || undefined,
@@ -90,10 +93,10 @@ export default function Cobranzas() {
       api.get('/cobranzas', { params: { ...params, pagina: numeroPagina, tamano: TAMANO_PAGINA } }),
       api.get('/cobranzas/resumen', { params }),
     ])
-      .then(([lista, totales]) => { setPagina(lista.data); setResumen(totales.data); setErrorCarga(''); })
-      .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de cobranzas.')))
-      .finally(() => { setCargando(false); setReintentando(false); });
-  }, [numeroPagina, busqueda, filtros.estado, filtros.desde, filtros.hasta]);
+      .then(siVigente(([lista, totales]) => { setPagina(lista.data); setResumen(totales.data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de cobranzas.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.estado, filtros.desde, filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

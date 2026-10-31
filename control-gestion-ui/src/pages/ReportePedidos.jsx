@@ -14,6 +14,7 @@ import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const TAMANO_PAGINA = 25;
@@ -51,16 +52,20 @@ export default function ReportePedidos() {
     hasta: filtros.hasta || undefined,
   }), [filtros]);
 
+  const nuevaPeticion = usePeticionVigente();
+
   // Si la API rechaza los filtros, el reporte anterior no queda a la vista: ya no corresponde a lo que se pidió.
-  const cargar = useCallback(() => api.get('/pedidos/reporte', { params: parametros(numeroPagina) })
-    .then(({ data }) => { setReporte(data); setErrorCarga(''); setErroresFiltro({}); })
-    .catch((err) => {
-      setReporte(null);
-      setErroresFiltro(erroresPorCampo(err));
-      setErrorCarga(mensajeDeError(err, 'No se pudo generar el reporte de pedidos.'));
-    })
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [parametros, numeroPagina]);
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/pedidos/reporte', { params: parametros(numeroPagina) })
+      .then(siVigente(({ data }) => { setReporte(data); setErrorCarga(''); setErroresFiltro({}); }))
+      .catch(siVigente((err) => {
+        setReporte(null);
+        setErroresFiltro(erroresPorCampo(err));
+        setErrorCarga(mensajeDeError(err, 'No se pudo generar el reporte de pedidos.'));
+      }))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [parametros, numeroPagina, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

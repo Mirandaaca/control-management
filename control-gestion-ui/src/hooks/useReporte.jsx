@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CalendarX } from 'lucide-react';
 import api from '../api/axios';
 import { descargar } from '../api/descargas';
@@ -6,6 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import { ErrorDeCarga, EstadoVacio } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { diaEnBolivia } from '../utils/formato';
+import { usePeticionVigente } from './usePeticionVigente';
 import { useRecarga } from './useRecarga';
 
 /**
@@ -19,30 +20,26 @@ export function useReporte(ruta, parametros, mensajeDeFallo) {
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [erroresFiltro, setErroresFiltro] = useState({});
-  const ultimaPeticion = useRef(0);
+  const nuevaPeticion = usePeticionVigente();
 
   const cargar = useCallback(() => {
-    const peticion = ++ultimaPeticion.current;
-    const vigente = () => peticion === ultimaPeticion.current;
+    const siVigente = nuevaPeticion();
     return api.get(ruta, { params: parametros })
-      .then(({ data }) => {
-        if (!vigente()) return;
+      .then(siVigente(({ data }) => {
         setDatos(data);
         setErrorCarga('');
         setErroresFiltro({});
-      })
-      .catch((err) => {
-        if (!vigente()) return;
+      }))
+      .catch(siVigente((err) => {
         setDatos(null);
         setErroresFiltro(erroresPorCampo(err));
         setErrorCarga(mensajeDeError(err, mensajeDeFallo));
-      })
-      .finally(() => {
-        if (!vigente()) return;
+      }))
+      .finally(siVigente(() => {
         setCargando(false);
         setReintentando(false);
-      });
-  }, [ruta, parametros, mensajeDeFallo]);
+      }));
+  }, [ruta, parametros, mensajeDeFallo, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
