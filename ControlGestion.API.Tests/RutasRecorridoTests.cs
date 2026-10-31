@@ -120,7 +120,7 @@ public class RutasRecorridoTests(ApiDePrueba api)
         Assert.Equal("Activo", visitado.GetProperty("estado").GetProperty("nombre").GetString());
         Assert.Equal(TimeSpan.FromDays(15), Fecha(visitado, "proximaVisita") - Fecha(visitado, "ultimaVisita"));
         var ausente = await (await operador.GetAsync($"/api/clientes/{e.Clientes[1]}")).LeerJsonAsync();
-        Assert.Equal("Disponible para Re-visita", ausente.GetProperty("estado").GetProperty("nombre").GetString());
+        Assert.Equal("Disponible para re-visita", ausente.GetProperty("estado").GetProperty("nombre").GetString());
         Assert.Null(Fecha(ausente, "ultimaVisita"));
     }
 

@@ -126,10 +126,7 @@ LatLng lugarDelNombre(List<Vertice> limite, Iterable<LatLng> evitar) {
       .reduce(math.min)
       .toDouble();
 
-  final candidatos = [
-    centro,
-    for (final v in limite) puntoDe((latitud + v.latitud) / 2, (longitud + v.longitud) / 2),
-  ];
+  final candidatos = [centro, for (final v in limite) puntoDe((latitud + v.latitud) / 2, (longitud + v.longitud) / 2)];
   return candidatos.reduce((mejor, otro) => cercania(otro) > cercania(mejor) ? otro : mejor);
 }
 

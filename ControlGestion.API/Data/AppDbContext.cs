@@ -406,7 +406,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             },
             new EstadoCliente
             {
-                Id = EstadosDeCliente.DisponibleParaRevisita, Nombre = "Disponible para Re-visita", Color = PaletaDeEstados.Disponible,
+                Id = EstadosDeCliente.DisponibleParaRevisita, Nombre = "Disponible para re-visita", Color = PaletaDeEstados.Disponible,
                 EsDelSistema = true, Descripcion = "Ha pasado el período de re-visita"
             },
             new EstadoCliente

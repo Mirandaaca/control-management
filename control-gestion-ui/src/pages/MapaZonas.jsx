@@ -15,9 +15,8 @@ import FormularioPunto from '../components/zonas/FormularioPunto';
 import { comoPosiciones, ESTILO_ZONA, ESTILO_ZONA_ELEGIDA, ICONO_PUNTO } from '../components/zonas/marcadores';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
+import { CENTRO_DE_SANTA_CRUZ } from '../utils/mapa';
 
-// Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay nada dibujado.
-const SANTA_CRUZ = [-17.7833, -63.1821];
 const { territorial } = PERMISOS;
 const CAPA_NOMBRES = 'nombresDeZonas';
 
@@ -284,7 +283,7 @@ export default function MapaZonas() {
         {/* isolate: las capas de Leaflet (z-index 400 a 1000) quedan dentro del mapa y no tapan los modales. */}
         <div className="relative isolate h-104 sm:h-128" role="group"
           aria-label="Mapa de zonas: cada zona con su límite y sus puntos de referencia">
-          <MapContainer center={SANTA_CRUZ} zoom={13} scrollWheelZoom={false}
+          <MapContainer center={CENTRO_DE_SANTA_CRUZ} zoom={13} scrollWheelZoom={false}
             className={`h-full w-full ${modo === 'dibujar' || modo === 'punto' ? 'cursor-crosshair' : ''}`}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

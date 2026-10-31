@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
-
-// Centro de Santa Cruz de la Sierra: donde abre el mapa si todavía no hay un punto marcado.
-const SANTA_CRUZ = [-17.7833, -63.1821];
+import { CENTRO_DE_SANTA_CRUZ } from '../utils/mapa';
 
 const redondear = (n) => Math.round(n * 1e6) / 1e6;
 
@@ -40,7 +38,7 @@ export default function MapaUbicacion({ valor, onCambiar, alto = 260, etiqueta =
   return (
     <div className="rounded-lg overflow-hidden border border-borde-control" style={{ height: alto }} role="group" aria-label={etiqueta}>
       <MapContainer
-        center={punto ?? SANTA_CRUZ}
+        center={punto ?? CENTRO_DE_SANTA_CRUZ}
         zoom={punto ? 16 : 13}
         scrollWheelZoom={false}
         className={`h-full w-full ${onCambiar ? 'cursor-crosshair' : ''}`}

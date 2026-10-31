@@ -4,7 +4,8 @@ import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import MapaUbicacion from '../MapaUbicacion';
-import { Alert, AreaDeTexto, Btn, Input, Modal, Selector } from '../ui';
+import { Alert, AreaDeTexto, BotonCancelar, Btn, Input, Modal, Selector } from '../ui';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { zonaQueContiene } from '../../utils/geometria';
 
@@ -24,6 +25,7 @@ export default function FormularioPunto({ punto, zonas, zonaPorDefecto, onCerrar
     zonaId: String(punto.zona?.id ?? sugerir(punto.latitud, punto.longitud) ?? ''),
   }));
   const [zonaElegidaAMano, setZonaElegidaAMano] = useState(!esNuevo);
+  const sinGuardar = useSinGuardar(datos);
   const [errores, setErrores] = useState({});
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -63,11 +65,12 @@ export default function FormularioPunto({ punto, zonas, zonaPorDefecto, onCerrar
     <Modal
       abierto
       onCerrar={onCerrar}
+      sinGuardar={sinGuardar}
       titulo={esNuevo ? 'Nuevo punto de referencia' : `Editar ${punto.nombre}`}
       descripcion="Un lugar que orienta en la zona, como un mercado o una plaza."
       pie={(
         <>
-          <Btn variant="outline" size="md" onClick={onCerrar} disabled={guardando}>Cancelar</Btn>
+          <BotonCancelar disabled={guardando} />
           <Btn type="submit" form="formulario-punto" size="md" disabled={guardando}>
             {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             {guardando ? 'Guardando…' : 'Guardar'}

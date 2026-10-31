@@ -144,15 +144,8 @@ void main() {
       tester,
     ) async {
       var pagado = false;
-      cobranzas.alListar = (_, _) async => Pagina(
-        items: [
-          resumenDeMarta,
-          if (!pagado) resumenDeRosa,
-        ],
-        total: pagado ? 1 : 2,
-        numero: 1,
-        tamano: 25,
-      );
+      cobranzas.alListar = (_, _) async =>
+          Pagina(items: [resumenDeMarta, if (!pagado) resumenDeRosa], total: pagado ? 1 : 2, numero: 1, tamano: 25);
       final router = await abrir(tester);
       await tester.tap(find.text('Rosa Quispe Mamani'));
       await tester.pumpAndSettle();

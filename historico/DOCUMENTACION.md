@@ -1,3 +1,5 @@
+> **Histórico.** Documento del desarrollador anterior: no describe el sistema actual. Se conserva solo como referencia.
+
 # Documentación Técnica — Control Gestión
 
 **Estado:** Fases 1–6 implementadas y en producción

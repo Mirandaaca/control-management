@@ -87,8 +87,8 @@ public class RevisitaTests(ApiDePrueba api)
         using var operador = await api.OperadorAsync();
         var vencido = await ClienteConProximaVisitaAsync(operador, await operador.CrearZonaAsync(),
             DateTime.UtcNow.AddDays(-1), EstadosDeCliente.Activo);
-        var proceso = new MoraDetectionService(api.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
-            NullLogger<MoraDetectionService>.Instance);
+        var proceso = new ProcesoDiarioService(api.Services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
+            NullLogger<ProcesoDiarioService>.Instance);
 
         await proceso.StartAsync(CancellationToken.None);
         var estado = EstadosDeCliente.Activo;

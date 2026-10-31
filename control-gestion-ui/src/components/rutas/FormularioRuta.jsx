@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { ArrowDown, ArrowUp, LoaderCircle, X } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
-import { Alert, Btn, CampoFecha, Combobox, Modal, Selector } from '../ui';
+import { Alert, BotonCancelar, Btn, CampoFecha, Combobox, Modal, Selector } from '../ui';
 import { diaEnBolivia, formatearDia } from '../../utils/formato';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import MapaDeRuta from './MapaDeRuta';
@@ -30,6 +30,9 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
   const [promotorId, setPromotorId] = useState(zonaDe(zonaInicial)?.promotor?.id ?? '');
   const [fecha, setFecha] = useState(diaInicial && diaInicial >= hoy ? diaInicial : hoy);
   const [paradas, setParadas] = useState([]);
+  // Si el gerente arregló la ruta a mano (subió, bajó, quitó o agregó un cliente): eso es lo que se pierde al cerrar.
+  // La zona, el promotor y el día se vuelven a elegir con un clic, y la sugerida llega sola, así que no cuentan.
+  const [arreglada, setArreglada] = useState(false);
   const [sugerida, setSugerida] = useState({ cargando: Boolean(zonaId), error: '', vacia: false });
   const [clientesDeLaZona, setClientesDeLaZona] = useState([]);
   const [errores, setErrores] = useState({});
@@ -48,6 +51,7 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
       .then(([s, c]) => {
         if (numero !== pedido.current) return;
         setParadas(s.data);
+        setArreglada(false);
         setClientesDeLaZona(c.data.filter((cl) => cl.estado.id !== INACTIVO));
         setSugerida({ cargando: false, error: '', vacia: s.data.length === 0 });
       })
@@ -84,16 +88,25 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
     recalcular(zonaId, dia);
   };
 
-  const mover = (desde, hacia) => setParadas((lista) => {
-    const nueva = [...lista];
-    const [movida] = nueva.splice(desde, 1);
-    nueva.splice(hacia, 0, movida);
-    return nueva;
-  });
+  const mover = (desde, hacia) => {
+    setParadas((lista) => {
+      const nueva = [...lista];
+      const [movida] = nueva.splice(desde, 1);
+      nueva.splice(hacia, 0, movida);
+      return nueva;
+    });
+    setArreglada(true);
+  };
+
+  const quitar = (id) => {
+    setParadas((lista) => lista.filter((x) => x.id !== id));
+    setArreglada(true);
+  };
 
   const agregar = (id, opcion) => {
     const c = opcion.cliente;
     setParadas((lista) => [...lista, { ...c, aMano: true }]);
+    setArreglada(true);
     setErrores((e) => ({ ...e, clientes: undefined }));
   };
 
@@ -125,12 +138,13 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
     <Modal
       abierto
       onCerrar={onCerrar}
+      sinGuardar={arreglada}
       titulo="Planificar ruta"
       descripcion="Elige la zona, el promotor y el día. La ruta sugerida empieza por el cliente más atrasado y sigue, cada vez, por el más cercano."
       ancho="lg"
       pie={(
         <>
-          <Btn variant="outline" size="md" onClick={onCerrar} disabled={enviando}>Cancelar</Btn>
+          <BotonCancelar disabled={enviando} />
           <Btn size="md" onClick={planificar} disabled={enviando || sugerida.cargando}>
             {enviando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             Planificar ruta
@@ -188,8 +202,7 @@ export default function FormularioRuta({ zonas, promotores, diaInicial, zonaInic
                         aria-label={`Bajar a ${p.nombreCompleto}`}>
                         <ArrowDown size={14} aria-hidden="true" />
                       </Btn>
-                      <Btn variant="ghost" onClick={() => setParadas((lista) => lista.filter((x) => x.id !== p.id))}
-                        aria-label={`Quitar a ${p.nombreCompleto}`}>
+                      <Btn variant="ghost" onClick={() => quitar(p.id)} aria-label={`Quitar a ${p.nombreCompleto}`}>
                         <X size={14} aria-hidden="true" />
                       </Btn>
                     </span>

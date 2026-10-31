@@ -3,8 +3,9 @@ import { flushSync } from 'react-dom';
 import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
-import { Alert, AreaDeTexto, Btn, Combobox, Modal, Selector } from '../ui';
+import { Alert, AreaDeTexto, BotonCancelar, Btn, Combobox, Modal, Selector } from '../ui';
 import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../../hooks/useOpcionesDeClientes';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { formatearFecha } from '../../utils/formato';
 
@@ -32,6 +33,7 @@ function datosIniciales(evento) {
  */
 export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, onGuardado }) {
   const [datos, setDatos] = useState(() => datosIniciales(evento));
+  const sinGuardar = useSinGuardar(datos);
   const [tipos, setTipos] = useState([]);
   const clientes = useOpcionesDeClientes();
   const [pedidos, setPedidos] = useState([]);
@@ -110,12 +112,13 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
     <Modal
       abierto
       onCerrar={onCerrar}
+      sinGuardar={sinGuardar}
       ancho="lg"
       titulo={`Editar ${evento.numero}`}
       descripcion="Se modifica mientras está pendiente. La ubicación es la del registro y no cambia."
       pie={(
         <>
-          <Btn variant="outline" size="md" onClick={onCerrar} disabled={guardando}>Cancelar</Btn>
+          <BotonCancelar disabled={guardando} />
           <Btn type="submit" form="formulario-evento" size="md" disabled={guardando}>
             {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             {guardando ? 'Guardando…' : 'Guardar cambios'}

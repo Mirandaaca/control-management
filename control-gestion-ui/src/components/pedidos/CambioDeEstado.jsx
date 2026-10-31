@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { AreaDeTexto, CampoFechaHora, Confirmar } from '../ui';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { ahoraEnBolivia, formatearFecha } from '../../utils/formato';
 import { SIGUIENTE } from './estados';
@@ -16,6 +17,7 @@ export default function CambioDeEstado({ cambio, onCerrar, onHecho }) {
   const siguiente = SIGUIENTE[pedido.estado.id];
   const [texto, setTexto] = useState('');
   const [fecha, setFecha] = useState('');
+  const sinGuardar = useSinGuardar({ texto, fecha });
   const [errores, setErrores] = useState({});
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -82,6 +84,7 @@ export default function CambioDeEstado({ cambio, onCerrar, onHecho }) {
       error={error}
       onConfirmar={enviar}
       onCancelar={onCerrar}
+      sinGuardar={sinGuardar}
     >
       <div ref={contenedorRef} className="space-y-3">
         <p>{textos.explicacion}</p>

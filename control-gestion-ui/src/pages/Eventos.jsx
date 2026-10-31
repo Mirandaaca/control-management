@@ -19,6 +19,7 @@ import { ELIGEN_PROMOTOR, PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
@@ -65,23 +66,27 @@ export default function Eventos() {
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
-  const cargar = useCallback(() => api.get('/eventos', {
-    params: {
-      pagina: numeroPagina,
-      tamano: TAMANO_PAGINA,
-      buscar: busqueda || undefined,
-      tipoEventoId: filtros.tipo || undefined,
-      estado: filtros.estado || undefined,
-      zonaId: filtros.zona || undefined,
-      promotorId: filtros.promotor || undefined,
-      desde: filtros.desde || undefined,
-      hasta: filtros.hasta || undefined,
-    },
-  })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de eventos.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde, filtros.hasta]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/eventos', {
+      params: {
+        pagina: numeroPagina,
+        tamano: TAMANO_PAGINA,
+        buscar: busqueda || undefined,
+        tipoEventoId: filtros.tipo || undefined,
+        estado: filtros.estado || undefined,
+        zonaId: filtros.zona || undefined,
+        promotorId: filtros.promotor || undefined,
+        desde: filtros.desde || undefined,
+        hasta: filtros.hasta || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de eventos.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde,
+    filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

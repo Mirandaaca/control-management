@@ -19,6 +19,8 @@ import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -60,24 +62,28 @@ export default function HojasPedido() {
   const [detalle, setDetalle] = useState(null);
 
   const [anulando, setAnulando] = useState(null);
+  const sinGuardar = useSinGuardar(anulando?.motivo);
   const anulacionRef = useRef(null);
   const [enviando, setEnviando] = useState(false);
 
-  const cargar = useCallback(() => api.get('/hojas-pedido', {
-    params: {
-      pagina: numeroPagina,
-      tamano: TAMANO_PAGINA,
-      buscar: busqueda || undefined,
-      estado: filtros.estado || undefined,
-      tipoVenta: filtros.tipo || undefined,
-      desde: filtros.desde || undefined,
-      hasta: filtros.hasta || undefined,
-    },
-  })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de hojas de pedido.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/hojas-pedido', {
+      params: {
+        pagina: numeroPagina,
+        tamano: TAMANO_PAGINA,
+        buscar: busqueda || undefined,
+        estado: filtros.estado || undefined,
+        tipoVenta: filtros.tipo || undefined,
+        desde: filtros.desde || undefined,
+        hasta: filtros.hasta || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de hojas de pedido.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -296,6 +302,7 @@ export default function HojasPedido() {
         error={anulando?.error}
         onConfirmar={anular}
         onCancelar={() => setAnulando(null)}
+        sinGuardar={sinGuardar}
       >
         {anulando && (
           <div ref={anulacionRef} className="space-y-3">

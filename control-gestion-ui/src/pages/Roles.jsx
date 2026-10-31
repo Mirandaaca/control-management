@@ -6,14 +6,15 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader,
+  Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input,
+  Modal, PageHeader,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { seguridad } = PERMISOS;
 
@@ -87,6 +88,7 @@ export default function Roles() {
   const [busqueda, setBusqueda] = useState('');
 
   const [editor, setEditor] = useState(null);
+  const sinGuardar = useSinGuardar(editor);
   const editorRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorEditor, setErrorEditor] = useState('');
@@ -246,13 +248,14 @@ export default function Roles() {
       <Modal
         abierto={editor !== null}
         onCerrar={() => setEditor(null)}
+        sinGuardar={sinGuardar}
         ancho="lg"
         titulo={editor?.id ? `Editar el rol ${editor.nombre}` : 'Nuevo rol'}
         descripcion="Marca las operaciones que puede hacer. Un rol tiene al menos un permiso."
         pie={(
           <>
             <span className="mr-auto self-center text-sm text-slate-600">{editor?.elegidos.size ?? 0} permisos elegidos</span>
-            <Btn variant="outline" size="md" onClick={() => setEditor(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="editor-rol" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Guardando…' : 'Guardar'}

@@ -21,6 +21,7 @@ import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
@@ -86,25 +87,28 @@ export default function Pedidos() {
       .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar los filtros.')));
   }, [eligePromotor]);
 
-  const cargar = useCallback(() => api.get('/pedidos', {
-    params: {
-      pagina: numeroPagina,
-      tamano: TAMANO_PAGINA,
-      buscar: busqueda || undefined,
-      estadoId: filtros.estado || undefined,
-      zonaId: filtros.zona || undefined,
-      promotorId: filtros.promotor || undefined,
-      repartidorId: filtros.asignado && filtros.asignado !== SIN_ASIGNAR ? filtros.asignado : undefined,
-      sinAsignar: filtros.asignado === SIN_ASIGNAR || undefined,
-      desde: filtros.desde || undefined,
-      hasta: filtros.hasta || undefined,
-    },
-  })
-    .then(({ data }) => { setPagina(data); actualizarElegidos(data.items); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de pedidos.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde, filtros.hasta,
-    actualizarElegidos]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/pedidos', {
+      params: {
+        pagina: numeroPagina,
+        tamano: TAMANO_PAGINA,
+        buscar: busqueda || undefined,
+        estadoId: filtros.estado || undefined,
+        zonaId: filtros.zona || undefined,
+        promotorId: filtros.promotor || undefined,
+        repartidorId: filtros.asignado && filtros.asignado !== SIN_ASIGNAR ? filtros.asignado : undefined,
+        sinAsignar: filtros.asignado === SIN_ASIGNAR || undefined,
+        desde: filtros.desde || undefined,
+        hasta: filtros.hasta || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); actualizarElegidos(data.items); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de pedidos.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde,
+    filtros.hasta, actualizarElegidos, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

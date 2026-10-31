@@ -16,6 +16,7 @@ import { ELIGEN_PROMOTOR, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { diaEnBolivia, formatearDia, formatearFecha } from '../utils/formato';
 
 const TAMANO_PAGINA = 25;
@@ -57,19 +58,23 @@ export default function ClientesPorVisitar() {
       .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar las zonas y los promotores.')));
   }, [eligePromotor]);
 
-  const cargar = useCallback(() => api.get('/clientes/por-visitar', {
-    params: {
-      pagina: numeroPagina,
-      tamano: TAMANO_PAGINA,
-      buscar: busqueda || undefined,
-      zonaId: filtros.zonaId || undefined,
-      promotorId: filtros.promotorId || undefined,
-    },
-  })
-    .then(({ data }) => { setPagina(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de clientes por visitar.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [numeroPagina, busqueda, filtros.zonaId, filtros.promotorId]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/clientes/por-visitar', {
+      params: {
+        pagina: numeroPagina,
+        tamano: TAMANO_PAGINA,
+        buscar: busqueda || undefined,
+        zonaId: filtros.zonaId || undefined,
+        promotorId: filtros.promotorId || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(
+        mensajeDeError(err, 'No se pudo cargar la lista de clientes por visitar.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [numeroPagina, busqueda, filtros.zonaId, filtros.promotorId, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);

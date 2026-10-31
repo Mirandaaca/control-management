@@ -452,7 +452,7 @@ namespace ControlGestion.API.Data.Migrations
                             Color = "#15803D",
                             Descripcion = "Ha pasado el período de re-visita",
                             EsDelSistema = true,
-                            Nombre = "Disponible para Re-visita"
+                            Nombre = "Disponible para re-visita"
                         },
                         new
                         {

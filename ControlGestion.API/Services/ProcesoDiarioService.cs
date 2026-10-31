@@ -9,7 +9,7 @@ namespace ControlGestion.API.Services;
 /// misma corrida borra las sesiones que terminaron hace más de 30 días y las ubicaciones de los promotores de hace más
 /// de 30 días.
 /// </summary>
-public class MoraDetectionService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<MoraDetectionService> logger)
+public class ProcesoDiarioService(IServiceScopeFactory scopeFactory, TimeProvider reloj, ILogger<ProcesoDiarioService> logger)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

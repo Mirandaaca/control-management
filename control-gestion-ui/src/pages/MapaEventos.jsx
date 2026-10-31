@@ -16,12 +16,12 @@ import {
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { useRecarga } from '../hooks/useRecarga';
+import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { ELIGEN_PROMOTOR } from '../context/permisos';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
+import { CENTRO_DE_SANTA_CRUZ } from '../utils/mapa';
 
-// Centro de Santa Cruz de la Sierra: donde abre el mapa si no hay puntos.
-const SANTA_CRUZ = [-17.7833, -63.1821];
 const SIN_FILTROS = { tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 const numero = new Intl.NumberFormat('es-BO');
 
@@ -89,20 +89,23 @@ export default function MapaEventos() {
 
   useEffect(() => { cargarFiltros(); }, [cargarFiltros]);
 
-  const cargar = useCallback(() => api.get('/eventos/mapa', {
-    params: {
-      tipoEventoId: filtros.tipo || undefined,
-      estado: filtros.estado || undefined,
-      zonaId: filtros.zona || undefined,
-      promotorId: filtros.promotor || undefined,
-      desde: filtros.desde || undefined,
-      hasta: filtros.hasta || undefined,
-    },
-  })
-    .then(({ data }) => { setMapa(data); setErrorCarga(''); })
-    .catch((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar el mapa de eventos.')))
-    .finally(() => { setCargando(false); setReintentando(false); }),
-  [filtros]);
+  const nuevaPeticion = usePeticionVigente();
+  const cargar = useCallback(() => {
+    const siVigente = nuevaPeticion();
+    return api.get('/eventos/mapa', {
+      params: {
+        tipoEventoId: filtros.tipo || undefined,
+        estado: filtros.estado || undefined,
+        zonaId: filtros.zona || undefined,
+        promotorId: filtros.promotor || undefined,
+        desde: filtros.desde || undefined,
+        hasta: filtros.hasta || undefined,
+      },
+    })
+      .then(siVigente(({ data }) => { setMapa(data); setErrorCarga(''); }))
+      .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar el mapa de eventos.'))))
+      .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
+  }, [filtros, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -132,7 +135,7 @@ export default function MapaEventos() {
     <>
       {/* isolate: las capas de Leaflet (z-index 400 a 1000) quedan dentro del mapa y no tapan el modal del detalle. */}
       <div className="relative isolate h-104 sm:h-128" role="group" aria-label="Mapa de eventos: cada punto es un evento; elige uno para ver su detalle">
-        <MapContainer center={SANTA_CRUZ} zoom={13} scrollWheelZoom={false} className="h-full w-full">
+        <MapContainer center={CENTRO_DE_SANTA_CRUZ} zoom={13} scrollWheelZoom={false} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

@@ -4,8 +4,9 @@ import { LoaderCircle } from 'lucide-react';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import LineasDeProductos from '../LineasDeProductos';
-import { Alert, AreaDeTexto, Btn, CampoFechaHora, Combobox, Input, Modal } from '../ui';
+import { Alert, AreaDeTexto, BotonCancelar, Btn, CampoFechaHora, Combobox, Input, Modal } from '../ui';
 import { LIMITE_DE_CLIENTES, useOpcionesDeClientes } from '../../hooks/useOpcionesDeClientes';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { aCampoFechaHora, ahoraEnBolivia, formatearMonto } from '../../utils/formato';
 import { totalDe } from '../../utils/lineas';
@@ -44,6 +45,7 @@ function datosIniciales(pedido) {
 export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
   const esNuevo = !pedido;
   const [datos, setDatos] = useState(() => datosIniciales(pedido));
+  const sinGuardar = useSinGuardar(datos);
   const clientes = useOpcionesDeClientes();
   const [productos, setProductos] = useState([]);
   const [errores, setErrores] = useState({});
@@ -124,6 +126,7 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
     <Modal
       abierto
       onCerrar={onCerrar}
+      sinGuardar={sinGuardar}
       ancho="lg"
       titulo={esNuevo ? 'Nuevo pedido' : `Editar ${pedido.numero}`}
       descripcion={esNuevo
@@ -131,7 +134,7 @@ export default function FormularioPedido({ pedido, onCerrar, onGuardado }) {
         : 'Se modifica mientras está pendiente. El cliente no cambia: para otro, anula este pedido y registra uno nuevo.'}
       pie={(
         <>
-          <Btn variant="outline" size="md" onClick={onCerrar} disabled={guardando}>Cancelar</Btn>
+          <BotonCancelar disabled={guardando} />
           <Btn type="submit" form="formulario-pedido" size="md" disabled={guardando}>
             {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             {guardando && 'Guardando…'}
