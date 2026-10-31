@@ -7,14 +7,15 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
-  Selector,
+  Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  PageHeader, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { parametros } = PERMISOS;
 
@@ -54,6 +55,7 @@ export default function Zonas() {
   const [busqueda, setBusqueda] = useState('');
 
   const [editor, setEditor] = useState(null);
+  const sinGuardar = useSinGuardar(editor);
   const editorRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorEditor, setErrorEditor] = useState('');
@@ -217,11 +219,12 @@ export default function Zonas() {
       <Modal
         abierto={editor !== null}
         onCerrar={() => setEditor(null)}
+        sinGuardar={sinGuardar}
         titulo={editor?.id ? `Editar la zona ${anterior?.nombre}` : 'Nueva zona'}
         descripcion={editor?.id ? undefined : 'Sus clientes quedan en la cartera del promotor que elijas.'}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setEditor(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="editor-zona" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Guardando…' : 'Guardar'}

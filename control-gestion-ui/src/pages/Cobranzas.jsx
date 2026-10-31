@@ -11,8 +11,8 @@ import ImagenConSesion from '../components/ImagenConSesion';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, CampoFecha, Confirmar, ErrorDeCarga, EsqueletoDeIndicadores,
-  EstadoVacio, Indicador, Input, Modal, PageHeader, Paginacion, Selector, ZonaDeCarga,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, CampoFecha, Confirmar, ErrorDeCarga,
+  EsqueletoDeIndicadores, EstadoVacio, Indicador, Input, Modal, PageHeader, Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
@@ -21,6 +21,7 @@ import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
@@ -70,6 +71,7 @@ export default function Cobranzas() {
   const [reemplazo, setReemplazo] = useState(null);
 
   const [pago, setPago] = useState(null);
+  const pagoSinGuardar = useSinGuardar(pago);
   const pagoRef = useRef(null);
   const [erroresPago, setErroresPago] = useState({});
   const [errorPago, setErrorPago] = useState('');
@@ -77,6 +79,7 @@ export default function Cobranzas() {
 
   // Anular un pago y marcar incobrable piden un motivo: { tipo: 'pago' | 'incobrable', cobranza, pago?, motivo, error }.
   const [motivo, setMotivo] = useState(null);
+  const motivoSinGuardar = useSinGuardar(motivo?.texto);
   const motivoRef = useRef(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -451,11 +454,12 @@ export default function Cobranzas() {
       <Modal
         abierto={pago !== null}
         onCerrar={() => setPago(null)}
+        sinGuardar={pagoSinGuardar}
         titulo={`Pago en ${pago?.cobranza.numero ?? ''}`}
         descripcion={pago ? `${pago.cobranza.cliente.nombreCompleto} debe ${formatearMonto(pago.cobranza.saldoPendiente)}.` : undefined}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setPago(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="formulario-pago" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Registrando…' : 'Registrar pago'}
@@ -542,6 +546,7 @@ export default function Cobranzas() {
         error={motivo?.error}
         onConfirmar={enviarMotivo}
         onCancelar={() => setMotivo(null)}
+        sinGuardar={motivoSinGuardar}
       >
         {motivo && (
           <div ref={motivoRef} className="space-y-3">

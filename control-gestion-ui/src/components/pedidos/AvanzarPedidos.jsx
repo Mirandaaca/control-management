@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import api from '../../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { Alert, AreaDeTexto, Confirmar } from '../ui';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 import { formatearHora } from '../../utils/formato';
 import { SIGUIENTE } from './estados';
@@ -14,6 +15,7 @@ import { SIGUIENTE } from './estados';
  */
 export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron }) {
   const [texto, setTexto] = useState('');
+  const sinGuardar = useSinGuardar(texto);
   const [errores, setErrores] = useState({});
   const [error, setError] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -80,6 +82,7 @@ export default function AvanzarPedidos({ pedidos, onCerrar, onHecho, onCambiaron
       error={error}
       onConfirmar={enviar}
       onCancelar={onCerrar}
+      sinGuardar={sinGuardar}
     >
       <div ref={contenedorRef} className="space-y-3">
         <p>

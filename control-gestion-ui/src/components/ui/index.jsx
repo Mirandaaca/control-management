@@ -1,4 +1,5 @@
-import { useId, useRef, useState } from 'react';
+import { createContext, useContext, useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   Calendar as IconoDeCalendario, Check, ChevronLeft, ChevronRight, ChevronsUpDown, CircleAlert, Clock, Inbox, LoaderCircle,
   RefreshCw, Search, X,
@@ -641,16 +642,60 @@ export function Casilla({ checked, onCheckedChange, disabled, children, id, ayud
 
 const anchos = { md: 'sm:max-w-lg', lg: 'sm:max-w-3xl' };
 
+// El cerrar de la ventana abierta, para BotonCancelar: el de la pantalla (onCerrar), o la pregunta si queda algo sin
+// guardar.
+const CerrarVentana = createContext(null);
+
+/** El "Cancelar" del pie de un Modal: cierra la ventana o, si tiene algo sin guardar, pregunta antes. */
+export function BotonCancelar({ disabled = false }) {
+  const cerrar = useContext(CerrarVentana);
+  return <Btn variant="outline" size="md" onClick={cerrar} disabled={disabled}>Cancelar</Btn>;
+}
+
 /**
- * Ventana modal: atrapa el foco, se cierra con Escape o con la X, y devuelve el foco al botón que la abrió. Un clic
- * fuera no la cierra: perdería lo que se escribió en un formulario.
+ * Ventana modal: atrapa el foco, se cierra con Escape, la X o "Cancelar", y devuelve el foco al botón que la abrió. Un
+ * clic fuera no la cierra.
+ * - Con sinGuardar (ver hooks/useSinGuardar), cerrar no cierra: el pie pregunta "¿Descartar lo que escribiste?", con
+ *   "Seguir editando" y "Descartar". Escape, mientras pregunta, sigue editando.
+ * - El "Cancelar" del pie es BotonCancelar, que pasa por esa pregunta.
  */
-export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, ancho = 'md' }) {
+export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, ancho = 'md', sinGuardar = false }) {
   // Radix devuelve el foco solo a un DialogTrigger, y las ventanas del panel se abren con su estado: sin esto, al cerrar
   // el foco caía en el body. Se guarda quién lo tenía al abrir y se le devuelve, si sigue en la página (WCAG 2.4.3).
   const abrio = useRef(null);
+  const [preguntando, setPreguntando] = useState(false);
+  // La pregunta es de una apertura: si la ventana se cerró sin contestarla (se guardó con Enter), la próxima empieza
+  // sin ella. Se borra al abrir, no al cerrar, para que no vuelva el pie de antes mientras la ventana se desvanece.
+  const [abiertoAntes, setAbiertoAntes] = useState(abierto);
+  if (abierto !== abiertoAntes) {
+    setAbiertoAntes(abierto);
+    if (abierto) setPreguntando(false);
+  }
+  const volverA = useRef(null);
+  const seguirEditandoRef = useRef(null);
+  const pieRef = useRef(null);
+  const preguntaId = useId();
+
+  const cerrar = () => {
+    if (!sinGuardar) {
+      onCerrar();
+      return;
+    }
+    if (preguntando) return;
+    volverA.current = document.activeElement;
+    flushSync(() => setPreguntando(true));
+    seguirEditandoRef.current?.focus();
+  };
+
+  // El foco vuelve a donde estaba: el campo, la X o, si era "Cancelar" (que ya no está), el primer botón del pie.
+  const seguirEditando = () => {
+    flushSync(() => setPreguntando(false));
+    const destino = volverA.current?.isConnected ? volverA.current : pieRef.current?.querySelector('button');
+    destino?.focus();
+  };
+
   return (
-    <Dialog open={abierto} onOpenChange={(abre) => { if (!abre) onCerrar(); }}>
+    <Dialog open={abierto} onOpenChange={(abre) => { if (!abre) cerrar(); }}>
       <DialogContent
         className={`${anchos[ancho]} max-h-[90vh] grid-rows-[auto_minmax(0,1fr)_auto]`}
         onOpenAutoFocus={() => { abrio.current = document.activeElement; }}
@@ -658,6 +703,11 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
           if (!abrio.current?.isConnected) return;
           e.preventDefault();
           abrio.current.focus();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (!preguntando) return;
+          e.preventDefault();
+          seguirEditando();
         }}
         onPointerDownOutside={(e) => e.preventDefault()}
         // Sin descripción, Radix pide aria-describedby={undefined}: así el lector de pantalla no lee el título dos veces.
@@ -668,7 +718,22 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
           {descripcion && <DialogDescription>{descripcion}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto overscroll-contain -mx-6 px-6">{children}</div>
-        {pie && <DialogFooter>{pie}</DialogFooter>}
+        {(pie || preguntando) && (
+          <DialogFooter ref={pieRef}>
+            {preguntando ? (
+              <div role="group" aria-labelledby={preguntaId}
+                className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p id={preguntaId} className="text-sm font-medium text-slate-900">¿Descartar lo que escribiste?</p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <Btn ref={seguirEditandoRef} variant="outline" size="md" onClick={seguirEditando}>
+                    Seguir editando
+                  </Btn>
+                  <Btn variant="danger" size="md" onClick={onCerrar}>Descartar</Btn>
+                </div>
+              </div>
+            ) : <CerrarVentana value={cerrar}>{pie}</CerrarVentana>}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -676,10 +741,12 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
 
 /**
  * Pide confirmación antes de desactivar, anular o eliminar (docs/diseno.md, Mensajes). Con variante="primary" sirve
- * para una acción que no destruye pero tampoco se deshace, como confirmar una venta. Con ancho="lg" entra un mapa.
+ * para una acción que no destruye pero tampoco se deshace, como confirmar una venta. Con ancho="lg" entra un mapa. Con
+ * sinGuardar (un motivo escrito), pregunta antes de cerrarse, como Modal.
  */
 export function Confirmar({
   abierto, titulo, children, textoAccion, enviando, error, onConfirmar, onCancelar, variante = 'danger', ancho = 'md',
+  sinGuardar = false,
 }) {
   return (
     <Modal
@@ -687,9 +754,10 @@ export function Confirmar({
       onCerrar={onCancelar}
       titulo={titulo}
       ancho={ancho}
+      sinGuardar={sinGuardar}
       pie={(
         <>
-          <Btn variant="outline" size="md" onClick={onCancelar} disabled={enviando}>Cancelar</Btn>
+          <BotonCancelar disabled={enviando} />
           <Btn variant={variante} size="md" onClick={onConfirmar} disabled={enviando}>
             {enviando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
             {textoAccion}

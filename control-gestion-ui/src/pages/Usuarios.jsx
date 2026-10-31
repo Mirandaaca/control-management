@@ -6,7 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, Badge, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -15,6 +15,7 @@ import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha } from '../utils/formato';
 import { coincide } from '../utils/texto';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { seguridad } = PERMISOS;
 const SIN_FILTROS = { texto: '', rol: '', estado: '' };
@@ -37,6 +38,7 @@ export default function Usuarios() {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
 
   const [formulario, setFormulario] = useState(null);
+  const sinGuardar = useSinGuardar(formulario);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -227,11 +229,12 @@ export default function Usuarios() {
       <Modal
         abierto={formulario !== null}
         onCerrar={() => setFormulario(null)}
+        sinGuardar={sinGuardar}
         titulo={formulario?.id ? 'Editar usuario' : 'Nuevo usuario'}
         descripcion={formulario?.id ? undefined : 'Con su correo y esta contraseña va a poder iniciar sesión.'}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="formulario-usuario" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Guardando…' : 'Guardar'}

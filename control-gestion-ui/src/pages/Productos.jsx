@@ -6,7 +6,8 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader, Paginacion,
+  Alert, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
+  Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
@@ -14,6 +15,7 @@ import { PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearMonto } from '../utils/formato';
 
@@ -39,6 +41,7 @@ export default function Productos() {
   const [errorCarga, setErrorCarga] = useState('');
 
   const [formulario, setFormulario] = useState(null);
+  const sinGuardar = useSinGuardar(formulario);
   const formularioRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
@@ -217,11 +220,12 @@ export default function Productos() {
       <Modal
         abierto={formulario !== null}
         onCerrar={() => setFormulario(null)}
+        sinGuardar={sinGuardar}
         titulo={formulario?.id ? 'Editar producto' : 'Nuevo producto'}
         descripcion={formulario?.id ? undefined : 'El stock empieza en cero: sube con los ingresos de mercadería, en Inventario.'}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="formulario-producto" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Guardando…' : 'Guardar'}

@@ -5,6 +5,7 @@ import { erroresPorCampo, mensajeDeError } from '../../api/errores';
 import { subirFoto } from '../../api/fotos';
 import BotonDeFoto from '../BotonDeFoto';
 import { Alert, AreaDeTexto, Confirmar } from '../ui';
+import { useSinGuardar } from '../../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../../utils/foco';
 
 /**
@@ -14,6 +15,7 @@ import { mostrarPrimerProblema } from '../../utils/foco';
  */
 export default function ResolverEvento({ evento, puedeAgregarFoto, onCambio, onCerrar, onHecho }) {
   const [solucion, setSolucion] = useState('');
+  const sinGuardar = useSinGuardar(solucion);
   const [errorCampo, setErrorCampo] = useState('');
   const [error, setError] = useState('');
   const [laApiPideFoto, setLaApiPideFoto] = useState(false);
@@ -68,6 +70,7 @@ export default function ResolverEvento({ evento, puedeAgregarFoto, onCambio, onC
       error={error}
       onConfirmar={resolver}
       onCancelar={onCerrar}
+      sinGuardar={sinGuardar}
     >
       <div ref={contenedorRef} className="space-y-3">
         <p>Queda resuelto con tu solución, la fecha y tu nombre. Después ya no se modifica ni recibe fotos.</p>

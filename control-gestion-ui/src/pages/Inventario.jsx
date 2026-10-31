@@ -6,8 +6,8 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, AreaDeTexto, Badge, BarraDeFiltros, Btn, Buscador, Casilla, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Paginacion,
+  Alert, AreaDeTexto, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, ErrorDeCarga, EstadoVacio, Input,
+  Modal, PageHeader, Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
@@ -16,6 +16,7 @@ import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/formato';
 
@@ -55,6 +56,7 @@ export default function Inventario() {
   const [errorCarga, setErrorCarga] = useState('');
 
   const [ingreso, setIngreso] = useState(null);
+  const sinGuardar = useSinGuardar(ingreso);
   const ingresoRef = useRef(null);
   const [erroresIngreso, setErroresIngreso] = useState({});
   const [errorIngreso, setErrorIngreso] = useState('');
@@ -223,11 +225,12 @@ export default function Inventario() {
       <Modal
         abierto={ingreso !== null}
         onCerrar={() => setIngreso(null)}
+        sinGuardar={sinGuardar}
         titulo={`Ingreso de ${ingreso?.item.descripcion ?? ''}`}
         descripcion="Suma al stock y queda en el kardex como entrada."
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setIngreso(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="formulario-ingreso" size="md" disabled={guardando}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Registrando…' : 'Registrar ingreso'}

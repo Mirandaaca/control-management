@@ -8,7 +8,7 @@ import Layout from '../components/Layout';
 import MapaUbicacion from '../components/MapaUbicacion';
 import { Table, Td, Tr } from '../components/Table';
 import {
-  Alert, BarraDeFiltros, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
+  Alert, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
   PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -18,6 +18,7 @@ import { useDemorado } from '../hooks/useDemorado';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
+import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { diasDesdeHoy, formatearFecha, formatearMonto } from '../utils/formato';
 
@@ -78,6 +79,7 @@ export default function Clientes() {
 
   const [detalle, setDetalle] = useState(null);
   const [formulario, setFormulario] = useState(null);
+  const sinGuardar = useSinGuardar(formulario);
   const formularioRef = useRef(null);
   const [erroresCampo, setErroresCampo] = useState({});
   const [errorFormulario, setErrorFormulario] = useState('');
@@ -387,6 +389,7 @@ export default function Clientes() {
       <Modal
         abierto={formulario !== null}
         onCerrar={() => setFormulario(null)}
+        sinGuardar={sinGuardar}
         ancho="lg"
         titulo={formulario?.id ? 'Editar cliente' : 'Nuevo cliente'}
         descripcion={formulario?.id && !puedeCambiarUbicacion
@@ -394,7 +397,7 @@ export default function Clientes() {
           : 'El promotor del cliente es el de su zona. Sin la ubicación marcada no se puede guardar.'}
         pie={(
           <>
-            <Btn variant="outline" size="md" onClick={() => setFormulario(null)} disabled={guardando}>Cancelar</Btn>
+            <BotonCancelar disabled={guardando} />
             <Btn type="submit" form="formulario-cliente" size="md" disabled={guardando || zonasElegibles.length === 0}>
               {guardando && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
               {guardando ? 'Guardando…' : 'Guardar'}
