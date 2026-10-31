@@ -90,6 +90,8 @@ void main() {
 
   Future<void> tocar(WidgetTester tester, Finder buscado) async {
     await tester.ensureVisible(buscado);
+    // Sin este pump, el toque cae donde estaba el botón antes de desplazar: con la letra al 200 %, fuera de la pantalla.
+    await tester.pump();
     await tester.tap(buscado);
     await esperar(tester);
   }
@@ -398,6 +400,7 @@ void main() {
 
     testWidgets('la hoja con la letra al 200 % cumple las guías', (tester) async {
       await abrirLaHoja(tester, letra: 2);
+      expect(find.byType(HojaDeMarcarVisita), findsOneWidget);
 
       await cumpleLasGuias(tester);
     });
