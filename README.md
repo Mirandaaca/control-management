@@ -30,6 +30,12 @@ dotnet user-secrets set "Seed:AdminPassword" "<la contraseña del administrador>
 dotnet run
 ```
 
+- Para `Jwt:Key`, Node genera una clave al azar de 32 bytes (44 caracteres en base64):
+
+  ```bash
+  node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+  ```
+
 - Queda en http://localhost:5124. Al arrancar, aplica las migraciones: basta con una base vacía.
 - Crea el administrador `admin@control.com`, con la contraseña de `Seed:AdminPassword`. Con `Seed:DemoPassword`, crea
   además `gerente@control.com`, `secretaria@control.com` y `promotor@control.com`.
