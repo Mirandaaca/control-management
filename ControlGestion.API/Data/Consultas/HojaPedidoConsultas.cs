@@ -8,14 +8,16 @@ namespace ControlGestion.API.Data.Consultas;
 public static class HojaPedidoConsultas
 {
     /// <summary>
-    /// Sin seguridad.ver-cartera-completa, el usuario solo ve las HP de los clientes de su cartera, igual que en
-    /// Cobranzas. Si una zona cambia de promotor, el nuevo ve las HP de sus clientes, también las viejas.
+    /// Sin seguridad.ver-cartera-completa, el usuario ve las HP de los clientes de su cartera y las que están a su
+    /// nombre, igual que en Cobranzas: el promotor que entrega el pedido de un cliente de otra cartera hace la venta
+    /// (es suya) y tiene que verla. Si una zona cambia de promotor, el nuevo ve las HP de sus clientes, también las
+    /// viejas, y el anterior sigue viendo las que registró.
     /// </summary>
     public static IQueryable<HojaPedido> VisiblesPara(this IQueryable<HojaPedido> hojas, IUsuarioActual usuario)
     {
         if (usuario.VeCarteraCompleta) return hojas;
         var usuarioId = usuario.Id;
-        return hojas.Where(h => h.Cliente!.PromotorId == usuarioId);
+        return hojas.Where(h => h.Cliente!.PromotorId == usuarioId || h.PromotorId == usuarioId);
     }
 
     /// <summary>Busca en el número de la HP y en el nombre y el código del cliente.</summary>

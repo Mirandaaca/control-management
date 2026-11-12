@@ -101,6 +101,32 @@ public class CobranzasTests(ApiDePrueba api)
         Assert.Equal(4m, (await respuesta.LeerJsonAsync()).GetProperty("montoPagado").GetDecimal());
     }
 
+    // La deuda a su nombre es suya: si la zona pasa a otro promotor, el que vendió la sigue viendo, y el nuevo también,
+    // porque el cliente ahora es de su cartera.
+    [Fact]
+    public async Task Si_la_zona_cambia_de_promotor_el_que_vendio_sigue_viendo_su_deuda()
+    {
+        using var escenario = await PrepararAsync();
+        var (operador, _, productoId) = escenario;
+        var anterior = await api.CrearUsuarioAsync(Roles.Promotor);
+        var nuevo = await api.CrearUsuarioAsync(Roles.Promotor);
+        var zonaId = await operador.CrearZonaAsync(anterior.Id);
+        var clienteId = await operador.CrearClienteAsync(zonaId);
+        using var conElAnterior = api.ClienteCon(anterior.Token);
+        using var conElNuevo = api.ClienteCon(nuevo.Token);
+        var cobranzaId = await conElAnterior.CrearCobranzaAsync(clienteId, productoId, 1);
+        var zona = await (await operador.GetAsync($"/api/zonas/{zonaId}")).LeerJsonAsync();
+
+        (await operador.PutAsJsonAsync($"/api/zonas/{zonaId}", new
+        {
+            nombre = zona.GetProperty("nombre").GetString(),
+            promotorId = nuevo.Id
+        })).EnsureSuccessStatusCode();
+
+        Assert.Contains(cobranzaId, await IdsDeCobranzasAsync(conElAnterior));
+        Assert.Contains(cobranzaId, await IdsDeCobranzasAsync(conElNuevo));
+    }
+
     [Fact]
     public async Task La_cobranza_queda_a_nombre_del_promotor_que_vendio()
     {

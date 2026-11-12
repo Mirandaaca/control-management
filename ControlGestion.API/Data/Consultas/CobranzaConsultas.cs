@@ -8,12 +8,16 @@ namespace ControlGestion.API.Data.Consultas;
 
 public static class CobranzaConsultas
 {
-    /// <summary>Sin seguridad.ver-cartera-completa, el usuario solo ve las cobranzas de los clientes que tiene asignados.</summary>
+    /// <summary>
+    /// Sin seguridad.ver-cartera-completa, el usuario ve las cobranzas de los clientes que tiene asignados y las que
+    /// están a su nombre: la deuda de una venta que hizo al entregar el pedido de un cliente de otra cartera. Las ve y
+    /// las cobra.
+    /// </summary>
     public static IQueryable<Cobranza> VisiblesPara(this IQueryable<Cobranza> cobranzas, IUsuarioActual usuario)
     {
         if (usuario.VeCarteraCompleta) return cobranzas;
         var usuarioId = usuario.Id;
-        return cobranzas.Where(c => c.Cliente!.PromotorId == usuarioId);
+        return cobranzas.Where(c => c.Cliente!.PromotorId == usuarioId || c.PromotorId == usuarioId);
     }
 
     /// <summary>Busca en el número de la cobranza y en el nombre y el código del cliente.</summary>
