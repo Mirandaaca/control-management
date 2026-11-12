@@ -34,6 +34,9 @@ public class PedidosEntregaTests(ApiDePrueba api)
     private static async Task<List<JsonElement>> HojasDe(HttpClient cliente, int clienteId) =>
         (await JsonDe(cliente, $"/api/hojas-pedido?clienteId={clienteId}")).GetProperty("items").EnumerateArray().ToList();
 
+    private static async Task<List<int>> IdsDe(HttpClient cliente, string ruta) =>
+        (await JsonDe(cliente, ruta)).GetProperty("items").EnumerateArray().Select(x => x.GetProperty("id").GetInt32()).ToList();
+
     /// <summary>
     /// Un pedido de 3 unidades a 12,50 de un cliente de la cartera del promotor, asignado a él y en ruta (o Pendiente, si se
     /// pide).
@@ -182,6 +185,47 @@ public class PedidosEntregaTests(ApiDePrueba api)
         await (await EntregarAsync(api.ClienteCon(promotorDelCliente.Token), pedidoId)).ProblemaAsync(400, "pedido_de_otro_promotor");
         await (await EntregarAsync(operador, pedidoId)).ProblemaAsync(400, "pedido_de_otro_promotor");
         Assert.Equal(HttpStatusCode.OK, (await EntregarAsync(api.ClienteCon(asignado.Token), pedidoId)).StatusCode);
+    }
+
+    // La venta y la deuda de la entrega quedan a nombre de quien entrega. Con un cliente de otra cartera no aparecían en
+    // sus Hojas de pedido ni en sus Cobranzas, y no las podía cobrar: solo las veía el dueño del cliente.
+    [Fact]
+    public async Task El_que_entrega_a_un_cliente_de_otra_cartera_ve_la_venta_y_la_deuda_y_la_cobra()
+    {
+        using var operador = await api.OperadorAsync();
+        var duenoDelCliente = await api.CrearUsuarioAsync(Roles.Promotor);
+        var asignado = await api.CrearUsuarioAsync(Roles.Promotor);
+        var otro = await api.CrearUsuarioAsync(Roles.Promotor);
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(duenoDelCliente.Id));
+        var pedidoId = await operador.CrearPedidoAsync(clienteId, await operador.CrearProductoAsync(10m), 2);
+        (await operador.PostAsJsonAsync("/api/pedidos/asignar", new
+        {
+            pedidoIds = new[] { pedidoId }, promotorId = asignado.Id,
+            dia = HoraBolivia.Hoy(TimeProvider.System).AddDays(1).ToString("yyyy-MM-dd")
+        })).EnsureSuccessStatusCode();
+        await PasarAEnRutaAsync(operador, pedidoId);
+        using var conElAsignado = api.ClienteCon(asignado.Token);
+
+        var venta = (await (await EntregarAsync(conElAsignado, pedidoId)).LeerJsonAsync()).GetProperty("hojaPedido");
+        var hojaId = venta.GetProperty("id").GetInt32();
+        var cobranzaId = venta.GetProperty("cobranza").GetProperty("id").GetInt32();
+
+        // Quien entregó ve la venta y la deuda en sus listas y en su detalle, y la cobra.
+        Assert.Contains(hojaId, await IdsDe(conElAsignado, "/api/hojas-pedido"));
+        Assert.Contains(cobranzaId, await IdsDe(conElAsignado, "/api/cobranzas?porCobrar=true"));
+        Assert.Equal(HttpStatusCode.OK, (await conElAsignado.GetAsync($"/api/hojas-pedido/{hojaId}")).StatusCode);
+        var pago = await conElAsignado.PostAsJsonAsync($"/api/cobranzas/{cobranzaId}/pagos", new { monto = 5, metodoPago = 0 });
+        Assert.Equal(HttpStatusCode.OK, pago.StatusCode);
+        Assert.Equal(5m, (await pago.LeerJsonAsync()).GetProperty("montoPagado").GetDecimal());
+
+        // El dueño del cliente las sigue viendo; otro promotor, no.
+        using var conElDueno = api.ClienteCon(duenoDelCliente.Token);
+        Assert.Contains(hojaId, await IdsDe(conElDueno, "/api/hojas-pedido"));
+        Assert.Contains(cobranzaId, await IdsDe(conElDueno, "/api/cobranzas"));
+        using var conOtro = api.ClienteCon(otro.Token);
+        Assert.DoesNotContain(cobranzaId, await IdsDe(conOtro, "/api/cobranzas"));
+        await (await conOtro.GetAsync($"/api/cobranzas/{cobranzaId}")).ProblemaAsync(404, "no_encontrado");
+        await (await conOtro.GetAsync($"/api/hojas-pedido/{hojaId}")).ProblemaAsync(404, "no_encontrado");
     }
 
     [Fact]
