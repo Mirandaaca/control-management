@@ -245,6 +245,11 @@ public record PedidoDTO(
     decimal? LatitudEntrega,
     decimal? LongitudEntrega,
     ClienteResumenDTO Cliente,
+    /// <summary>
+    /// Dónde está el cliente: el mapa del pedido en la app y el destino de "Cómo llegar". El pedido no guarda coordenadas
+    /// propias, y su dirección de entrega puede ser otra.
+    /// </summary>
+    PuntoDTO UbicacionDelCliente,
     UsuarioResumenDTO? Promotor,
     UsuarioResumenDTO RegistradoPor,
     UsuarioResumenDTO? Repartidor,

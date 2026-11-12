@@ -31,7 +31,7 @@ public enum Giro
 
 /// <summary>
 /// Desde dónde pide el camino el promotor y cómo va (query string, tarea 25). El destino no se pide: es el cliente de la
-/// visita, que la API lee de la base.
+/// visita o del pedido, que la API lee de la base.
 /// </summary>
 public record CaminoConsultaDTO : IValidatableObject
 {

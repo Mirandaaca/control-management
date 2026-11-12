@@ -12,7 +12,7 @@ namespace ControlGestion.API.Services;
 
 /// <summary>Pedidos (1.1 a 1.4). Cada usuario ve los de su cartera y los que tiene asignados, salvo con cartera completa.</summary>
 public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, HojaPedidoService hojas,
-    TimeProvider reloj)
+    NavegacionService navegacion, TimeProvider reloj)
 {
     private IQueryable<Pedido> Visibles => db.Pedidos.VisiblesPara(usuario);
 
@@ -376,18 +376,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         var pedido = await Visibles.Include(p => p.Detalles.OrderBy(d => d.Id)).Include(p => p.Cliente)
             .FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new NoEncontradoException("No se encontró el pedido.");
-        if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
-            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó.");
-        if (pedido.EstadoPedidoId == EstadosDePedido.Anulado)
-            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} está anulado: no se entrega.");
-        if (pedido.EstadoPedidoId != EstadosDePedido.EnRuta)
-            throw new ReglaDeNegocioException("pedido_no_esta_en_ruta",
-                $"El pedido {pedido.Numero} todavía no salió a entregarse: primero tiene que pasar a En ruta.");
-        if (pedido.RepartidorId == null)
-            throw new ReglaDeNegocioException("pedido_sin_asignar", $"El pedido {pedido.Numero} no tiene un promotor asignado para entregarlo.");
-        // La regla del dueño no es un permiso: ver el pedido (por la cartera) no alcanza para entregarlo.
-        if (pedido.RepartidorId != usuario.Id)
-            throw new ReglaDeNegocioException("pedido_de_otro_promotor", "Solo el promotor asignado registra la entrega.");
+        ExigirQueLoEntrega(pedido);
         if (pedido.Cliente!.EstadoClienteId == EstadosDeCliente.Inactivo)
             throw new ReglaDeNegocioException("cliente_inactivo",
                 "El cliente está inactivo: no recibe la venta. Anula el pedido o devuelve al cliente al ciclo de visitas.");
@@ -416,6 +405,39 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         await GuardarAsync("El pedido, el stock o el cliente cambiaron mientras registrabas la entrega. Vuelve a intentarlo.");
         await tx.CommitAsync();
         return await ObtenerAsync(id);
+    }
+
+    /// <summary>
+    /// El camino por calles desde donde está el promotor hasta el cliente del pedido, para entregarlo, como el de una
+    /// visita de la ruta (tarea 25). Con las reglas de la entrega: lo pide el asignado, con el pedido En ruta. El destino
+    /// sale de la base: el celular solo manda dónde está.
+    /// </summary>
+    public async Task<CaminosDTO> CaminoAsync(int id, CaminoConsultaDTO consulta)
+    {
+        var pedido = await Visibles.Include(p => p.Cliente).FirstOrDefaultAsync(p => p.Id == id)
+            ?? throw new NoEncontradoException("No se encontró el pedido.");
+        ExigirQueLoEntrega(pedido);
+        return await navegacion.CaminoAsync(consulta.Latitud!.Value, consulta.Longitud!.Value, pedido.Cliente!.Latitud,
+            pedido.Cliente.Longitud, consulta.Medio);
+    }
+
+    /// <summary>
+    /// Lo que piden la entrega y el camino para hacerla: el pedido sigue abierto, salió a ruta y lo lleva el usuario.
+    /// </summary>
+    private void ExigirQueLoEntrega(Pedido pedido)
+    {
+        if (pedido.EstadoPedidoId == EstadosDePedido.Entregado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} ya se entregó.");
+        if (pedido.EstadoPedidoId == EstadosDePedido.Anulado)
+            throw new ReglaDeNegocioException("pedido_en_estado_final", $"El pedido {pedido.Numero} está anulado: no se entrega.");
+        if (pedido.EstadoPedidoId != EstadosDePedido.EnRuta)
+            throw new ReglaDeNegocioException("pedido_no_esta_en_ruta",
+                $"El pedido {pedido.Numero} todavía no salió a entregarse: primero tiene que pasar a En ruta.");
+        if (pedido.RepartidorId == null)
+            throw new ReglaDeNegocioException("pedido_sin_asignar", $"El pedido {pedido.Numero} no tiene un promotor asignado para entregarlo.");
+        // La regla del dueño no es un permiso: ver el pedido (por la cartera) no alcanza para entregarlo.
+        if (pedido.RepartidorId != usuario.Id)
+            throw new ReglaDeNegocioException("pedido_de_otro_promotor", "Solo el promotor asignado registra la entrega.");
     }
 
     /// <summary>Un pedido visible que todavía puede cambiar: ni entregado ni anulado.</summary>

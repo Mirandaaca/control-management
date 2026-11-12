@@ -88,6 +88,7 @@ public static class PedidoConsultas
         p.LatitudEntrega,
         p.LongitudEntrega,
         new ClienteResumenDTO(p.Cliente!.Id, p.Cliente.NombreCompleto),
+        new PuntoDTO(p.Cliente.Latitud, p.Cliente.Longitud),
         p.Promotor == null ? null : new UsuarioResumenDTO(p.Promotor.Id, p.Promotor.NombreCompleto),
         new UsuarioResumenDTO(p.RegistradoPor!.Id, p.RegistradoPor.NombreCompleto),
         p.Repartidor == null ? null : new UsuarioResumenDTO(p.Repartidor.Id, p.Repartidor.NombreCompleto),
