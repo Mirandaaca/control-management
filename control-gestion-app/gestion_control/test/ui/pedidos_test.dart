@@ -9,6 +9,7 @@ import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/core/router.dart';
+import 'package:gestion_control/ui/core/ubicacion/mapa_de_ubicacion.dart';
 import 'package:gestion_control/ui/elegir/elegir_producto_screen.dart';
 import 'package:gestion_control/ui/pedidos/nuevo_pedido_screen.dart';
 import 'package:gestion_control/ui/pedidos/nuevo_pedido_view_model.dart';
@@ -87,6 +88,7 @@ void main() {
     overrides: [
       pedidosRepositoryProvider.overrideWithValue(pedidos),
       productosRepositoryProvider.overrideWithValue(productos),
+      mosaicosDelMapaProvider.overrideWithValue(false),
       sesionProvider.overrideWith(() => SesionFija(ConSesion(promotorCon(conPermisos ?? permisos)))),
     ],
   );
@@ -330,6 +332,17 @@ void main() {
       expect(find.text('2 × Bs 38,00'), findsOneWidget);
       expect(find.text('Historial'), findsOneWidget);
       expect(find.text('Asignado a Carlos Mendoza Flores para el 30/10/2026.'), findsOneWidget);
+    });
+
+    // "Cómo llegar" es de la bandeja, como "Registrar entrega": aquí el pedido es suyo y está en ruta, pero no se abrió
+    // desde ahí.
+    testWidgets('muestra la ubicación del cliente, sin "Cómo llegar" fuera de la bandeja', (tester) async {
+      await abrir(tester, inicio: '/pedidos/31', conPermisos: [...permisos, Permisos.pedidos.registrarEntrega]);
+      await tester.pump();
+
+      expect(find.text('Ubicación del cliente'), findsOneWidget);
+      expect(find.byType(MapaDeUbicacion), findsOneWidget);
+      expect(find.text('Cómo llegar'), findsNothing);
     });
 
     testWidgets('entregado: quién recibió y la venta, que se abre', (tester) async {

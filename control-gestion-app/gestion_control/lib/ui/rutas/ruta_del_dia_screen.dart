@@ -27,6 +27,7 @@ import 'etiqueta_de_ruta.dart';
 import 'mapa_de_la_ruta.dart';
 import 'marcadores.dart';
 import 'marcar_visita_hoja.dart';
+import 'navegacion_view_model.dart';
 import 'reordenar_hoja.dart';
 import 'ruta_del_dia_view_model.dart';
 import 'seguimiento_de_ruta.dart';
@@ -99,7 +100,7 @@ class _RutaDelDiaScreenState extends ConsumerState<RutaDelDiaScreen> {
 
   // Tarea 25: la navegación hasta la visita. Al llegar, "Marcar visita" vuelve aquí y abre la hoja de marcarla.
   Future<void> _comoLlegar(Ruta ruta, VisitaDeRuta visita) async {
-    final marcar = await context.push<bool>(Rutas.camino, extra: (rutaId: ruta.id, visita: visita));
+    final marcar = await context.push<bool>(Rutas.camino, extra: VisitaDeLaRuta(ruta.id, visita));
     if (marcar == true && mounted) await _marcar(ruta, visita);
   }
 

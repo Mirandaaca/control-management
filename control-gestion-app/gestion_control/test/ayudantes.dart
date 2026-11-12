@@ -867,13 +867,15 @@ const estadosDePedido = [
 
 EstadoPedido estadoDePedido(int id) => estadosDePedido.firstWhere((e) => e.id == id);
 
-/// El PED-2026-00031 de Rosa: 2 arroz = Bs 76,00, con entrega el 30/10/2026 a las 09:00, asignado a Carlos (u1).
+/// El PED-2026-00031 de Rosa: 2 arroz = Bs 76,00, con entrega el 30/10/2026 a las 09:00, asignado a Carlos (u1). Rosa
+/// está frente al Mercado Norte.
 Pedido pedidoDePrueba({
   int id = 31,
   String numero = 'PED-2026-00031',
   int estado = EstadosDePedido.enRuta,
   String? repartidorId = 'u1',
   bool conDosLineas = false,
+  PuntoDelCamino? ubicacion = (latitud: -17.783412, longitud: -63.182106),
 }) => Pedido(
   id: id,
   numero: numero,
@@ -888,6 +890,7 @@ Pedido pedidoDePrueba({
   direccionEntrega: 'Calle 4 N.º 120, frente al Mercado Norte',
   recibidoPor: estado == EstadosDePedido.entregado ? 'Doña Rosa' : null,
   cliente: const Referencia(id: '42', nombre: 'Rosa Quispe Mamani'),
+  ubicacionDelCliente: ubicacion,
   registradoPor: 'Lucía Vargas Rojas',
   repartidor: repartidorId == null ? null : Referencia(id: repartidorId, nombre: 'Carlos Mendoza Flores'),
   venta: estado == EstadosDePedido.entregado
@@ -983,6 +986,7 @@ final bandejaDePrueba = [
 /// Lo que se le envió al repositorio de pedidos.
 typedef EnvioDePedidoPrueba = ({DatosDePedido datos, String clave});
 typedef EnvioDeEntregaPrueba = ({int id, DatosDeEntrega datos, Posicion ubicacion});
+typedef CaminoDelPedidoPrueba = ({int id, Posicion desde, MedioDeTransporte medio});
 
 class PedidosRepositoryFalso implements PedidosRepository {
   Future<Pagina<PedidoResumen>> Function(String buscar, int? estadoId, int? clienteId) alListar = (_, _, _) async =>
@@ -994,9 +998,14 @@ class PedidosRepositoryFalso implements PedidosRepository {
   Future<Pedido> Function(EnvioDeEntregaPrueba envio) alEntregar = (_) async =>
       pedidoDePrueba(estado: EstadosDePedido.entregado);
 
+  /// El camino hasta el cliente (los de prueba están en `ayudantes_de_rutas.dart`): cada prueba que lo pide lo da.
+  Future<Caminos> Function(CaminoDelPedidoPrueba pedido) alPedirCamino = (_) =>
+      throw StateError('Esta prueba no esperaba pedir el camino de un pedido.');
+
   final listados = <({String buscar, int? estadoId, int? clienteId})>[];
   final registrados = <EnvioDePedidoPrueba>[];
   final entregas = <EnvioDeEntregaPrueba>[];
+  final caminos = <CaminoDelPedidoPrueba>[];
   var obtenidos = 0;
   var bandejas = 0;
 
@@ -1039,6 +1048,13 @@ class PedidosRepositoryFalso implements PedidosRepository {
     final envio = (id: id, datos: datos, ubicacion: ubicacion);
     entregas.add(envio);
     return alEntregar(envio);
+  }
+
+  @override
+  Future<Caminos> camino(int id, {required Posicion desde, required MedioDeTransporte medio}) {
+    final pedido = (id: id, desde: desde, medio: medio);
+    caminos.add(pedido);
+    return alPedirCamino(pedido);
   }
 }
 

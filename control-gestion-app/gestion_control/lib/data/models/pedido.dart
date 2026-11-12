@@ -1,3 +1,4 @@
+import 'camino.dart';
 import 'hoja_pedido.dart';
 
 /// Los estados de un pedido, por su id: la app nunca compara nombres (el texto sale de la API). El 2 era "En proceso",
@@ -142,6 +143,7 @@ class Pedido {
     this.recibidoPor,
     this.repartidor,
     this.venta,
+    this.ubicacionDelCliente,
   });
 
   factory Pedido.fromJson(Map<String, dynamic> json) => Pedido(
@@ -158,6 +160,13 @@ class Pedido {
     direccionEntrega: json['direccionEntrega'] as String,
     recibidoPor: json['recibidoPor'] as String?,
     cliente: Referencia.fromJson(json['cliente'] as Map<String, dynamic>),
+    ubicacionDelCliente: switch (json['ubicacionDelCliente']) {
+      final Map<String, dynamic> punto => (
+        latitud: (punto['latitud'] as num).toDouble(),
+        longitud: (punto['longitud'] as num).toDouble(),
+      ),
+      _ => null,
+    },
     registradoPor: Referencia.fromJson(json['registradoPor'] as Map<String, dynamic>).nombre,
     repartidor: _referenciaOpcional(json['repartidor']),
     venta: json['hojaPedido'] == null ? null : VentaDeLaEntrega.fromJson(json['hojaPedido'] as Map<String, dynamic>),
@@ -180,6 +189,10 @@ class Pedido {
   final String direccionEntrega;
   final String? recibidoPor;
   final Referencia cliente;
+
+  /// Dónde está el cliente: el mapa del pedido y el destino de "Cómo llegar". El pedido no guarda coordenadas propias,
+  /// y su dirección de entrega puede ser otra.
+  final PuntoDelCamino? ubicacionDelCliente;
   final String registradoPor;
   final Referencia? repartidor;
   final VentaDeLaEntrega? venta;

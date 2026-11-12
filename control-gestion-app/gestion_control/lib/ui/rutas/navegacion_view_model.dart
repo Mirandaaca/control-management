@@ -16,8 +16,55 @@ const esperaEntrePedidos = Duration(seconds: 10);
 /// Un desvío pide un camino nuevo como mucho cada 20 s.
 const esperaEntreRecalculos = Duration(seconds: 20);
 
-/// La visita a la que se navega, desde la ruta del día.
-typedef AbrirCamino = ({int rutaId, VisitaDeRuta visita});
+/// A dónde lleva "Cómo llegar": la próxima visita de la ruta en curso (tarea 25) o un pedido En ruta que el promotor
+/// entrega. Es la clave del provider de la navegación: dos destinos iguales comparten su estado.
+sealed class DestinoDelCamino {
+  const DestinoDelCamino();
+
+  /// A quién se llega: "Llegaste a Elena Gutiérrez Vaca".
+  String get cliente;
+  PuntoDelCamino get ubicacion;
+}
+
+/// Una visita de la ruta en curso. Al llegar se marca, y los problemas del GPS los avisa el seguimiento de la ruta.
+final class VisitaDeLaRuta extends DestinoDelCamino {
+  const VisitaDeLaRuta(this.rutaId, this.visita);
+
+  final int rutaId;
+  final VisitaDeRuta visita;
+
+  @override
+  String get cliente => visita.cliente.nombreCompleto;
+
+  @override
+  PuntoDelCamino get ubicacion => (latitud: visita.cliente.latitud, longitud: visita.cliente.longitud);
+
+  @override
+  bool operator ==(Object other) => other is VisitaDeLaRuta && other.rutaId == rutaId && other.visita.id == visita.id;
+
+  @override
+  int get hashCode => Object.hash(rutaId, visita.id);
+}
+
+/// Un pedido En ruta que el promotor entrega, abierto desde su bandeja. Al llegar se registra la entrega. Puede no haber
+/// una ruta en curso que siga el GPS: la navegación lo revisa ella misma.
+final class PedidoEnRuta extends DestinoDelCamino {
+  const PedidoEnRuta({required this.id, required this.cliente, required this.ubicacion});
+
+  final int id;
+
+  @override
+  final String cliente;
+
+  @override
+  final PuntoDelCamino ubicacion;
+
+  @override
+  bool operator ==(Object other) => other is PedidoEnRuta && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
 
 /// La indicación de un paso. La llegada nombra al cliente: "Llegas a Elena Gutiérrez Vaca".
 String indicacionDe(Paso paso, String cliente) => paso.giro == Giro.llegada ? 'Llegas a $cliente' : paso.indicacion;
@@ -38,6 +85,7 @@ class EstadoDeLaNavegacion {
     this.llegaste = false,
     this.vozSilenciada = false,
     this.sinVoz = false,
+    this.problemaDelGps,
   });
 
   final MedioDeTransporte medio;
@@ -67,6 +115,9 @@ class EstadoDeLaNavegacion {
   /// El celular no tiene voz en español: la navegación sigue con el texto.
   final bool sinVoz;
 
+  /// Sin GPS, hasta un pedido. Hasta una visita lo avisa el seguimiento de la ruta.
+  final ProblemaDelGps? problemaDelGps;
+
   Camino? get camino => caminos?.todos[elegido];
 
   EstadoDeLaNavegacion copiar({
@@ -82,6 +133,7 @@ class EstadoDeLaNavegacion {
     bool? llegaste,
     bool? vozSilenciada,
     bool? sinVoz,
+    Object? problemaDelGps = _igual,
   }) => EstadoDeLaNavegacion(
     medio: medio ?? this.medio,
     posicion: posicion == _igual ? this.posicion : posicion as Posicion?,
@@ -95,16 +147,17 @@ class EstadoDeLaNavegacion {
     llegaste: llegaste ?? this.llegaste,
     vozSilenciada: vozSilenciada ?? this.vozSilenciada,
     sinVoz: sinVoz ?? this.sinVoz,
+    problemaDelGps: problemaDelGps == _igual ? this.problemaDelGps : problemaDelGps as ProblemaDelGps?,
   );
 }
 
-/// La navegación hasta una visita de la ruta en curso (tarea 25): pide el camino a la API, sigue al promotor con el GPS,
-/// recalcula si se desvía y avisa cuando llega. Mientras está abierta, la pantalla no se apaga. No manda nada más al
-/// servidor: la ubicación la sigue mandando el seguimiento de 30 s.
+/// La navegación hasta una visita de la ruta en curso o un pedido en ruta (tarea 25): pide el camino a la API, sigue al
+/// promotor con el GPS, recalcula si se desvía y avisa cuando llega. Mientras está abierta, la pantalla no se apaga. No
+/// manda nada más al servidor: la ubicación la manda el seguimiento de 30 s, si hay una ruta en curso.
 class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
-  NavegacionViewModel(this.abrir);
+  NavegacionViewModel(this.destino);
 
-  final AbrirCamino abrir;
+  final DestinoDelCamino destino;
 
   StreamSubscription<Posicion>? _lecturas;
   Timer? _esperaDelPedido;
@@ -124,7 +177,7 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
   /// La indicación que la voz dijo al empezar el último camino: si un camino nuevo empieza igual, no la repite.
   String? _ultimaInicial;
 
-  PuntoDelCamino get _cliente => (latitud: abrir.visita.cliente.latitud, longitud: abrir.visita.cliente.longitud);
+  PuntoDelCamino get _cliente => destino.ubicacion;
 
   @override
   EstadoDeLaNavegacion build() {
@@ -158,11 +211,43 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
     final elegido = medio ?? MedioDeTransporte.auto;
     _anunciador = Anunciador.para(elegido);
     state = state.copiar(medio: elegido, vozSilenciada: silenciada, sinVoz: !conVoz);
-    // Los problemas del GPS (apagado, sin permiso) los muestra el seguimiento, que escucha el mismo flujo.
-    _lecturas = ref
-        .read(servicioDeUbicacionProvider)
-        .lecturas()
-        .listen(_alLeer, onError: (Object e) => debugPrint('El GPS de la navegación falló. $e'));
+    // Hasta una visita, los problemas del GPS (apagado, sin permiso) los muestra el seguimiento, que escucha el mismo
+    // flujo. Hasta un pedido puede no haber ruta en curso: lo revisa aquí, y pide el permiso si falta.
+    switch (destino) {
+      case VisitaDeLaRuta():
+        _escuchar();
+      case PedidoEnRuta():
+        await revisarElGpsDelPedido(pedirPermiso: true);
+    }
+  }
+
+  void _escuchar() {
+    _lecturas = ref.read(servicioDeUbicacionProvider).lecturas().listen(_alLeer, onError: _alFallarElGps);
+  }
+
+  void _alFallarElGps(Object error) {
+    final problema = problemaDelError(error);
+    // Un error cualquiera no corta el flujo: en la web, el GPS manda uno de vez en cuando y sigue leyendo.
+    if (destino is! PedidoEnRuta || problema == null) return debugPrint('El GPS de la navegación falló. $error');
+    _lecturas?.cancel();
+    _lecturas = null;
+    state = state.copiar(problemaDelGps: problema);
+  }
+
+  /// Hasta un pedido: si el GPS está activado y con permiso. Con [pedirPermiso] (al abrir la navegación y con "Dar
+  /// permiso") lo pide si falta; al volver a la app solo lo revisa. Si está bien y no escuchaba, empieza a escuchar.
+  Future<void> revisarElGpsDelPedido({bool pedirPermiso = false}) async {
+    if (destino is! PedidoEnRuta) return;
+    final ProblemaDelGps? problema;
+    try {
+      problema = await revisarElGps(ref.read(servicioDeUbicacionProvider), pedirPermiso: pedirPermiso);
+    } catch (e) {
+      debugPrint('La navegación no pudo revisar el GPS. $e');
+      return;
+    }
+    if (!ref.mounted) return;
+    state = state.copiar(problemaDelGps: problema);
+    if (problema == null && _lecturas == null) _escuchar();
   }
 
   void _alLeer(Posicion lectura) {
@@ -219,9 +304,11 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
     }
 
     try {
-      final caminos = await ref
-          .read(rutasRepositoryProvider)
-          .camino(abrir.rutaId, abrir.visita.id, desde: desde, medio: medio);
+      final caminos = await switch (destino) {
+        VisitaDeLaRuta(:final rutaId, :final visita) =>
+          ref.read(rutasRepositoryProvider).camino(rutaId, visita.id, desde: desde, medio: medio),
+        PedidoEnRuta(:final id) => ref.read(pedidosRepositoryProvider).camino(id, desde: desde, medio: medio),
+      };
       if (!ref.mounted) return;
       _pidiendo = false;
       // Cambió el medio mientras esperaba: este camino ya no sirve, y el del medio nuevo sale cuando se pueda.
@@ -253,7 +340,7 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
     if (posicion == null) return;
     final progreso = _avanzar((latitud: posicion.latitud, longitud: posicion.longitud), anunciar: false);
     if (progreso.proximo case final proximo?) {
-      final indicacion = indicacionDe(camino.pasos[proximo], abrir.visita.cliente.nombreCompleto);
+      final indicacion = indicacionDe(camino.pasos[proximo], destino.cliente);
       final texto = _anunciador.inicial(proximo, progreso.metrosHastaElProximo, indicacion);
       if (indicacion != _ultimaInicial) _decir(texto);
       _ultimaInicial = indicacion;
@@ -266,7 +353,7 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
     state = state.copiar(progreso: progreso);
     if (anunciar && progreso.proximo != null) {
       final proximo = progreso.proximo!;
-      final indicacion = indicacionDe(camino.pasos[proximo], abrir.visita.cliente.nombreCompleto);
+      final indicacion = indicacionDe(camino.pasos[proximo], destino.cliente);
       if (_anunciador.anunciar(proximo, progreso.metrosHastaElProximo, indicacion) case final texto?) _decir(texto);
     }
     return progreso;
@@ -274,7 +361,7 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
 
   void _llegar() {
     state = state.copiar(llegaste: true, calculando: false, recalculando: false, errorDelRecalculo: null);
-    _decir('Llegaste a ${abrir.visita.cliente.nombreCompleto}');
+    _decir('Llegaste a ${destino.cliente}');
   }
 
   void _decir(String texto) {
@@ -311,9 +398,8 @@ class NavegacionViewModel extends Notifier<EstadoDeLaNavegacion> {
   }
 }
 
-final navegacionProvider = NotifierProvider.autoDispose.family<NavegacionViewModel, EstadoDeLaNavegacion, AbrirCamino>(
-  NavegacionViewModel.new,
-);
+final navegacionProvider = NotifierProvider.autoDispose
+    .family<NavegacionViewModel, EstadoDeLaNavegacion, DestinoDelCamino>(NavegacionViewModel.new);
 
 /// Cuándo se pidió el último camino, en toda la app: al volver a abrir la navegación, no se pasa el límite de la API.
 class UltimoPedidoDeCamino extends Notifier<DateTime?> {

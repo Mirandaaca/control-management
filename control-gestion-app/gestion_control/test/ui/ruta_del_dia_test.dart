@@ -46,7 +46,7 @@ void main() {
           builder: (context, state) => Scaffold(
             body: Column(
               children: [
-                Text('Camino a ${(state.extra! as AbrirCamino).visita.cliente.nombreCompleto}'),
+                Text('Camino a ${(state.extra! as VisitaDeLaRuta).cliente}'),
                 FilledButton(onPressed: () => context.pop(true), child: const Text('Llegué')),
               ],
             ),

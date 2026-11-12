@@ -26,7 +26,7 @@ void main() {
   });
 
   // La siguiente de la ruta del 8.6.9: Marco Ortiz Peña, la 4.
-  final hastaMarco = (rutaId: 8, visita: rutaDePrueba().siguiente!);
+  final hastaMarco = VisitaDeLaRuta(8, rutaDePrueba().siguiente!);
   final navegacion = navegacionProvider(hastaMarco);
   final mitadDeLaCalle7 = (latitud: desdeCarmen.latitud, longitud: (desdeCarmen.longitud + esquina.longitud) / 2);
   final fueraDelCamino = desplazar(mitadDeLaCalle7, norte: 60);

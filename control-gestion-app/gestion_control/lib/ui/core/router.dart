@@ -67,6 +67,7 @@ abstract final class Rutas {
   static const bandeja = '/bandeja';
   static String pedidoDeLaBandeja(int id) => '/bandeja/$id';
   static String entrega(int id) => '/bandeja/$id/entrega';
+  static String caminoAlPedido(int id) => '/bandeja/$id/camino';
   static const eventos = '/eventos';
   static const nuevoEvento = '/eventos/nuevo';
   static String evento(int id) => '/eventos/$id';
@@ -239,10 +240,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'camino',
                 // Se abre desde una visita de la ruta. Sin ella (por ejemplo, al recargar la web), vuelve a la ruta.
-                redirect: (context, state) => state.extra is AbrirCamino ? null : Rutas.ruta,
+                redirect: (context, state) => state.extra is VisitaDeLaRuta ? null : Rutas.ruta,
                 builder: (context, state) => ConPermiso(
                   permisos: PermisosDe.ruta,
-                  child: NavegacionScreen(abrir: state.extra! as AbrirCamino),
+                  child: NavegacionScreen(destino: state.extra! as VisitaDeLaRuta),
                 ),
               ),
             ],
@@ -273,6 +274,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => ConPermiso(
                       permisos: [Permisos.pedidos.registrarEntrega],
                       child: EntregaScreen(id: int.parse(state.pathParameters['id']!)),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'camino',
+                    // Se abre desde el pedido. Sin él (por ejemplo, al recargar la web), vuelve al pedido.
+                    redirect: (context, state) => state.extra is PedidoEnRuta
+                        ? null
+                        : Rutas.pedidoDeLaBandeja(int.parse(state.pathParameters['id']!)),
+                    builder: (context, state) => ConPermiso(
+                      permisos: [Permisos.pedidos.registrarEntrega],
+                      child: NavegacionScreen(destino: state.extra! as PedidoEnRuta),
                     ),
                   ),
                 ],

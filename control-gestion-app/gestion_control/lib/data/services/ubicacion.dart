@@ -50,6 +50,30 @@ class SinPermisoDeUbicacion implements Exception {
   const SinPermisoDeUbicacion();
 }
 
+/// Por qué no hay lecturas del GPS: el seguimiento de la ruta y la navegación hasta un pedido lo avisan con su acción.
+enum ProblemaDelGps { desactivado, sinPermiso, sinPermisoParaSiempre }
+
+/// Si se puede leer el GPS: activado y con permiso. Con [pedirPermiso], lo pide si falta (abre el pedido de Android); al
+/// volver a la app solo se revisa, porque pedirlo pausa y retoma la app. Con la aproximada alcanza.
+Future<ProblemaDelGps?> revisarElGps(ServicioDeUbicacion gps, {required bool pedirPermiso}) async {
+  if (!await gps.gpsActivado()) return ProblemaDelGps.desactivado;
+  var permiso = await gps.permiso();
+  if (pedirPermiso && permiso == PermisoDeUbicacion.denegado) permiso = await gps.pedirPermiso();
+  return switch (permiso) {
+    PermisoDeUbicacion.denegado => ProblemaDelGps.sinPermiso,
+    PermisoDeUbicacion.denegadoParaSiempre => ProblemaDelGps.sinPermisoParaSiempre,
+    PermisoDeUbicacion.concedido || PermisoDeUbicacion.soloAproximada => null,
+  };
+}
+
+/// El problema que dice un error de las lecturas, o null si es uno cualquiera: en la web, el GPS manda uno de vez en
+/// cuando y sigue leyendo.
+ProblemaDelGps? problemaDelError(Object error) => switch (error) {
+  GpsApagado() => ProblemaDelGps.desactivado,
+  SinPermisoDeUbicacion() => ProblemaDelGps.sinPermiso,
+  _ => null,
+};
+
 class ServicioConGeolocator implements ServicioDeUbicacion {
   @override
   Future<bool> gpsActivado() => Geolocator.isLocationServiceEnabled();

@@ -13,9 +13,6 @@ import '../sesion/sesion_notifier.dart';
 /// Cada cuánto se manda la ubicación del promotor con la ruta en curso (7.3.20, paso 4.3).
 const intervaloDelSeguimiento = Duration(seconds: 30);
 
-/// Por qué el seguimiento no tiene GPS: la pantalla de la ruta lo avisa con su acción.
-enum ProblemaDelGps { desactivado, sinPermiso, sinPermisoParaSiempre }
-
 class EstadoDelSeguimiento {
   const EstadoDelSeguimiento({this.rutaId, this.ultima, this.problema});
 
@@ -116,7 +113,7 @@ class SeguimientoDeRuta extends Notifier<EstadoDelSeguimiento> {
     final vuelta = _vuelta;
     final ProblemaDelGps? problema;
     try {
-      problema = await _revisarElGps(pedirPermiso: pedirPermiso);
+      problema = await revisarElGps(_gps, pedirPermiso: pedirPermiso);
     } catch (e) {
       debugPrint('El seguimiento no pudo revisar el GPS. $e');
       return;
@@ -129,18 +126,6 @@ class SeguimientoDeRuta extends Notifier<EstadoDelSeguimiento> {
     if (problema == null) _escuchar();
   }
 
-  Future<ProblemaDelGps?> _revisarElGps({required bool pedirPermiso}) async {
-    if (!await _gps.gpsActivado()) return ProblemaDelGps.desactivado;
-    var permiso = await _gps.permiso();
-    if (pedirPermiso && permiso == PermisoDeUbicacion.denegado) permiso = await _gps.pedirPermiso();
-    return switch (permiso) {
-      PermisoDeUbicacion.denegado => ProblemaDelGps.sinPermiso,
-      PermisoDeUbicacion.denegadoParaSiempre => ProblemaDelGps.sinPermisoParaSiempre,
-      // Con la aproximada también se manda: es mejor que nada para la oficina.
-      PermisoDeUbicacion.concedido || PermisoDeUbicacion.soloAproximada => null,
-    };
-  }
-
   void _escuchar() {
     _lecturas = _gps.lecturas().listen(
       (lectura) {
@@ -150,11 +135,7 @@ class SeguimientoDeRuta extends Notifier<EstadoDelSeguimiento> {
         if (!_yaEnvio) _enviar();
       },
       onError: (Object error) {
-        final problema = switch (error) {
-          GpsApagado() => ProblemaDelGps.desactivado,
-          SinPermisoDeUbicacion() => ProblemaDelGps.sinPermiso,
-          _ => null,
-        };
+        final problema = problemaDelError(error);
         // Un error cualquiera no corta el flujo: en la web, el GPS manda uno de vez en cuando y sigue leyendo.
         if (problema == null) return debugPrint('El GPS del seguimiento falló. $error');
         _lecturas?.cancel();
@@ -171,7 +152,7 @@ class SeguimientoDeRuta extends Notifier<EstadoDelSeguimiento> {
     final vuelta = _vuelta;
     final ProblemaDelGps? problema;
     try {
-      problema = await _revisarElGps(pedirPermiso: false);
+      problema = await revisarElGps(_gps, pedirPermiso: false);
     } catch (e) {
       debugPrint('El seguimiento no pudo revisar el GPS. $e');
       return;

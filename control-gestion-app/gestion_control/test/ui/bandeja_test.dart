@@ -10,6 +10,7 @@ import 'package:gestion_control/ui/core/ubicacion/mapa_de_ubicacion.dart';
 import 'package:gestion_control/ui/pedidos/bandeja_screen.dart';
 import 'package:gestion_control/ui/pedidos/entrega_screen.dart';
 import 'package:gestion_control/ui/pedidos/pedido_screen.dart';
+import 'package:gestion_control/ui/rutas/navegacion_view_model.dart';
 import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
 import 'package:go_router/go_router.dart';
 
@@ -43,6 +44,18 @@ void main() {
                 GoRoute(
                   path: 'entrega',
                   builder: (context, state) => EntregaScreen(id: int.parse(state.pathParameters['id']!)),
+                ),
+                // La navegación tiene sus pruebas: aquí solo se ve a dónde lleva y qué devuelve al llegar.
+                GoRoute(
+                  path: 'camino',
+                  builder: (context, state) => Scaffold(
+                    body: Column(
+                      children: [
+                        Text('Camino a ${(state.extra! as PedidoEnRuta).cliente}'),
+                        FilledButton(onPressed: () => context.pop(true), child: const Text('Llegué')),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -161,6 +174,83 @@ void main() {
       final semantica = tester.ensureSemantics();
       await abrir(tester, letra: 2, alto: 800);
       await tester.pump();
+      await cumpleLasGuias(tester);
+      semantica.dispose();
+    });
+  });
+
+  group('el pedido: la ubicación del cliente y "Cómo llegar"', () {
+    testWidgets('muestra dónde está el cliente, y "Ver el mapa completo" lo abre con su nombre', (tester) async {
+      await abrir(tester, inicio: '/bandeja/31');
+      await tester.pump();
+
+      expect(find.text('Ubicación del cliente'), findsOneWidget);
+      final mapa = tester.widget<MapaDeUbicacion>(find.byType(MapaDeUbicacion));
+      expect((mapa.latitud, mapa.longitud), (-17.783412, -63.182106));
+
+      await tester.tap(find.byTooltip('Ver el mapa completo'));
+      await navegar(tester);
+
+      expect(find.widgetWithText(AppBar, 'Rosa Quispe Mamani'), findsOneWidget);
+      expect(find.byType(MapaDeUbicacion), findsOneWidget);
+    });
+
+    testWidgets('"Cómo llegar" lleva hasta el cliente y, al llegar, abre la entrega', (tester) async {
+      await abrir(tester, inicio: '/bandeja/31');
+      await tester.pump();
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cómo llegar'));
+      await navegar(tester);
+      expect(find.text('Camino a Rosa Quispe Mamani'), findsOneWidget);
+
+      await tester.tap(find.text('Llegué'));
+      await navegar(tester);
+
+      expect(find.byType(EntregaScreen), findsOneWidget);
+    });
+
+    testWidgets('un pedido pendiente muestra el mapa, sin "Cómo llegar"', (tester) async {
+      pedidos.alObtener = (_) async => pedidoDePrueba(estado: EstadosDePedido.pendiente);
+      await abrir(tester, inicio: '/bandeja/31');
+      await tester.pump();
+
+      expect(find.byType(MapaDeUbicacion), findsOneWidget);
+      expect(find.text('Cómo llegar'), findsNothing);
+    });
+
+    testWidgets('el de otro promotor no tiene "Cómo llegar"', (tester) async {
+      pedidos.alObtener = (_) async => pedidoDePrueba(repartidorId: 'u9');
+      await abrir(tester, inicio: '/bandeja/31');
+      await tester.pump();
+
+      expect(find.text('Cómo llegar'), findsNothing);
+    });
+
+    testWidgets('sin el permiso de entregar, no tiene "Cómo llegar"', (tester) async {
+      await abrir(tester, inicio: '/bandeja/31', conPermisos: [Permisos.pedidos.verBandeja]);
+      await tester.pump();
+
+      expect(find.text('Cómo llegar'), findsNothing);
+    });
+
+    testWidgets('sin la ubicación del cliente, no hay mapa ni "Cómo llegar"', (tester) async {
+      pedidos.alObtener = (_) async => pedidoDePrueba(ubicacion: null);
+      await abrir(tester, inicio: '/bandeja/31');
+      await tester.pump();
+
+      expect(find.text('Ubicación del cliente'), findsNothing);
+      expect(find.text('Cómo llegar'), findsNothing);
+    });
+
+    testWidgets('con la letra al 200 % cumple las guías', (tester) async {
+      final semantica = tester.ensureSemantics();
+      await abrir(tester, inicio: '/bandeja/31', letra: 2, alto: 800);
+      await tester.pump();
+
+      // Con la letra grande, el mapa y el botón quedan más abajo: las guías se revisan con ellos a la vista.
+      await tester.scrollUntilVisible(find.text('Cómo llegar'), 200, scrollable: find.byType(Scrollable).first);
+      await tester.pump();
+      expect(find.text('Cómo llegar'), findsOneWidget);
       await cumpleLasGuias(tester);
       semantica.dispose();
     });
