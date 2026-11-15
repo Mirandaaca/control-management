@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/models/camino.dart';
 import '../../data/models/evento.dart';
 import '../../data/models/hoja_pedido.dart';
 import '../../data/models/pedido.dart';
@@ -11,6 +12,7 @@ import '../core/formato.dart';
 import '../core/lineas/linea_de_producto.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
+import '../core/ubicacion/mapa_de_ubicacion.dart';
 import '../core/widgets/aviso.dart';
 import '../core/widgets/mensaje_de_exito.dart';
 import '../core/widgets/barra_de_acciones.dart';
@@ -18,7 +20,9 @@ import '../core/widgets/campo_de_texto.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../eventos/formulario_evento_screen.dart';
+import '../rutas/navegacion_view_model.dart';
 import '../sesion/sesion_notifier.dart';
+import '../territorio/marcadores.dart';
 import 'etiqueta_de_pedido.dart';
 import 'pedido_view_model.dart';
 
@@ -63,6 +67,16 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
         sesion.sesion.tiene([Permisos.pedidos.registrarEntrega]);
   }
 
+  // "Cómo llegar", como en la ruta (tarea 25), con las mismas condiciones que la entrega. Al llegar vuelve con true y
+  // abre la entrega.
+  Future<void> _comoLlegar(Pedido pedido, PuntoDelCamino ubicacion) async {
+    final entregar = await context.push<bool>(
+      Rutas.caminoAlPedido(pedido.id),
+      extra: PedidoEnRuta(id: pedido.id, cliente: pedido.cliente.nombre, ubicacion: ubicacion),
+    );
+    if (entregar == true && mounted) await context.push(Rutas.entrega(pedido.id));
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(pedidoProvider(widget.id));
@@ -76,7 +90,14 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
       body: switch (estado) {
         DetalleDePedido(pedido: final pedido?) => RefreshIndicator(
           onRefresh: _viewModel.cargar,
-          child: _Contenido(pedido: pedido, desdeLaBandeja: widget.desdeLaBandeja),
+          child: _Contenido(
+            pedido: pedido,
+            desdeLaBandeja: widget.desdeLaBandeja,
+            alComoLlegar: switch (pedido.ubicacionDelCliente) {
+              final ubicacion? when _puedeEntregar(pedido) => () => _comoLlegar(pedido, ubicacion),
+              _ => null,
+            },
+          ),
         ),
         DetalleDePedido(error: final error?) => ErrorConReintento.de(
           error,
@@ -115,10 +136,13 @@ class _PedidoScreenState extends ConsumerState<PedidoScreen> {
 }
 
 class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.pedido, this.desdeLaBandeja = false});
+  const _Contenido({required this.pedido, this.desdeLaBandeja = false, this.alComoLlegar});
 
   final Pedido pedido;
   final bool desdeLaBandeja;
+
+  /// "Cómo llegar": solo para quien puede entregar el pedido.
+  final VoidCallback? alComoLlegar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -150,6 +174,34 @@ class _Contenido extends ConsumerWidget {
         _Dato('Asignado a', pedido.repartidor?.nombre ?? 'Sin asignar'),
         _Dato('Registrado', '${formatearFecha(pedido.fechaRegistro, hora: true)} por ${pedido.registradoPor}'),
         if (pedido.observaciones != null) _Dato('Observaciones', pedido.observaciones!),
+        // La del cliente: el pedido no guarda coordenadas propias, y su dirección de entrega puede ser otra.
+        if (pedido.ubicacionDelCliente case final ubicacion?) ...[
+          const SizedBox(height: 8),
+          Semantics(header: true, container: true, child: Text('Ubicación del cliente', style: titulo)),
+          const SizedBox(height: 8),
+          Stack(
+            children: [
+              MapaDeUbicacion(latitud: ubicacion.latitud, longitud: ubicacion.longitud),
+              BotonDeMapaCompleto(
+                alTocar: () => verMapaCompleto(
+                  context,
+                  titulo: pedido.cliente.nombre,
+                  mapa: (_) => MapaDeUbicacion(
+                    latitud: ubicacion.latitud,
+                    longitud: ubicacion.longitud,
+                    alto: null,
+                    gestos: gestosDelMapaCompleto,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (alComoLlegar != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: alComoLlegar, child: const Text('Cómo llegar')),
+          ],
+          const SizedBox(height: 12),
+        ],
         if (pedido.estado.id == EstadosDePedido.entregado) ...[
           const SizedBox(height: 8),
           Semantics(header: true, container: true, child: Text('Entrega', style: titulo)),

@@ -47,13 +47,14 @@ IconData iconoDelGiro(Giro giro) => switch (giro) {
 
 String _minuscula(String texto) => texto.isEmpty ? texto : texto[0].toLowerCase() + texto.substring(1);
 
-/// Cómo llegar (tarea 25): el camino por calles hasta la próxima visita, con la indicación que viene, las alternativas
-/// en gris, la distancia y el tiempo que faltan, y el mapa que sigue al promotor. Si se desvía, el camino se recalcula;
-/// al llegar, "Marcar visita" vuelve a la ruta del día y abre la hoja de marcarla.
+/// Cómo llegar (tarea 25): el camino por calles hasta la próxima visita o hasta el cliente de un pedido en ruta, con la
+/// indicación que viene, las alternativas en gris, la distancia y el tiempo que faltan, y el mapa que sigue al
+/// promotor. Si se desvía, el camino se recalcula. Al llegar vuelve con `true`: la ruta del día abre la hoja de marcar
+/// la visita, y el pedido, la entrega.
 class NavegacionScreen extends ConsumerStatefulWidget {
-  const NavegacionScreen({super.key, required this.abrir});
+  const NavegacionScreen({super.key, required this.destino});
 
-  final AbrirCamino abrir;
+  final DestinoDelCamino destino;
 
   @override
   ConsumerState<NavegacionScreen> createState() => _NavegacionScreenState();
@@ -63,16 +64,26 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
   final _mapa = MapController();
   final _toque = LayerHitNotifier<int>(null);
   var _listo = false;
+  late final AppLifecycleListener _ciclo;
 
   /// El mapa sigue al promotor hasta que lo mueve con los dedos; el botón de centrar lo vuelve a seguir.
   var _siguiendo = true;
 
-  NavegacionViewModel get _viewModel => ref.read(navegacionProvider(widget.abrir).notifier);
+  NavegacionViewModel get _viewModel => ref.read(navegacionProvider(widget.destino).notifier);
 
-  ClienteDeRuta get _cliente => widget.abrir.visita.cliente;
+  String get _cliente => widget.destino.cliente;
+
+  @override
+  void initState() {
+    super.initState();
+    // Hasta un pedido: al volver de los ajustes ("Activar GPS", "Dar permiso"), revisa el GPS otra vez. Hasta una visita
+    // lo revisa el seguimiento de la ruta.
+    _ciclo = AppLifecycleListener(onResume: () => _viewModel.revisarElGpsDelPedido());
+  }
 
   @override
   void dispose() {
+    _ciclo.dispose();
     _mapa.dispose();
     _toque.dispose();
     super.dispose();
@@ -120,7 +131,7 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = navegacionProvider(widget.abrir);
+    final provider = navegacionProvider(widget.destino);
     final estado = ref.watch(provider);
     final seguimiento = ref.watch(seguimientoDeRutaProvider);
     ref.listen(provider.select((e) => e.posicion), (_, posicion) {
@@ -153,12 +164,12 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (estado.llegaste)
-            _Indicacion(icono: Icons.flag, texto: 'Llegaste a ${_cliente.nombreCompleto}')
+            _Indicacion(icono: Icons.flag, texto: 'Llegaste a $_cliente')
           else if (proximo != null)
             _Indicacion(
               icono: iconoDelGiro(proximo.giro),
               distancia: 'En ${formatearDistancia(progreso!.metrosHastaElProximo)}',
-              texto: _minuscula(indicacionDe(proximo, _cliente.nombreCompleto)),
+              texto: _minuscula(indicacionDe(proximo, _cliente)),
             ),
           Expanded(child: _mapaDelCamino(estado)),
         ],
@@ -169,8 +180,20 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
         child: SingleChildScrollView(
           child: BarraDeAcciones(
             arriba: [
-              if (seguimiento.rutaId == widget.abrir.rutaId)
-                ?avisoDelGps(ref, seguimiento.problema, widget.abrir.rutaId),
+              ?switch (widget.destino) {
+                VisitaDeLaRuta(:final rutaId) when seguimiento.rutaId == rutaId => avisoDelGps(
+                  ref,
+                  seguimiento.problema,
+                  rutaId,
+                ),
+                VisitaDeLaRuta() => null,
+                PedidoEnRuta() => avisoSinGps(
+                  ref,
+                  estado.problemaDelGps,
+                  paraQue: 'para seguir el camino hasta el cliente.',
+                  darPermiso: () => _viewModel.revisarElGpsDelPedido(pedirPermiso: true),
+                ),
+              },
               ..._avisos(estado),
               if (!estado.llegaste) ...[
                 Segmentado<MedioDeTransporte>(
@@ -179,7 +202,7 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
                   valor: estado.medio,
                   alCambiar: _viewModel.elegirMedio,
                 ),
-                if (progreso != null) _Resumen(progreso: progreso, cliente: _cliente.nombreCompleto),
+                if (progreso != null) _Resumen(progreso: progreso, cliente: _cliente),
               ],
               if (gpsSimulado && camino != null)
                 OutlinedButton(
@@ -188,7 +211,10 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
                 ),
             ],
             principal: estado.llegaste
-                ? Accion('Marcar visita', () => context.pop(true))
+                ? Accion(switch (widget.destino) {
+                    VisitaDeLaRuta() => 'Marcar visita',
+                    PedidoEnRuta() => 'Registrar entrega',
+                  }, () => context.pop(true))
                 : Accion('Terminar', () => context.pop()),
             secundaria: estado.llegaste ? Accion('Terminar', () => context.pop()) : null,
             conEstiloSecundario: !estado.llegaste,
@@ -200,7 +226,13 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
 
   List<Widget> _avisos(EstadoDeLaNavegacion estado) => [
     if (estado.llegaste)
-      const Aviso('Marca la visita para seguir con tu ruta.', tipo: TipoDeAviso.exito)
+      Aviso(switch (widget.destino) {
+        VisitaDeLaRuta() => 'Marca la visita para seguir con tu ruta.',
+        PedidoEnRuta() => 'Registra la entrega del pedido.',
+      }, tipo: TipoDeAviso.exito)
+    else if (estado.problemaDelGps != null)
+      // Sin GPS no hay nada que buscar: el aviso de arriba dice cómo arreglarlo.
+      const SizedBox.shrink()
     else if (estado.error case final error?)
       Aviso.deError(error, accion: AccionDeAviso('Reintentar', _viewModel.reintentar))
     else if (estado.posicion == null)
@@ -222,7 +254,7 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
     final caminos = estado.caminos?.todos ?? const <Camino>[];
     final elegido = estado.camino;
     final posicion = estado.posicion;
-    final cliente = puntoDe(_cliente.latitud, _cliente.longitud);
+    final cliente = puntoDe(widget.destino.ubicacion.latitud, widget.destino.ubicacion.longitud);
     List<LatLng> linea(Camino camino) => [for (final p in camino.puntos) puntoDe(p.latitud, p.longitud)];
 
     return LayoutBuilder(
@@ -231,8 +263,8 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
           Semantics(
             image: true,
             label: elegido == null
-                ? 'Mapa con ${_cliente.nombreCompleto}.'
-                : 'Mapa del camino hasta ${_cliente.nombreCompleto}: ${formatearDistancia(elegido.distancia.toDouble())}.',
+                ? 'Mapa con $_cliente.'
+                : 'Mapa del camino hasta $_cliente: ${formatearDistancia(elegido.distancia.toDouble())}.',
             child: ExcludeSemantics(
               child: FlutterMap(
                 mapController: _mapa,
@@ -283,7 +315,12 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
                         point: cliente,
                         width: 64,
                         height: 32,
-                        child: Center(child: Pastilla(widget.abrir.visita.orden, EstadoVisita.pendiente)),
+                        child: Center(
+                          child: switch (widget.destino) {
+                            VisitaDeLaRuta(:final visita) => Pastilla(visita.orden, EstadoVisita.pendiente),
+                            PedidoEnRuta() => const _PuntoDelCliente(),
+                          },
+                        ),
                       ),
                       if (posicion != null) marcadorTu(puntoDe(posicion.latitud, posicion.longitud)),
                     ],
@@ -340,6 +377,24 @@ class _NavegacionScreenState extends ConsumerState<NavegacionScreen> {
     final dentro = lugar.dx >= 24 && lugar.dy >= 24 && lugar.dx <= mapa.width - 24 && lugar.dy <= mapa.height - 24;
     return dentro ? lugar : null;
   }
+}
+
+/// El cliente de un pedido en el mapa: el punto de `MapaDeUbicacion` (`marca-600` con borde blanco), un poco más grande
+/// para que se vea entre las líneas del camino.
+class _PuntoDelCliente extends StatelessWidget {
+  const _PuntoDelCliente();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 22,
+    height: 22,
+    decoration: BoxDecoration(
+      color: marca600,
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.white, width: 3),
+      boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 1))],
+    ),
+  );
 }
 
 /// La indicación que viene, arriba: el ícono del giro, "En 150 m" y "gira a la derecha en Calle 4". El lector de

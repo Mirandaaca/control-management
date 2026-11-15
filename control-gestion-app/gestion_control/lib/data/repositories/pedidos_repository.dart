@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../models/camino.dart';
 import '../models/pagina.dart';
 import '../models/pedido.dart';
 import '../services/error_de_api.dart';
@@ -85,6 +86,25 @@ class PedidosRepository {
       return Pedido.fromJson(respuesta.data!);
     } catch (e) {
       throw ErrorDeApi.desde(e, porDefecto: 'No se pudo registrar la entrega.');
+    }
+  }
+
+  /// El camino por calles desde donde está el promotor hasta el cliente del pedido, para entregarlo (como el de una
+  /// visita de la ruta, tarea 25). Solo el promotor asignado y en ruta. Si no se puede, la API responde 503
+  /// `navegacion_no_disponible` y el promotor sigue el mapa.
+  Future<Caminos> camino(int id, {required Posicion desde, required MedioDeTransporte medio}) async {
+    try {
+      final respuesta = await _api.get<Map<String, dynamic>>(
+        '/pedidos/$id/camino',
+        queryParameters: {
+          'latitud': desde.latitud.toStringAsFixed(6),
+          'longitud': desde.longitud.toStringAsFixed(6),
+          'medio': medio.valor,
+        },
+      );
+      return Caminos.fromJson(respuesta.data!);
+    } catch (e) {
+      throw ErrorDeApi.desde(e, porDefecto: 'No se pudo calcular el camino. Sigue el mapa.');
     }
   }
 }

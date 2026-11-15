@@ -10,13 +10,23 @@ import '../tema.dart';
 final mosaicosDelMapaProvider = Provider<bool>((ref) => true);
 
 /// El punto de una ubicación en un mapa de OpenStreetMap (2.4, 8.6.6): un círculo `marca-600` con borde blanco, como
-/// en el panel (docs/diseno.md, "Mapas"). Es para mirar: no se arrastra, así el formulario se desplaza sin pelear con
-/// el mapa.
+/// en el panel (docs/diseno.md, "Mapas"). Por defecto es para mirar: no se arrastra, así el formulario se desplaza sin
+/// pelear con el mapa. A pantalla completa ([verMapaCompleto]), sin [alto] y con [gestos] que lo mueven.
 class MapaDeUbicacion extends ConsumerWidget {
-  const MapaDeUbicacion({super.key, required this.latitud, required this.longitud});
+  const MapaDeUbicacion({
+    super.key,
+    required this.latitud,
+    required this.longitud,
+    this.alto = 160,
+    this.gestos = InteractiveFlag.none,
+  });
 
   final double latitud;
   final double longitud;
+
+  /// Null: ocupa todo el lugar, sin borde.
+  final double? alto;
+  final int gestos;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,19 +37,21 @@ class MapaDeUbicacion extends ConsumerWidget {
           'Mapa con la ubicación: latitud ${formatearCoordenada(latitud)}, longitud ${formatearCoordenada(longitud)}',
       child: ExcludeSemantics(
         child: Container(
-          height: 160,
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          clipBehavior: Clip.antiAlias,
+          height: alto,
+          decoration: alto == null
+              ? null
+              : BoxDecoration(
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+          clipBehavior: alto == null ? Clip.none : Clip.antiAlias,
           child: FlutterMap(
             // Una ubicación nueva ("Volver a capturar") centra el mapa otra vez.
             key: ValueKey((latitud, longitud)),
             options: MapOptions(
               initialCenter: punto,
               initialZoom: 17,
-              interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+              interactionOptions: InteractionOptions(flags: gestos),
             ),
             children: [
               const MosaicosDeOpenStreetMap(),

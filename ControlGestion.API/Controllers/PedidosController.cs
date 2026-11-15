@@ -3,6 +3,7 @@ using ControlGestion.API.Seguridad;
 using ControlGestion.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ControlGestion.API.Controllers;
 
@@ -99,4 +100,12 @@ public class PedidosController(PedidoService pedidos, ReportePedidosService repo
     [Permiso(Permisos.Pedidos.RegistrarEntrega)]
     public async Task<ActionResult<PedidoDTO>> Entregar(int id, [FromBody] EntregarPedidoDTO dto) =>
         await pedidos.EntregarAsync(id, dto);
+
+    // El camino por calles hasta el cliente, para entregarlo: con las reglas de la entrega y el mismo límite que el
+    // camino de la ruta (el cupo del proveedor es uno solo). Pasado el límite, o si el proveedor falla, 503.
+    [HttpGet("{id:int}/camino")]
+    [Permiso(Permisos.Pedidos.RegistrarEntrega)]
+    [EnableRateLimiting(LimiteDeCaminos.Politica)]
+    public async Task<ActionResult<CaminosDTO>> GetCamino(int id, [FromQuery] CaminoConsultaDTO consulta) =>
+        await pedidos.CaminoAsync(id, consulta);
 }
