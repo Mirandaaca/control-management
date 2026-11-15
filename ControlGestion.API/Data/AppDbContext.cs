@@ -11,6 +11,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Zona> Zonas { get; set; }
     public DbSet<Producto> Productos { get; set; }
+    public DbSet<Categoria> Categorias { get; set; }
     public DbSet<AuditoriaLog> AuditoriaLogs { get; set; }
     public DbSet<ConfiguracionGeneral> ConfiguracionesGenerales { get; set; }
 
@@ -138,9 +139,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Producto>().Property(p => p.SKU).HasMaxLength(50);
         builder.Entity<Producto>().HasIndex(p => p.SKU).IsUnique();
         builder.Entity<Producto>().Property(p => p.Descripcion).HasMaxLength(150);
-        builder.Entity<Producto>().Property(p => p.Categoria).HasMaxLength(80);
         builder.Entity<Producto>().Property(p => p.Precio).HasPrecision(18, 2);
         builder.Entity<Producto>().Property(p => p.PrecioCompra).HasPrecision(18, 2);
+
+        // Categoria (tarea 29): un producto pertenece a una. Restrict: una con productos, aunque estén inactivos, no se
+        // elimina. El índice único, con la intercalación de la base, no deja "Limpieza" y "limpieza".
+        builder.Entity<Categoria>().Property(c => c.Nombre).HasMaxLength(80);
+        builder.Entity<Categoria>().HasIndex(c => c.Nombre).IsUnique();
+        builder.Entity<Producto>()
+            .HasOne(p => p.Categoria).WithMany(c => c.Productos).HasForeignKey(p => p.CategoriaId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // InventarioProducto: una fila por producto.
         builder.Entity<InventarioProducto>()

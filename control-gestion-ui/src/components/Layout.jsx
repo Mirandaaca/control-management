@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
-  PanelLeftOpen, Route, ScrollText, Settings, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
+  PanelLeftOpen, Route, ScrollText, Settings, Shapes, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
 import { useAuth } from '../context/auth';
@@ -42,6 +42,7 @@ const modulos = [
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
     { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
     { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
+    { to: '/categorias', label: 'Categorías', icon: Shapes, permisos: PANTALLAS.categorias },
     { to: '/estados-cliente', label: 'Estados del cliente', icon: Tags, permisos: PANTALLAS.estadosCliente },
     { to: '/configuracion-general', label: 'Configuración general', icon: Settings, permisos: PANTALLAS.configuracionGeneral },
   ] },

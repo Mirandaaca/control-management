@@ -14,7 +14,7 @@ public class InventarioService(AppDbContext db, IUsuarioActual usuario, TimeProv
 {
     public async Task<Pagina<InventarioDTO>> ListarAsync(FiltrosInventarioDTO filtros)
     {
-        var consulta = db.Productos.Where(p => p.Activo).Buscar(filtros.Buscar);
+        var consulta = db.Productos.Where(p => p.Activo).Buscar(filtros.Buscar).DeLaCategoria(filtros.CategoriaId);
         if (filtros.SoloBajoMinimo) consulta = consulta.BajoElMinimo();
 
         var total = await consulta.CountAsync();

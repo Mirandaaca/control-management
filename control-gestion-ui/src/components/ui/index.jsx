@@ -705,6 +705,12 @@ export function Modal({ abierto, onCerrar, titulo, descripcion, children, pie, a
           abrio.current.focus();
         }}
         onEscapeKeyDown={(e) => {
+          // Radix atiende Escape antes que el campo: una búsqueda con texto se borra primero (Buscador), y la ventana
+          // se cierra con el Escape siguiente.
+          if (e.target instanceof HTMLInputElement && e.target.type === 'search' && e.target.value !== '') {
+            e.preventDefault();
+            return;
+          }
           if (!preguntando) return;
           e.preventDefault();
           seguirEditando();
@@ -773,7 +779,11 @@ export function Confirmar({
   );
 }
 
-export function Buscador({ value, onChange, placeholder = 'Buscar…', label = 'Buscar' }) {
+/**
+ * El campo de búsqueda de una lista o de una ventana. Escape con texto lo borra (en una ventana, antes de cerrarla: ver
+ * Modal) y Enter no envía el formulario que lo contenga: la búsqueda se aplica al escribir.
+ */
+export function Buscador({ value, onChange, placeholder = 'Buscar…', label = 'Buscar', ref }) {
   const id = useId();
   return (
     <div className="w-full sm:w-72">
@@ -781,10 +791,18 @@ export function Buscador({ value, onChange, placeholder = 'Buscar…', label = '
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" aria-hidden="true" />
         <input
+          ref={ref}
           id={id}
           type="search"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.preventDefault();
+            if (e.key === 'Escape' && value) {
+              e.preventDefault();
+              onChange('');
+            }
+          }}
           placeholder={placeholder}
           className="w-full h-10 pl-9 pr-3 border border-borde-control rounded-lg text-sm text-slate-900 placeholder:text-slate-500 bg-white transition focus:outline-none focus:ring-2 focus:ring-marca-500 focus:border-marca-500"
         />

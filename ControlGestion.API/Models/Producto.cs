@@ -11,7 +11,9 @@ public class Producto
     public decimal PrecioCompra { get; set; }
 
     public bool Activo { get; set; } = true;
-    public string? Categoria { get; set; }
+
+    public int CategoriaId { get; set; }
+    public Categoria? Categoria { get; set; }
 
     public InventarioProducto? Inventario { get; set; }
 }

@@ -14,11 +14,14 @@ public record RegistrarIngresoDTO
     public string Observacion { get; init; } = string.Empty;
 }
 
-/// <summary>Filtros de la lista de inventario. Buscar compara con el código, la descripción y la categoría.</summary>
+/// <summary>Filtros de la lista de inventario. Buscar compara con el código, la descripción y el nombre de la categoría.</summary>
 public record FiltrosInventarioDTO
 {
     [MaxLength(100, ErrorMessage = "La búsqueda no puede superar los 100 caracteres.")]
     public string? Buscar { get; init; }
+
+    /// <summary>Solo los de esa categoría; sin ella, todos.</summary>
+    public int? CategoriaId { get; init; }
 
     /// <summary>Solo los productos con el stock igual o menor que su mínimo.</summary>
     public bool SoloBajoMinimo { get; init; }
@@ -43,7 +46,8 @@ public record InventarioDTO(
     int ProductoId,
     string Sku,
     string Descripcion,
-    string? Categoria,
+    /// <summary>El nombre de su categoría.</summary>
+    string Categoria,
     /// <summary>El precio de venta: la secretaria lo necesita al buscar productos (7.3.7, paso 2.2).</summary>
     decimal PrecioVenta,
     decimal StockActual,

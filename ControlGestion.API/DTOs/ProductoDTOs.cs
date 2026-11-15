@@ -12,8 +12,9 @@ public record GuardarProductoDTO
     [MaxLength(150, ErrorMessage = "La descripción no puede superar los 150 caracteres.")]
     public string Descripcion { get; init; } = string.Empty;
 
-    [MaxLength(80, ErrorMessage = "La categoría no puede superar los 80 caracteres.")]
-    public string? Categoria { get; init; }
+    /// <summary>Una de las categorías registradas (tarea 29): es obligatoria.</summary>
+    [Range(1, int.MaxValue, ErrorMessage = "Elige la categoría del producto.")]
+    public int CategoriaId { get; init; }
 
     /// <summary>Precio de venta.</summary>
     [Range(0, 99_999_999, MinimumIsExclusive = true, ErrorMessage = "El precio de venta debe ser mayor que cero.")]
@@ -27,11 +28,14 @@ public record GuardarProductoDTO
     public decimal StockMinimo { get; init; }
 }
 
-/// <summary>Filtros de la lista de productos. Buscar compara con el código, la descripción y la categoría.</summary>
+/// <summary>Filtros de la lista de productos. Buscar compara con el código, la descripción y el nombre de la categoría.</summary>
 public record FiltrosProductoDTO
 {
     [MaxLength(100, ErrorMessage = "La búsqueda no puede superar los 100 caracteres.")]
     public string? Buscar { get; init; }
+
+    /// <summary>Solo los de esa categoría; sin ella, todos.</summary>
+    public int? CategoriaId { get; init; }
 
     [Range(1, int.MaxValue, ErrorMessage = "La página empieza en 1.")]
     public int Pagina { get; init; } = 1;
@@ -44,12 +48,15 @@ public record ProductoDTO(
     int Id,
     string Sku,
     string Descripcion,
-    string? Categoria,
+    CategoriaResumenDTO Categoria,
     decimal Precio,
     decimal PrecioCompra,
     decimal StockMinimo,
     decimal StockActual,
     bool Activo);
 
-/// <summary>Lo justo para elegir un producto en una HP o un pedido: sin el precio de compra.</summary>
-public record ProductoOpcionDTO(int Id, string Sku, string Descripcion, string? Categoria, decimal Precio, decimal StockActual);
+/// <summary>
+/// Lo justo para elegir un producto en una HP o un pedido, y el catálogo de la app: sin el precio de compra. La categoría
+/// va con su nombre, como texto: así la lee la app instalada (tarea 29).
+/// </summary>
+public record ProductoOpcionDTO(int Id, string Sku, string Descripcion, string Categoria, decimal Precio, decimal StockActual);

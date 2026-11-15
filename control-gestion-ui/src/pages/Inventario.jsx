@@ -7,7 +7,7 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, ErrorDeCarga, EstadoVacio, Input,
-  Modal, PageHeader, Paginacion,
+  Modal, PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
@@ -23,7 +23,7 @@ import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/form
 const { ventas } = PERMISOS;
 const TAMANO_PAGINA = 25;
 const TAMANO_KARDEX = 10;
-const SIN_FILTROS = { texto: '', soloBajoMinimo: false };
+const SIN_FILTROS = { texto: '', categoria: '', soloBajoMinimo: false };
 
 // TipoMovimiento de la API. "Ajuste" solo aparece en movimientos viejos: hoy el stock sube con ingresos.
 const MOVIMIENTOS = {
@@ -63,6 +63,8 @@ export default function Inventario() {
   const [guardando, setGuardando] = useState(false);
 
   const [kardex, setKardex] = useState(null);
+  // Las categorías del filtro (tarea 29). Si no llegan, el filtro queda solo con "Todas".
+  const [categorias, setCategorias] = useState([]);
 
   const nuevaPeticion = usePeticionVigente();
   const cargar = useCallback(() => {
@@ -72,16 +74,22 @@ export default function Inventario() {
         pagina: numeroPagina,
         tamano: TAMANO_PAGINA,
         buscar: busqueda || undefined,
+        categoriaId: filtros.categoria || undefined,
         soloBajoMinimo: filtros.soloBajoMinimo || undefined,
       },
     })
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar el inventario.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.soloBajoMinimo, nuevaPeticion]);
+  }, [numeroPagina, busqueda, filtros.categoria, filtros.soloBajoMinimo, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
+  useEffect(() => {
+    api.get('/categorias/opciones')
+      .then(({ data }) => setCategorias(data.map((c) => ({ valor: String(c.id), texto: c.nombre }))))
+      .catch((err) => avisar.error(mensajeDeError(err, 'No se pudieron cargar las categorías del filtro.')));
+  }, []);
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
@@ -123,7 +131,7 @@ export default function Inventario() {
       .catch((err) => setKardex((k) => k && { ...k, cargando: false, error: mensajeDeError(err, 'No se pudo cargar el kardex.') }));
   };
 
-  const hayFiltros = filtros.texto !== '' || filtros.soloBajoMinimo;
+  const hayFiltros = filtros.texto !== '' || filtros.categoria !== '' || filtros.soloBajoMinimo;
   const items = pagina?.items ?? [];
   const hayAcciones = puedeIngresar || puedeVerKardex;
 
@@ -172,6 +180,10 @@ export default function Inventario() {
           >
             <Buscador label="Buscar" placeholder="Código, descripción o categoría…" value={filtros.texto}
               onChange={(texto) => filtrar({ texto })} />
+            <div className="w-full sm:w-48">
+              <Selector label="Categoría" todos="Todas" value={filtros.categoria} opciones={categorias}
+                onChange={(categoria) => filtrar({ categoria })} />
+            </div>
             <div className="sm:h-10 sm:flex sm:items-center">
               <Casilla checked={filtros.soloBajoMinimo} onCheckedChange={(v) => filtrar({ soloBajoMinimo: v === true })}>
                 Solo bajo el mínimo
@@ -188,7 +200,7 @@ export default function Inventario() {
               <p className="font-medium">{item.descripcion}</p>
               <p className="text-xs text-slate-600 font-mono">{item.sku}</p>
             </Td>
-            <Td>{item.categoria ?? <span className="text-slate-600">Sin categoría</span>}</Td>
+            <Td>{item.categoria}</Td>
             <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(item.precioVenta)}</Td>
             <Td className="text-right">
               <span className="font-semibold tabular-nums">{formatearCantidad(item.stockActual)}</span>

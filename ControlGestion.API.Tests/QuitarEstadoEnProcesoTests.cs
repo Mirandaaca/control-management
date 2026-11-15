@@ -47,6 +47,8 @@ public class QuitarEstadoEnProcesoTests(ApiDePrueba api)
         finally
         {
             await migrador.MigrateAsync();
+            // Bajar pasa por CategoriasDeProductos, que al subir vuelve a crear las categorías con otros ids.
+            await api.VolverALeerLaCategoriaAsync();
         }
 
         var pedido = await (await operador.GetAsync($"/api/pedidos/{pedidoId}")).LeerJsonAsync();

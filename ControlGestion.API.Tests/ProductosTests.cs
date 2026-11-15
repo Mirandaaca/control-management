@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
 
@@ -8,8 +9,9 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class ProductosTests(ApiDePrueba api)
 {
-    private static object Producto(string sku, decimal precio = 10m, decimal precioCompra = 7m, decimal stockMinimo = 0m) =>
-        new { sku, descripcion = $"Producto {sku}", categoria = "Pruebas", precio, precioCompra, stockMinimo };
+    private static object Producto(string sku, decimal precio = 10m, decimal precioCompra = 7m, decimal stockMinimo = 0m,
+        int? categoriaId = null) =>
+        new { sku, descripcion = $"Producto {sku}", categoriaId = categoriaId ?? ApiDePrueba.CategoriaDePruebasId, precio, precioCompra, stockMinimo };
 
     [Fact]
     public async Task Un_SKU_repetido_responde_409()
@@ -84,9 +86,76 @@ public class ProductosTests(ApiDePrueba api)
 
         var opcion = Assert.Single(opciones, o => o.GetProperty("id").GetInt32() == productoId);
         Assert.Equal(8m, opcion.GetProperty("stockActual").GetDecimal());
-        // El catálogo de la app filtra por categoría (7.3.7, paso 2).
-        Assert.Equal("Pruebas", opcion.GetProperty("categoria").GetString());
+        // El catálogo de la app filtra por categoría (7.3.7, paso 2) y la lee como texto: así la sigue leyendo el APK
+        // instalado, aunque la categoría ya sea una entidad (tarea 29).
+        Assert.Equal(JsonValueKind.String, opcion.GetProperty("categoria").ValueKind);
+        Assert.Equal(ApiDePrueba.NombreDeLaCategoriaDePruebas, opcion.GetProperty("categoria").GetString());
         Assert.False(opcion.TryGetProperty("precioCompra", out _));
         Assert.Equal(HttpStatusCode.Forbidden, (await cliente.GetAsync("/api/productos")).StatusCode);
     }
+
+    [Fact]
+    public async Task Un_producto_pide_una_categoria_que_exista()
+    {
+        using var operador = await api.OperadorAsync();
+
+        var sinCategoria = await (await operador.PostAsJsonAsync("/api/productos", Producto(Ayudantes.Unico("SKU"), categoriaId: 0)))
+            .ProblemaAsync(400, "validacion");
+        Assert.Equal("Elige la categoría del producto.", sinCategoria.GetProperty("errors").GetProperty("categoriaId")[0].GetString());
+
+        var noExiste = await (await operador.PostAsJsonAsync("/api/productos", Producto(Ayudantes.Unico("SKU"), categoriaId: 999999)))
+            .ProblemaAsync(400, "categoria_no_existe");
+        Assert.True(noExiste.GetProperty("errors").TryGetProperty("categoriaId", out _));
+
+        var id = await operador.CrearProductoAsync(10m, stockInicial: 0);
+        await (await operador.PutAsJsonAsync($"/api/productos/{id}", Producto(Ayudantes.Unico("SKU"), categoriaId: 999999)))
+            .ProblemaAsync(400, "categoria_no_existe");
+    }
+
+    [Fact]
+    public async Task Trae_su_categoria_la_cambia_y_se_filtra_y_se_busca_por_ella()
+    {
+        using var operador = await api.OperadorAsync();
+        var nombre = Ayudantes.Unico("Bebidas");
+        var bebidas = await operador.CrearCategoriaAsync(nombre);
+        var deBebidas = await operador.CrearProductoAsync(10m, stockInicial: 0, categoriaId: bebidas);
+        // Otro, en la categoría de la corrida: el filtro no lo trae.
+        await operador.CrearProductoAsync(10m, stockInicial: 0);
+
+        var producto = await (await operador.GetAsync($"/api/productos/{deBebidas}")).LeerJsonAsync();
+        Assert.Equal((bebidas, nombre), (producto.GetProperty("categoria").GetProperty("id").GetInt32(),
+            producto.GetProperty("categoria").GetProperty("nombre").GetString()));
+
+        // El filtro (decisión 6) y el buscador, que compara también el nombre de la categoría.
+        Assert.Equal([deBebidas], await IdsAsync(operador, $"/api/productos?categoriaId={bebidas}"));
+        Assert.Equal([deBebidas], await IdsAsync(operador, $"/api/productos?buscar={nombre}"));
+        var inventario = (await (await operador.GetAsync($"/api/inventario?categoriaId={bebidas}")).LeerJsonAsync())
+            .GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(deBebidas, Assert.Single(inventario).GetProperty("productoId").GetInt32());
+        Assert.Equal(nombre, inventario[0].GetProperty("categoria").GetString());
+
+        var sku = producto.GetProperty("sku").GetString()!;
+        var cambiado = await (await operador.PutAsJsonAsync($"/api/productos/{deBebidas}", Producto(sku, categoriaId: ApiDePrueba.CategoriaDePruebasId)))
+            .LeerJsonAsync();
+        Assert.Equal(ApiDePrueba.CategoriaDePruebasId, cambiado.GetProperty("categoria").GetProperty("id").GetInt32());
+        Assert.Empty(await IdsAsync(operador, $"/api/productos?categoriaId={bebidas}"));
+        Assert.Equal([deBebidas], await IdsAsync(operador, $"/api/productos?categoriaId={ApiDePrueba.CategoriaDePruebasId}&buscar={sku}"));
+    }
+
+    [Fact]
+    public async Task Un_producto_inactivo_no_se_vuelve_a_desactivar()
+    {
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearProductoAsync(10m, stockInicial: 0);
+        Assert.Equal(HttpStatusCode.NoContent, (await operador.DeleteAsync($"/api/productos/{id}")).StatusCode);
+
+        // 7.3.29, paso 4.1: antes respondía 204 otra vez, sin hacer nada.
+        var problema = await (await operador.DeleteAsync($"/api/productos/{id}")).ProblemaAsync(400, "producto_inactivo");
+        Assert.Equal($"Producto {(await (await operador.GetAsync($"/api/productos/{id}")).LeerJsonAsync()).GetProperty("sku").GetString()} ya está inactivo.",
+            problema.GetProperty("detail").GetString());
+    }
+
+    private static async Task<List<int>> IdsAsync(HttpClient cliente, string ruta) =>
+        (await (await cliente.GetAsync(ruta)).LeerJsonAsync()).GetProperty("items").EnumerateArray()
+            .Select(p => p.GetProperty("id").GetInt32()).ToList();
 }

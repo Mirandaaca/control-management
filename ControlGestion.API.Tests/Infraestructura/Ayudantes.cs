@@ -119,11 +119,24 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
-    public static async Task<int> CrearProductoAsync(this HttpClient admin, decimal precio, decimal stockInicial = 100)
+    /// <summary>Una categoría con un nombre único (tarea 29). Devuelve su id.</summary>
+    public static async Task<int> CrearCategoriaAsync(this HttpClient operador, string? nombre = null)
+    {
+        var respuesta = await operador.PostAsJsonAsync("/api/categorias", new { nombre = nombre ?? Unico("Cat") });
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
+    }
+
+    /// <summary>Un producto con ese precio y stock; sin categoría, en la de la corrida (ApiDePrueba.CategoriaDePruebasId).</summary>
+    public static async Task<int> CrearProductoAsync(this HttpClient admin, decimal precio, decimal stockInicial = 100,
+        int? categoriaId = null)
     {
         var sku = Unico("P");
-        var respuesta = await admin.PostAsJsonAsync("/api/productos",
-            new { sku, descripcion = $"Producto {sku}", precio, precioCompra = precio, categoria = "Pruebas" });
+        var respuesta = await admin.PostAsJsonAsync("/api/productos", new
+        {
+            sku, descripcion = $"Producto {sku}", precio, precioCompra = precio,
+            categoriaId = categoriaId ?? ApiDePrueba.CategoriaDePruebasId
+        });
         respuesta.EnsureSuccessStatusCode();
         var id = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
         if (stockInicial != 0)

@@ -32,7 +32,7 @@ export default function ReporteInventario({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [numeroPagina, setNumeroPagina] = useState(1);
   const filtrosDeLaApi = useMemo(() => ({
-    categoria: filtros.categoria || undefined, desde: filtros.desde || undefined, hasta: filtros.hasta || undefined,
+    categoriaId: filtros.categoria || undefined, desde: filtros.desde || undefined, hasta: filtros.hasta || undefined,
   }), [filtros]);
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
@@ -59,7 +59,7 @@ export default function ReporteInventario({ barra, panel }) {
               hayFiltros={hayFiltros} onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
               <div className="w-full sm:w-44">
                 <Selector label="Categoría" todos="Todas" value={filtros.categoria}
-                  opciones={(reporte?.categorias ?? []).map((c) => ({ valor: c, texto: c }))}
+                  opciones={(reporte?.categorias ?? []).map((c) => ({ valor: String(c.id), texto: c.nombre }))}
                   onChange={(categoria) => filtrar({ categoria })} />
               </div>
               <div className="w-full sm:w-40">

@@ -109,6 +109,8 @@ export const PANTALLAS = {
   mapaZonas: [territorial.dibujarLimites, territorial.registrarPuntoReferencia, territorial.verMapaClientes],
   zonas: [parametros.registrarZona, parametros.modificarZona, parametros.eliminarZona],
   productos: [parametros.registrarProducto, parametros.modificarProducto, parametros.eliminarProducto],
+  // Las categorías se administran con los permisos de productos (tarea 29).
+  categorias: [parametros.registrarProducto, parametros.modificarProducto, parametros.eliminarProducto],
   configuracionGeneral: [parametros.modificarDiasRevisita],
   estadosCliente: [parametros.registrarEstadoCliente, parametros.modificarEstadoCliente, parametros.eliminarEstadoCliente],
   usuarios: [seguridad.crearUsuario, seguridad.editarUsuario, seguridad.activarUsuario],

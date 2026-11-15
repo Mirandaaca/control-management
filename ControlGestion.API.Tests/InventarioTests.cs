@@ -10,7 +10,7 @@ public class InventarioTests(ApiDePrueba api)
     private static async Task<int> CrearProductoAsync(HttpClient operador, string sku, decimal stockMinimo = 0)
     {
         var respuesta = await operador.PostAsJsonAsync("/api/productos",
-            new { sku, descripcion = $"Producto {sku}", precio = 10m, precioCompra = 7m, stockMinimo });
+            new { sku, descripcion = $"Producto {sku}", precio = 10m, precioCompra = 7m, stockMinimo, categoriaId = ApiDePrueba.CategoriaDePruebasId });
         respuesta.EnsureSuccessStatusCode();
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
