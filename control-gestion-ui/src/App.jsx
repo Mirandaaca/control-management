@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Usuarios = lazy(() => import('./pages/Usuarios'));
 const Zonas = lazy(() => import('./pages/Zonas'));
 const Productos = lazy(() => import('./pages/Productos'));
+const Categorias = lazy(() => import('./pages/Categorias'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const ConfiguracionGeneral = lazy(() => import('./pages/ConfiguracionGeneral'));
 const EstadosCliente = lazy(() => import('./pages/EstadosCliente'));
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="/zonas/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaZonas}><MapaZonas /></PrivateRoute>} />
             <Route path="/zonas" element={<PrivateRoute permisos={PANTALLAS.zonas}><Zonas /></PrivateRoute>} />
             <Route path="/productos" element={<PrivateRoute permisos={PANTALLAS.productos}><Productos /></PrivateRoute>} />
+            <Route path="/categorias" element={<PrivateRoute permisos={PANTALLAS.categorias}><Categorias /></PrivateRoute>} />
             <Route path="/reportes" element={<PrivateRoute permisos={PANTALLAS.reportes}><Reportes /></PrivateRoute>} />
             <Route path="/reportes/pedidos" element={<PrivateRoute permisos={PANTALLAS.reportePedidos}><ReportePedidos /></PrivateRoute>} />
             <Route path="/reportes/eventos" element={<PrivateRoute permisos={PANTALLAS.reporteEventos}><ReporteEventos /></PrivateRoute>} />

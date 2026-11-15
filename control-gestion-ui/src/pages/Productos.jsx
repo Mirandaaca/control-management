@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { LoaderCircle, Package, PackageX, Pencil, Plus } from 'lucide-react';
 import api from '../api/axios';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
@@ -7,12 +8,13 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
-  Paginacion,
+  Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
-import { PERMISOS } from '../context/permisos';
+import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { useDemorado } from '../hooks/useDemorado';
+import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { useSinGuardar } from '../hooks/useSinGuardar';
@@ -21,10 +23,11 @@ import { formatearCantidad, formatearMonto } from '../utils/formato';
 
 const { parametros } = PERMISOS;
 const TAMANO_PAGINA = 25;
-const FORMULARIO_VACIO = { sku: '', descripcion: '', categoria: '', precioCompra: '', precio: '', stockMinimo: '0' };
+const SIN_FILTROS = { texto: '', categoria: '' };
+const FORMULARIO_VACIO = { sku: '', descripcion: '', categoriaId: '', precioCompra: '', precio: '', stockMinimo: '0' };
 
 // Errores de la API que pertenecen a un campo del formulario: se muestran junto a él.
-const CAMPO_DEL_ERROR = { sku_repetido: 'sku' };
+const CAMPO_DEL_ERROR = { sku_repetido: 'sku', categoria_no_existe: 'categoriaId' };
 
 export default function Productos() {
   const { tiene } = useAuth();
@@ -33,12 +36,15 @@ export default function Productos() {
   const puedeEliminar = tiene(parametros.eliminarProducto);
 
   const [pagina, setPagina] = useState(null);
-  const [numeroPagina, setNumeroPagina] = useState(1);
-  const [texto, setTexto] = useState('');
-  const busqueda = useDemorado(texto.trim(), 300);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
+
+  // Las categorías (tarea 29), para el filtro y el formulario: null mientras llegan.
+  const [categorias, setCategorias] = useState(null);
+  const [errorCategorias, setErrorCategorias] = useState('');
 
   const [formulario, setFormulario] = useState(null);
   const sinGuardar = useSinGuardar(formulario);
@@ -55,27 +61,36 @@ export default function Productos() {
   const cargar = useCallback(() => {
     const siVigente = nuevaPeticion();
     return api.get('/productos', {
-      params: { pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined },
+      params: {
+        pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined, categoriaId: filtros.categoria || undefined,
+      },
     })
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de productos.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, nuevaPeticion]);
+  }, [numeroPagina, busqueda, filtros.categoria, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
 
-  const buscar = (valor) => { setTexto(valor); setNumeroPagina(1); };
+  const cargarCategorias = useCallback(() => api.get('/categorias/opciones')
+    .then(({ data }) => { setCategorias(data); setErrorCategorias(''); })
+    .catch((err) => setErrorCategorias(mensajeDeError(err, 'No se pudieron cargar las categorías.'))), []);
+  useEffect(() => { cargarCategorias(); }, [cargarCategorias]);
+
+  const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
   const abrirFormulario = (producto) => {
     setErroresCampo({});
     setErrorFormulario('');
+    // Se vuelven a pedir: así aparece una categoría que se acaba de crear en Categorías.
+    cargarCategorias();
     setFormulario(producto
       ? {
         id: producto.id,
         sku: producto.sku,
         descripcion: producto.descripcion,
-        categoria: producto.categoria ?? '',
+        categoriaId: String(producto.categoria.id),
         precioCompra: String(producto.precioCompra),
         precio: String(producto.precio),
         stockMinimo: String(producto.stockMinimo),
@@ -89,10 +104,10 @@ export default function Productos() {
     setGuardando(true);
     setErroresCampo({});
     setErrorFormulario('');
-    const { id, categoria, precioCompra, precio, stockMinimo, ...resto } = formulario;
+    const { id, categoriaId, precioCompra, precio, stockMinimo, ...resto } = formulario;
     const datos = {
       ...resto,
-      categoria: categoria.trim() || null,
+      categoriaId: Number(categoriaId) || 0,
       precioCompra: Number(precioCompra) || 0,
       precio: Number(precio) || 0,
       stockMinimo: Number(stockMinimo) || 0,
@@ -105,6 +120,8 @@ export default function Productos() {
       cargar();
     } catch (err) {
       const { codigo, detail } = err.response?.data ?? {};
+      // La categoría elegida se eliminó mientras el formulario estaba abierto: la lista vuelve sin ella.
+      if (codigo === 'categoria_no_existe') cargarCategorias();
       flushSync(() => {
         const campos = erroresPorCampo(err);
         if (CAMPO_DEL_ERROR[codigo]) campos[CAMPO_DEL_ERROR[codigo]] = detail;
@@ -132,8 +149,16 @@ export default function Productos() {
     }
   };
 
-  const hayFiltros = texto !== '';
+  const hayFiltros = filtros.texto !== '' || filtros.categoria !== '';
   const productos = pagina?.items ?? [];
+  const opcionesDeCategoria = (categorias ?? []).map((c) => ({ valor: String(c.id), texto: c.nombre }));
+
+  // Sin categorías no se puede registrar un producto: la ayuda dice dónde se crean.
+  let ayudaDeCategoria;
+  if (categorias === null && !errorCategorias) ayudaDeCategoria = 'Cargando las categorías…';
+  else if (categorias?.length === 0) ayudaDeCategoria = tiene(...PANTALLAS.categorias)
+    ? <>Primero registra una categoría en <Link to="/categorias" className="font-medium text-marca-700 underline">Categorías</Link>.</>
+    : 'Todavía no hay categorías: pídele al administrador que registre una.';
 
   let estado = null;
   if (errorCarga && !pagina) estado = (
@@ -176,9 +201,14 @@ export default function Productos() {
           <BarraDeFiltros
             resultado={pagina ? `${pagina.total} ${pagina.total === 1 ? 'producto' : 'productos'}` : ''}
             hayFiltros={hayFiltros}
-            onLimpiar={() => buscar('')}
+            onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}
           >
-            <Buscador label="Buscar" placeholder="Código, descripción o categoría…" value={texto} onChange={buscar} />
+            <Buscador label="Buscar" placeholder="Código, descripción o categoría…" value={filtros.texto}
+              onChange={(texto) => filtrar({ texto })} />
+            <div className="w-full sm:w-48">
+              <Selector label="Categoría" todos="Todas" value={filtros.categoria} opciones={opcionesDeCategoria}
+                onChange={(categoria) => filtrar({ categoria })} />
+            </div>
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
@@ -190,7 +220,7 @@ export default function Productos() {
               <p className="font-medium">{p.descripcion}</p>
               <p className="text-xs text-slate-600 font-mono">{p.sku}</p>
             </Td>
-            <Td>{p.categoria ?? <span className="text-slate-600">Sin categoría</span>}</Td>
+            <Td>{p.categoria.nombre}</Td>
             <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(p.precioCompra)}</Td>
             <Td className="text-right tabular-nums whitespace-nowrap">{formatearMonto(p.precio)}</Td>
             <Td className="text-right tabular-nums">{formatearCantidad(p.stockActual)}</Td>
@@ -239,8 +269,10 @@ export default function Productos() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="Código (SKU)" value={formulario.sku} error={erroresCampo.sku} autoComplete="off" spellCheck={false}
                 placeholder="ARZ-1KG…" onChange={cambiar('sku')} />
-              <Input label="Categoría (opcional)" value={formulario.categoria} error={erroresCampo.categoria} autoComplete="off"
-                placeholder="Abarrotes, limpieza…" onChange={cambiar('categoria')} />
+              <Selector label="Categoría" value={formulario.categoriaId} opciones={opcionesDeCategoria}
+                error={erroresCampo.categoriaId ?? (errorCategorias || undefined)} ayuda={ayudaDeCategoria}
+                disabled={categorias === null && !errorCategorias}
+                onChange={(categoriaId) => setFormulario({ ...formulario, categoriaId })} />
             </div>
             <Input label="Descripción" value={formulario.descripcion} error={erroresCampo.descripcion} autoComplete="off"
               placeholder="Arroz 1 kg…" onChange={cambiar('descripcion')} />
