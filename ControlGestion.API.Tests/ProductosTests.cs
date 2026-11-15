@@ -142,6 +142,19 @@ public class ProductosTests(ApiDePrueba api)
         Assert.Equal([deBebidas], await IdsAsync(operador, $"/api/productos?categoriaId={ApiDePrueba.CategoriaDePruebasId}&buscar={sku}"));
     }
 
+    [Fact]
+    public async Task Un_producto_inactivo_no_se_vuelve_a_desactivar()
+    {
+        using var operador = await api.OperadorAsync();
+        var id = await operador.CrearProductoAsync(10m, stockInicial: 0);
+        Assert.Equal(HttpStatusCode.NoContent, (await operador.DeleteAsync($"/api/productos/{id}")).StatusCode);
+
+        // 7.3.29, paso 4.1: antes respondía 204 otra vez, sin hacer nada.
+        var problema = await (await operador.DeleteAsync($"/api/productos/{id}")).ProblemaAsync(400, "producto_inactivo");
+        Assert.Equal($"Producto {(await (await operador.GetAsync($"/api/productos/{id}")).LeerJsonAsync()).GetProperty("sku").GetString()} ya está inactivo.",
+            problema.GetProperty("detail").GetString());
+    }
+
     private static async Task<List<int>> IdsAsync(HttpClient cliente, string ruta) =>
         (await (await cliente.GetAsync(ruta)).LeerJsonAsync()).GetProperty("items").EnumerateArray()
             .Select(p => p.GetProperty("id").GetInt32()).ToList();

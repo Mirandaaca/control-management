@@ -62,6 +62,9 @@ public class ProductoService(AppDbContext db, TimeProvider reloj)
     {
         var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new NoEncontradoException("No se encontró el producto.");
+        // 7.3.29, paso 4.1: "Verifica que el producto esté activo".
+        if (!producto.Activo)
+            throw new ReglaDeNegocioException("producto_inactivo", $"{producto.Descripcion} ya está inactivo.");
         producto.Activo = false;
         await db.SaveChangesAsync();
     }
