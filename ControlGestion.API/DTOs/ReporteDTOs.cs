@@ -76,8 +76,8 @@ public record ReporteClientesDTO(int CantidadNuevos, int CantidadRecurrentes, Pa
 /// <summary>Los filtros del reporte de inventario (7.3.25): la categoría y los días de los movimientos.</summary>
 public record FiltrosReporteInventarioDTO : IValidatableObject
 {
-    [MaxLength(100, ErrorMessage = "La categoría no puede superar los 100 caracteres.")]
-    public string? Categoria { get; init; }
+    /// <summary>Una de las categorías registradas (tarea 29); sin ella, todas.</summary>
+    public int? CategoriaId { get; init; }
 
     public DateOnly? Desde { get; init; }
     public DateOnly? Hasta { get; init; }
@@ -96,18 +96,18 @@ public record FiltrosReporteInventarioDTO : IValidatableObject
 }
 
 /// <summary>Un producto activo con su stock. Falta es lo que le falta para llegar al mínimo (0 si no está bajo él).</summary>
-public record StockDeProductoDTO(int Id, string Codigo, string Producto, string? Categoria, decimal StockActual, decimal StockMinimo,
+public record StockDeProductoDTO(int Id, string Codigo, string Producto, string Categoria, decimal StockActual, decimal StockMinimo,
     decimal Falta);
 
 public record MovimientoDelReporteDTO(int Id, DateTime Fecha, string Producto, TipoMovimiento Tipo, decimal Cantidad,
     decimal StockResultante, UsuarioResumenDTO Usuario);
 
 /// <summary>
-/// El reporte de inventario (6.4): las categorías para el filtro, el stock de cada producto activo, aparte los que están
-/// en su mínimo o debajo, y los movimientos del período, del más reciente.
+/// El reporte de inventario (6.4): las categorías registradas para el filtro, el stock de cada producto activo, aparte
+/// los que están en su mínimo o debajo, y los movimientos del período, del más reciente.
 /// </summary>
-public record ReporteInventarioDTO(List<string> Categorias, List<StockDeProductoDTO> Productos, List<StockDeProductoDTO> BajoElMinimo,
-    Pagina<MovimientoDelReporteDTO> Movimientos);
+public record ReporteInventarioDTO(List<CategoriaResumenDTO> Categorias, List<StockDeProductoDTO> Productos,
+    List<StockDeProductoDTO> BajoElMinimo, Pagina<MovimientoDelReporteDTO> Movimientos);
 
 public record VentasDeProductoDTO(string Producto, decimal Cantidad, decimal Total);
 

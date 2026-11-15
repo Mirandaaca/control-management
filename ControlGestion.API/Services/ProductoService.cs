@@ -12,7 +12,7 @@ public class ProductoService(AppDbContext db, TimeProvider reloj)
 {
     public async Task<Pagina<ProductoDTO>> ListarAsync(FiltrosProductoDTO filtros)
     {
-        var consulta = db.Productos.Where(p => p.Activo).Buscar(filtros.Buscar);
+        var consulta = db.Productos.Where(p => p.Activo).Buscar(filtros.Buscar).DeLaCategoria(filtros.CategoriaId);
         var total = await consulta.CountAsync();
         var items = await consulta
             .OrderBy(p => p.Descripcion).ThenBy(p => p.Id)
@@ -35,6 +35,7 @@ public class ProductoService(AppDbContext db, TimeProvider reloj)
     public async Task<ProductoDTO> CrearAsync(GuardarProductoDTO dto)
     {
         await ExigirSkuLibreAsync(dto.Sku, idPropio: null);
+        await ExigirCategoriaAsync(dto.CategoriaId);
         var producto = new Producto();
         Copiar(dto, producto);
         // Sin su fila de inventario, el producto no aparecería en el inventario ni recibiría ingresos.
@@ -49,6 +50,7 @@ public class ProductoService(AppDbContext db, TimeProvider reloj)
         var producto = await db.Productos.Include(p => p.Inventario).FirstOrDefaultAsync(p => p.Id == id)
             ?? throw new NoEncontradoException("No se encontró el producto.");
         await ExigirSkuLibreAsync(dto.Sku, idPropio: id);
+        await ExigirCategoriaAsync(dto.CategoriaId);
         Copiar(dto, producto);
         producto.Inventario ??= new InventarioProducto { UltimaActualizacion = Ahora };
         producto.Inventario.StockMinimo = dto.StockMinimo;
@@ -74,11 +76,21 @@ public class ProductoService(AppDbContext db, TimeProvider reloj)
             throw new ConflictoException("sku_repetido", $"Ya existe un producto con el código {codigo}.");
     }
 
+    // Por ejemplo, una que se eliminó mientras el formulario estaba abierto. La FK también lo frenaría, pero sin decir el
+    // campo.
+    private async Task ExigirCategoriaAsync(int categoriaId)
+    {
+        if (await db.Categorias.AnyAsync(c => c.Id == categoriaId)) return;
+        const string mensaje = "La categoría elegida ya no existe: elige otra.";
+        throw new ReglaDeNegocioException("categoria_no_existe", mensaje,
+            new Dictionary<string, string[]> { ["categoriaId"] = [mensaje] });
+    }
+
     private static void Copiar(GuardarProductoDTO dto, Producto producto)
     {
         producto.SKU = dto.Sku.Trim();
         producto.Descripcion = dto.Descripcion.Trim();
-        producto.Categoria = string.IsNullOrWhiteSpace(dto.Categoria) ? null : dto.Categoria.Trim();
+        producto.CategoriaId = dto.CategoriaId;
         producto.Precio = dto.Precio;
         producto.PrecioCompra = dto.PrecioCompra;
     }

@@ -29,6 +29,15 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
     /// recorre rutas (7.2). Es estático porque toda la corrida comparte una sola ApiDePrueba (ColeccionApi).
     /// </summary>
     public static string PromotorDeZonasId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// La categoría de los productos que crean las pruebas cuando no eligen otra: un producto siempre tiene una (tarea
+    /// 29). Las pruebas que bajan y suben las migraciones vuelven a crear las categorías con otros ids: al terminar,
+    /// llaman a VolverALeerLaCategoriaAsync.
+    /// </summary>
+    public static int CategoriaDePruebasId { get; private set; }
+    public const string NombreDeLaCategoriaDePruebas = "Pruebas";
+
     /// <summary>El único origen que CORS permite en las pruebas (Cors:Origenes).</summary>
     public const string OrigenDePrueba = "http://origen-de-prueba.local";
     private const string PrefijoDeBase = "control_test_";
@@ -103,6 +112,22 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
         _ = Server;
         await CrearOperadorAsync();
         await CrearPromotorDeZonasAsync();
+        await VolverALeerLaCategoriaAsync();
+    }
+
+    /// <summary>La categoría de las pruebas, por su nombre: la crea si no está (al empezar la corrida).</summary>
+    public async Task VolverALeerLaCategoriaAsync()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var categoria = await db.Categorias.FirstOrDefaultAsync(c => c.Nombre == NombreDeLaCategoriaDePruebas);
+        if (categoria is null)
+        {
+            categoria = new Categoria { Nombre = NombreDeLaCategoriaDePruebas };
+            db.Categorias.Add(categoria);
+            await db.SaveChangesAsync();
+        }
+        CategoriaDePruebasId = categoria.Id;
     }
 
     private async Task CrearPromotorDeZonasAsync()

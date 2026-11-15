@@ -130,6 +130,27 @@ namespace ControlGestion.API.Data.Migrations
                     b.ToTable("AuditoriaLogs");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Categoria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
+
+                    b.ToTable("Categorias");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.Cliente", b =>
                 {
                     b.Property<int>("Id")
@@ -1107,9 +1128,8 @@ namespace ControlGestion.API.Data.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("Categoria")
-                        .HasMaxLength(80)
-                        .HasColumnType("varchar(80)");
+                    b.Property<int>("CategoriaId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
@@ -1130,6 +1150,8 @@ namespace ControlGestion.API.Data.Migrations
                         .HasColumnType("varchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoriaId");
 
                     b.HasIndex("SKU")
                         .IsUnique();
@@ -1942,6 +1964,17 @@ namespace ControlGestion.API.Data.Migrations
                     b.Navigation("Zona");
                 });
 
+            modelBuilder.Entity("ControlGestion.API.Models.Producto", b =>
+                {
+                    b.HasOne("ControlGestion.API.Models.Categoria", "Categoria")
+                        .WithMany("Productos")
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Categoria");
+                });
+
             modelBuilder.Entity("ControlGestion.API.Models.PuntoReferencia", b =>
                 {
                     b.HasOne("ControlGestion.API.Models.Zona", "Zona")
@@ -2092,6 +2125,11 @@ namespace ControlGestion.API.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ControlGestion.API.Models.Categoria", b =>
+                {
+                    b.Navigation("Productos");
                 });
 
             modelBuilder.Entity("ControlGestion.API.Models.Cobranza", b =>

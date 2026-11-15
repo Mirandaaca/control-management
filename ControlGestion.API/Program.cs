@@ -123,6 +123,7 @@ builder.Services.AddScoped<ControlGestion.API.Services.SesionService>();
 builder.Services.AddScoped<ControlGestion.API.Services.RolService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ProductoService>();
+builder.Services.AddScoped<ControlGestion.API.Services.CategoriaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.HojaPedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PedidoService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ReportePedidosService>();

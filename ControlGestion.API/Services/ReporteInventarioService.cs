@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Data;
+using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
 using Microsoft.EntityFrameworkCore;
@@ -22,23 +23,19 @@ public class ReporteInventarioService(AppDbContext db, TimeProvider reloj)
     };
 
     // Sin fila de inventario, stock y mínimo 0 (InventarioConsultas): el producto aparece y queda en su mínimo.
-    private IQueryable<StockDeProductoDTO> Productos(FiltrosReporteInventarioDTO filtros)
-    {
-        var consulta = db.Productos.Where(p => p.Activo);
-        if (!string.IsNullOrEmpty(filtros.Categoria)) consulta = consulta.Where(p => p.Categoria == filtros.Categoria);
-        return consulta
+    private IQueryable<StockDeProductoDTO> Productos(FiltrosReporteInventarioDTO filtros) =>
+        db.Productos.Where(p => p.Activo).DeLaCategoria(filtros.CategoriaId)
             .OrderBy(p => p.Descripcion).ThenBy(p => p.Id)
-            .Select(p => new StockDeProductoDTO(p.Id, p.SKU, p.Descripcion, p.Categoria,
+            .Select(p => new StockDeProductoDTO(p.Id, p.SKU, p.Descripcion, p.Categoria!.Nombre,
                 p.Inventario == null ? 0m : p.Inventario.StockActual,
                 p.Inventario == null ? 0m : p.Inventario.StockMinimo,
                 p.Inventario == null || p.Inventario.StockActual >= p.Inventario.StockMinimo
                     ? 0m : p.Inventario.StockMinimo - p.Inventario.StockActual));
-    }
 
     private IQueryable<MovimientoInventario> Movimientos(FiltrosReporteInventarioDTO filtros)
     {
         var consulta = db.MovimientosInventario.AsQueryable();
-        if (!string.IsNullOrEmpty(filtros.Categoria)) consulta = consulta.Where(m => m.Producto!.Categoria == filtros.Categoria);
+        if (filtros.CategoriaId is { } categoriaId) consulta = consulta.Where(m => m.Producto!.CategoriaId == categoriaId);
         if (filtros.Desde is { } desde)
         {
             var inicio = HoraBolivia.InicioDelDiaUtc(desde);
@@ -62,9 +59,8 @@ public class ReporteInventarioService(AppDbContext db, TimeProvider reloj)
 
     public async Task<ReporteInventarioDTO> GenerarAsync(FiltrosReporteInventarioDTO filtros)
     {
-        var categorias = await db.Productos
-            .Where(p => p.Activo && p.Categoria != null && p.Categoria != "")
-            .Select(p => p.Categoria!).Distinct().OrderBy(c => c).ToListAsync();
+        // Todas las registradas (tarea 29): con una sin productos activos, la tabla dice que no hay.
+        var categorias = await db.Categorias.OrderBy(c => c.Nombre).Select(c => new CategoriaResumenDTO(c.Id, c.Nombre)).ToListAsync();
         var productos = await Productos(filtros).ToListAsync();
         var movimientos = Movimientos(filtros);
         var total = await movimientos.CountAsync();

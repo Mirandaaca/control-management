@@ -52,7 +52,10 @@ public class DespliegueTests(ApiDePrueba api)
         var sku = Ayudantes.Unico("P");
         var pedido = new HttpRequestMessage(HttpMethod.Post, "/api/productos")
         {
-            Content = JsonContent.Create(new { sku, descripcion = $"Producto {sku}", precio = 10m, precioCompra = 10m, categoria = "Pruebas" })
+            Content = JsonContent.Create(new
+            {
+                sku, descripcion = $"Producto {sku}", precio = 10m, precioCompra = 10m, categoriaId = ApiDePrueba.CategoriaDePruebasId
+            })
         };
         pedido.Headers.Add("X-Forwarded-Proto", "https");
         pedido.Headers.Add("X-Forwarded-For", ip);

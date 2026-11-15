@@ -14,7 +14,7 @@ namespace ControlGestion.API.Tests;
 [Collection(ColeccionApi.Nombre)]
 public class ReporteInventarioTests(ApiDePrueba api)
 {
-    private sealed record Escenario(string Categoria, int Sobrado, int Justo, int Falta, int Inactivo);
+    private sealed record Escenario(int CategoriaId, string Categoria, int Sobrado, int Justo, int Falta, int Inactivo);
 
     /// <summary>
     /// Una categoría propia con tres productos: uno sobre su mínimo, uno justo en él y uno debajo; y uno inactivo.
@@ -22,11 +22,12 @@ public class ReporteInventarioTests(ApiDePrueba api)
     private static async Task<Escenario> CategoriaAsync(HttpClient operador)
     {
         var categoria = Ayudantes.Unico("Cat");
+        var categoriaId = await operador.CrearCategoriaAsync(categoria);
         async Task<int> ProductoAsync(string nombre, decimal stock, decimal minimo)
         {
             var sku = Ayudantes.Unico("P");
             var respuesta = await operador.PostAsJsonAsync("/api/productos",
-                new { sku, descripcion = $"{nombre} {sku}", precio = 10m, precioCompra = 8m, categoria, stockMinimo = minimo });
+                new { sku, descripcion = $"{nombre} {sku}", precio = 10m, precioCompra = 8m, categoriaId, stockMinimo = minimo });
             respuesta.EnsureSuccessStatusCode();
             var id = (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
             (await operador.RegistrarIngresoAsync(id, stock)).EnsureSuccessStatusCode();
@@ -38,7 +39,7 @@ public class ReporteInventarioTests(ApiDePrueba api)
         var falta = await ProductoAsync("C falta", 3, 10);
         var inactivo = await ProductoAsync("D inactivo", 1, 10);
         (await operador.DeleteAsync($"/api/productos/{inactivo}")).EnsureSuccessStatusCode();
-        return new Escenario(categoria, sobrado, justo, falta, inactivo);
+        return new Escenario(categoriaId, categoria, sobrado, justo, falta, inactivo);
     }
 
     private static List<int> Ids(JsonElement lista) => lista.EnumerateArray().Select(p => p.GetProperty("id").GetInt32()).ToList();
@@ -50,10 +51,14 @@ public class ReporteInventarioTests(ApiDePrueba api)
         var escenario = await CategoriaAsync(operador);
         using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
 
-        var reporte = await (await gerente.GetAsync($"/api/reportes/inventario?categoria={escenario.Categoria}")).LeerJsonAsync();
+        var reporte = await (await gerente.GetAsync($"/api/reportes/inventario?categoriaId={escenario.CategoriaId}")).LeerJsonAsync();
 
-        Assert.Contains(escenario.Categoria, reporte.GetProperty("categorias").EnumerateArray().Select(c => c.GetString()));
+        // Las categorías del filtro son las registradas, con su id y su nombre (tarea 29).
+        Assert.Contains((escenario.CategoriaId, escenario.Categoria), reporte.GetProperty("categorias").EnumerateArray()
+            .Select(c => (c.GetProperty("id").GetInt32(), c.GetProperty("nombre").GetString())));
         Assert.Equal([escenario.Sobrado, escenario.Justo, escenario.Falta], Ids(reporte.GetProperty("productos")));
+        Assert.All(reporte.GetProperty("productos").EnumerateArray(),
+            p => Assert.Equal(escenario.Categoria, p.GetProperty("categoria").GetString()));
         var bajo = reporte.GetProperty("bajoElMinimo");
         Assert.Equal([escenario.Justo, escenario.Falta], Ids(bajo));
         Assert.Equal([0m, 7m], bajo.EnumerateArray().Select(p => p.GetProperty("falta").GetDecimal()));
@@ -77,7 +82,7 @@ public class ReporteInventarioTests(ApiDePrueba api)
         }
         using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
 
-        var todos = await (await secretaria.GetAsync($"/api/reportes/inventario?categoria={escenario.Categoria}&tamano=2"))
+        var todos = await (await secretaria.GetAsync($"/api/reportes/inventario?categoriaId={escenario.CategoriaId}&tamano=2"))
             .LeerJsonAsync();
         var movimientos = todos.GetProperty("movimientos");
         Assert.Equal(4, movimientos.GetProperty("total").GetInt32());
@@ -86,7 +91,7 @@ public class ReporteInventarioTests(ApiDePrueba api)
         Assert.Equal(0, masReciente.GetProperty("tipo").GetInt32());
         Assert.False(string.IsNullOrEmpty(masReciente.GetProperty("usuario").GetProperty("nombreCompleto").GetString()));
 
-        var delDia = await (await secretaria.GetAsync($"/api/reportes/inventario?categoria={escenario.Categoria}&desde=2004-02-02&hasta=2004-02-02"))
+        var delDia = await (await secretaria.GetAsync($"/api/reportes/inventario?categoriaId={escenario.CategoriaId}&desde=2004-02-02&hasta=2004-02-02"))
             .LeerJsonAsync();
         Assert.Single(delDia.GetProperty("movimientos").GetProperty("items").EnumerateArray());
         Assert.Equal(10m, delDia.GetProperty("movimientos").GetProperty("items")[0].GetProperty("stockResultante").GetDecimal());
@@ -99,11 +104,12 @@ public class ReporteInventarioTests(ApiDePrueba api)
         var escenario = await CategoriaAsync(operador);
         using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
 
-        var respuesta = await secretaria.GetAsync($"/api/reportes/inventario/excel?categoria={escenario.Categoria}");
+        var respuesta = await secretaria.GetAsync($"/api/reportes/inventario/excel?categoriaId={escenario.CategoriaId}");
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         using var libro = new XLWorkbook(await respuesta.Content.ReadAsStreamAsync());
         Assert.Equal(4, libro.Worksheet("Stock").LastRowUsed()!.RowNumber());
+        Assert.Equal(escenario.Categoria, libro.Worksheet("Stock").Cell(2, 3).GetString());
         var bajo = libro.Worksheet("Bajo el mínimo");
         Assert.Equal("Falta", bajo.Cell(1, 6).GetString());
         Assert.Equal(7m, bajo.Cell(3, 6).GetValue<decimal>());
@@ -111,7 +117,7 @@ public class ReporteInventarioTests(ApiDePrueba api)
         Assert.Equal(5, movimientos.LastRowUsed()!.RowNumber());
         Assert.Equal("Entrada", movimientos.Cell(2, 3).GetString());
 
-        var sinMovimientos = await secretaria.GetAsync($"/api/reportes/inventario/excel?categoria={escenario.Categoria}&desde=2001-01-01&hasta=2001-01-01");
+        var sinMovimientos = await secretaria.GetAsync($"/api/reportes/inventario/excel?categoriaId={escenario.CategoriaId}&desde=2001-01-01&hasta=2001-01-01");
         using var vacio = new XLWorkbook(await sinMovimientos.Content.ReadAsStreamAsync());
         Assert.Equal("No hay movimientos en el período.", vacio.Worksheet("Movimientos").Cell(2, 1).GetString());
     }
