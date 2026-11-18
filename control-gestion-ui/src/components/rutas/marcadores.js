@@ -29,7 +29,7 @@ const USER_ROUND = `<svg viewBox="0 0 24 24" width="16" height="16" ${TRAZO}><ci
 const ICONOS = { [PENDIENTE]: '', [VISITADO]: CHECK, [AUSENTE]: USER_X };
 
 // Leaflet pone el estilo de letra de su contenedor: los marcadores usan la del panel.
-const LETRA = 'font-family:var(--font-sans);font-size:14px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums';
+export const LETRA ='font-family:var(--font-sans);font-size:14px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums';
 
 /**
  * La pastilla de una parada: su número de orden y el estado de la visita. Su ancho cambia con el número, así que el
@@ -51,7 +51,8 @@ export function iconoDeParada(orden, resultado) {
 
 /**
  * La posición del promotor: un círculo marca-900 con una persona, de otra forma que las pastillas, y la hora de su
- * última ubicación al lado. El punto es el centro del círculo.
+ * última ubicación al lado. El punto es el centro del círculo. El ícono mide 0 × 0: sin nowrap, una etiqueta con
+ * espacios ("Carlos · 10:42", en las entregas) se partiría en renglones.
  */
 export function iconoDelPromotor(hora) {
   return L.divIcon({
@@ -59,7 +60,7 @@ export function iconoDelPromotor(hora) {
     html: '<span style="position:absolute;transform:translate(-16px,-50%);display:flex;align-items:center;gap:6px">'
       + '<span style="display:grid;place-items:center;width:32px;height:32px;box-sizing:border-box;border:2px solid #ffffff;'
       + 'border-radius:50%;background:#152B4C;color:#ffffff;box-shadow:0 0 0 6px rgb(21 43 76 / 0.18),0 1px 3px rgb(15 23 42 / 0.45)">'
-      + `${USER_ROUND}</span><span style="padding:2px 8px;border-radius:4px;background:#ffffff;color:#0f172a;`
+      + `${USER_ROUND}</span><span style="padding:2px 8px;border-radius:4px;background:#ffffff;color:#0f172a;white-space:nowrap;`
       + `box-shadow:0 1px 3px rgb(0 0 0 / 0.4);${LETRA};font-weight:600;line-height:20px">${hora}</span></span>`,
     iconSize: [0, 0],
     iconAnchor: [0, 0],

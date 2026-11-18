@@ -96,6 +96,8 @@ export const PANTALLAS = {
   // (tarea 15), y la app usa esta misma lista.
   pedidos: [pedidos.consultarPedidos, pedidos.modificarPedido, pedidos.anularPedido, pedidos.cambiarEstado,
     pedidos.reprogramarEntrega, pedidos.asignarPedidos, pedidos.registrarEntrega],
+  // Entregas de hoy (tarea 31): quien reparte los pedidos (la secretaria) o sigue las rutas (el gerente).
+  entregas: [pedidos.asignarPedidos, territorial.seguirRuta],
   reportePedidos: [pedidos.generarReporte],
   eventos: [eventos.consultarEventos, eventos.registrarEvento, eventos.modificarEvento, eventos.resolverEvento,
     eventos.agregarFoto, eventos.eliminarFoto],

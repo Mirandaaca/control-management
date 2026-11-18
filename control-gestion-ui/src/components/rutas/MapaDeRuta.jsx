@@ -9,8 +9,9 @@ import { AUSENTE, ESTILO_LINEA, iconoDeParada, iconoDelPromotor, PASTILLAS, PEND
 import Pastilla from './Pastilla';
 
 // Encuadra la zona y las paradas solo cuando cambia "encuadre" (otra ruta, otra zona): la actualización de cada 30 s no
-// mueve el mapa que el gerente está mirando. Dentro de un modal, además, vuelve a medir el tamaño del mapa.
-function Encuadrar({ encuadre, posiciones }) {
+// mueve el mapa que el gerente está mirando. Dentro de un modal, además, vuelve a medir el tamaño del mapa. Lo usa
+// también el mapa de las entregas (tarea 31).
+export function Encuadrar({ encuadre, posiciones }) {
   const mapa = useMap();
   useEffect(() => {
     const espera = setTimeout(() => {
@@ -24,7 +25,7 @@ function Encuadrar({ encuadre, posiciones }) {
   return null;
 }
 
-function RuedaAlEnfocar() {
+export function RuedaAlEnfocar() {
   const mapa = useMapEvents({
     focus: () => mapa.scrollWheelZoom.enable(),
     blur: () => mapa.scrollWheelZoom.disable(),

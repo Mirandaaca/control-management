@@ -55,6 +55,24 @@ export function Badge({ children, color = 'gray' }) {
   );
 }
 
+/**
+ * Cuánto va de algo: una barra marca-600 y "3 de 5" (las visitas de una ruta, las entregas de un promotor). Con sufijo,
+ * "2 de 5 entregadas": la barra es solo visual y el texto lo dice todo.
+ */
+export function Avance({ hechas, total, sufijo }) {
+  const porcentaje = total > 0 ? Math.round((hechas / total) * 100) : 0;
+  return (
+    <span className="flex items-center gap-2">
+      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
+        <span className="block h-full rounded-full bg-marca-600" style={{ width: `${porcentaje}%` }} />
+      </span>
+      <span className="text-xs text-slate-600 tabular-nums whitespace-nowrap">
+        {hechas} de {total}{sufijo ? ` ${sufijo}` : ''}
+      </span>
+    </span>
+  );
+}
+
 const foco = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-2';
 
 const tamanosDeBoton = {
