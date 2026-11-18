@@ -10,7 +10,8 @@ namespace ControlGestion.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PedidosController(PedidoService pedidos, ReportePedidosService reporte) : ControllerBase
+public class PedidosController(PedidoService pedidos, ReportePedidosService reporte, SeguimientoService seguimiento)
+    : ControllerBase
 {
     // Quien opera sobre un pedido también necesita verlo: la lista, el detalle y el historial se abren con cualquiera
     // de estos permisos, siempre filtrados por cartera.
@@ -39,6 +40,13 @@ public class PedidosController(PedidoService pedidos, ReportePedidosService repo
     [Permiso(Permisos.Pedidos.VerBandeja)]
     public async Task<ActionResult<List<PedidoListaDTO>>> GetBandeja([FromQuery] DateOnly? dia) =>
         await pedidos.BandejaAsync(dia);
+
+    // "Entregas de hoy" (tarea 31): quien reparte los pedidos (la secretaria) o sigue las rutas (el gerente) ve a cada
+    // promotor con sus entregas de hoy, su última ubicación y su rastro.
+    [HttpGet("entregas")]
+    [Permiso(Permisos.Pedidos.AsignarPedidos, Permisos.Territorial.SeguirRuta)]
+    public async Task<ActionResult<EntregasDelDiaDTO>> GetEntregas() =>
+        await seguimiento.EntregasDelDiaAsync();
 
     [HttpGet("reporte")]
     [Permiso(Permisos.Pedidos.GenerarReporte)]

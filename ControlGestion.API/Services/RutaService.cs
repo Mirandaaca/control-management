@@ -23,7 +23,8 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
 
     /// <summary>
     /// Borra las ubicaciones del promotor de hace más de 30 días: el seguimiento solo usa la última de una ruta en curso
-    /// (7.3.20, paso 6.1), y son unas 3.000 filas al día con tres promotores. La llama el proceso diario.
+    /// (7.3.20, paso 6.1) y las de hoy de las entregas (tarea 31). Con tres promotores son unas 3.000 filas al día por las
+    /// rutas y unas 4.300 más por las entregas. La llama el proceso diario.
     /// </summary>
     public Task<int> BorrarUbicacionesViejasAsync()
     {

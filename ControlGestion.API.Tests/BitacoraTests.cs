@@ -132,9 +132,10 @@ public class BitacoraTests(ApiDePrueba api)
             .Select(e => e.RoutePattern.RawText);
         Assert.Empty(sinOperacion);
 
+        // Las ubicaciones que la app manda sola: la de la ruta (tarea 17) y la del seguimiento (tarea 31).
         var fuera = escrituras.Where(e => e.Metadata.GetMetadata<SinBitacoraAttribute>() is not null)
-            .Select(e => e.RoutePattern.RawText).ToList();
-        Assert.Equal(["api/Rutas/{id:int}/ubicaciones"], fuera);
+            .Select(e => e.RoutePattern.RawText).Order(StringComparer.Ordinal).ToList();
+        Assert.Equal(["api/Rutas/{id:int}/ubicaciones", "api/Ubicaciones"], fuera);
     }
 
     [Fact]
