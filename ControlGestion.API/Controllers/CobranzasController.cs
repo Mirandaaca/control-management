@@ -26,6 +26,12 @@ public class CobranzasController(CobranzaService cobranzas, ReporteCobranzasServ
     public async Task<ActionResult<ReporteCobranzasDTO>> GetReporte([FromQuery] FiltrosCobranzaDTO filtros) =>
         await reporte.GenerarAsync(filtros);
 
+    // Lo que debe cada cliente, con sus cobranzas (tarea 30): los mismos filtros y los mismos totales.
+    [HttpGet("reporte/por-cliente")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
+    public async Task<ActionResult<ReporteCobranzasPorClienteDTO>> GetReportePorCliente([FromQuery] FiltrosCobranzaDTO filtros) =>
+        await reporte.PorClienteAsync(filtros);
+
     [HttpGet("reporte/excel")]
     [Permiso(Permisos.Cobranzas.GenerarReporte)]
     public async Task<IActionResult> GetReporteExcel([FromQuery] FiltrosCobranzaDTO filtros)

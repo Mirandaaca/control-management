@@ -150,3 +150,23 @@ public record TotalCobranzasPorEstadoDTO(EstadoCobranza Estado, string Nombre, i
 /// </summary>
 public record ReporteCobranzasDTO(IReadOnlyList<TotalCobranzasPorEstadoDTO> PorEstado, TotalCobranzasDTO Total,
     Pagina<CobranzaResumenDTO> Cobranzas);
+
+/// <summary>
+/// Lo que debe un cliente en el reporte de cobranzas (tarea 30). Cantidad: sus cobranzas con los filtros. Lo emitido, lo
+/// cobrado y el saldo no suman las incobrables ni las anuladas, como la fila Total. Vencido: el saldo de las vencidas, y
+/// DiasDeMora, el de la más atrasada. Cobranzas: todas, de la que vence primero, cada una con su estado.
+/// </summary>
+public record DeudaDelClienteDTO(
+    ClienteResumenDTO Cliente,
+    UsuarioResumenDTO? Promotor,
+    int Cantidad,
+    decimal Emitido,
+    decimal Cobrado,
+    decimal Saldo,
+    decimal Vencido,
+    int? DiasDeMora,
+    IReadOnlyList<CobranzaResumenDTO> Cobranzas);
+
+/// <summary>El reporte de cobranzas por cliente (tarea 30): los mismos totales por estado y una página de clientes.</summary>
+public record ReporteCobranzasPorClienteDTO(IReadOnlyList<TotalCobranzasPorEstadoDTO> PorEstado, TotalCobranzasDTO Total,
+    Pagina<DeudaDelClienteDTO> Clientes);
