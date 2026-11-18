@@ -10,6 +10,7 @@ import 'data/repositories/perfil_repository.dart';
 import 'data/repositories/productos_repository.dart';
 import 'data/repositories/rutas_repository.dart';
 import 'data/repositories/sesion_repository.dart';
+import 'data/repositories/ubicaciones_repository.dart';
 import 'data/repositories/usuarios_repository.dart';
 import 'data/repositories/zonas_repository.dart';
 import 'data/services/almacen_de_sesion.dart';
@@ -82,6 +83,10 @@ final eventosRepositoryProvider = Provider<EventosRepository>(
 );
 
 final rutasRepositoryProvider = Provider<RutasRepository>((ref) => RutasRepository(ref.watch(clienteApiProvider)));
+
+final ubicacionesRepositoryProvider = Provider<UbicacionesRepository>(
+  (ref) => UbicacionesRepository(ref.watch(clienteApiProvider)),
+);
 
 final usuariosRepositoryProvider = Provider<UsuariosRepository>(
   (ref) => UsuariosRepository(ref.watch(clienteApiProvider)),

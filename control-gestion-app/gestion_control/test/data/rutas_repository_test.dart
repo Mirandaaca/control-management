@@ -7,6 +7,7 @@ import 'package:gestion_control/data/models/camino.dart';
 import 'package:gestion_control/data/models/ruta.dart';
 import 'package:gestion_control/data/repositories/clientes_repository.dart';
 import 'package:gestion_control/data/repositories/rutas_repository.dart';
+import 'package:gestion_control/data/repositories/ubicaciones_repository.dart';
 import 'package:gestion_control/data/repositories/zonas_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
@@ -113,14 +114,39 @@ void main() {
     expect((api.pedidos.single.data as Map)['resultado'], 1);
   });
 
-  test('la ubicación del promotor va a /rutas/{id}/ubicaciones', () async {
-    final (dio, api) = _api((_) => ResponseBody.fromString('', 204));
+  test('la ubicación del promotor va a /ubicaciones y responde lo que se sigue (tarea 31)', () async {
+    final (dio, api) = _api((_) => _json({'rutaEnCurso': null, 'entregasEnRuta': 2}));
 
-    await RutasRepository(dio).enviarUbicacion(8, const Posicion(-17.7725, -63.1712, 6));
+    final seguimiento = await UbicacionesRepository(dio).enviar(const Posicion(-17.7725, -63.1712, 6));
 
-    expect((api.pedidos.single.method, api.pedidos.single.path), ('POST', '/rutas/8/ubicaciones'));
+    expect((api.pedidos.single.method, api.pedidos.single.path), ('POST', '/ubicaciones'));
     expect(api.pedidos.single.data, {'latitud': -17.7725, 'longitud': -63.1712});
+    expect((seguimiento.rutaEnCurso, seguimiento.entregasEnRuta), (null, 2));
   });
+
+  test(
+    'qué se sigue sale de /ubicaciones/seguimiento; sin nada que seguir, el envío falla con sin_seguimiento',
+    () async {
+      final (dio, api) = _api(
+        (p) => p.method == 'GET'
+            ? _json({'rutaEnCurso': 8, 'entregasEnRuta': 0})
+            : _json({
+                'detail': 'No tienes una ruta en curso ni entregas en ruta: tu ubicación ya no se envía.',
+                'codigo': 'sin_seguimiento',
+              }, estado: 409),
+      );
+      final ubicaciones = UbicacionesRepository(dio);
+
+      final seguimiento = await ubicaciones.seguimiento();
+      expect(api.pedidos.single.path, '/ubicaciones/seguimiento');
+      expect((seguimiento.rutaEnCurso, seguimiento.entregasEnRuta), (8, 0));
+
+      await expectLater(
+        ubicaciones.enviar(const Posicion(-17, -63, 5)),
+        throwsA(isA<ErrorDeApi>().having((e) => e.codigo, 'codigo', 'sin_seguimiento')),
+      );
+    },
+  );
 
   test('iniciar y terminar devuelven la ruta', () async {
     final (dio, api) = _api((p) => _json(rutaJson(estado: p.path.endsWith('iniciar') ? 1 : 2)));

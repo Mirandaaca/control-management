@@ -18,7 +18,8 @@ class App extends ConsumerStatefulWidget {
 }
 
 class _AppState extends ConsumerState<App> {
-  // El seguimiento de la ruta se detiene con la app en segundo plano y sigue al volver (7.3.20, paso 4.3).
+  // El seguimiento (la ruta en curso y, desde la tarea 31, las entregas en ruta) se detiene con la app en segundo plano y
+  // sigue al volver (7.3.20, paso 4.3 y ext. 8).
   late final _ciclo = AppLifecycleListener(
     onStateChange: (ciclo) => ref.read(seguimientoDeRutaProvider.notifier).alCambiarElCiclo(ciclo),
   );

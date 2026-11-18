@@ -1,7 +1,9 @@
 import 'package:gestion_control/data/models/camino.dart';
 import 'package:gestion_control/data/models/cliente.dart';
 import 'package:gestion_control/data/models/ruta.dart';
+import 'package:gestion_control/data/models/seguimiento.dart';
 import 'package:gestion_control/data/repositories/rutas_repository.dart';
+import 'package:gestion_control/data/repositories/ubicaciones_repository.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
 import 'package:gestion_control/data/services/ubicacion.dart';
 
@@ -220,7 +222,6 @@ class RutasRepositoryFalso implements RutasRepository {
   Future<Ruta?> Function() alPedirDelDia = () async => rutaDePrueba();
   Future<Ruta> Function(int id)? alIniciar;
   Future<Ruta> Function(MarcaDePrueba marca)? alMarcar;
-  Future<void> Function(int id, Posicion ubicacion)? alEnviar;
   Future<Ruta> Function(int id)? alTerminar;
   Future<Caminos> Function(PedidoDeCamino pedido)? alPedirCamino;
   Future<OrdenSugerido> Function(PedidoDeOrden pedido)? alPedirOrden;
@@ -229,7 +230,6 @@ class RutasRepositoryFalso implements RutasRepository {
   var pedidosDelDia = 0;
   final inicios = <int>[];
   final marcas = <MarcaDePrueba>[];
-  final ubicaciones = <(int, Posicion)>[];
   final finales = <int>[];
   final caminos = <PedidoDeCamino>[];
   final ordenes = <PedidoDeOrden>[];
@@ -267,12 +267,6 @@ class RutasRepositoryFalso implements RutasRepository {
   }
 
   @override
-  Future<void> enviarUbicacion(int id, Posicion ubicacion) {
-    ubicaciones.add((id, ubicacion));
-    return (alEnviar ?? (_, _) async {})(id, ubicacion);
-  }
-
-  @override
   Future<Caminos> camino(int id, int visitaId, {required Posicion desde, required MedioDeTransporte medio}) {
     final pedido = (rutaId: id, visitaId: visitaId, desde: desde, medio: medio);
     caminos.add(pedido);
@@ -304,7 +298,50 @@ class RutasRepositoryFalso implements RutasRepository {
   }
 }
 
-const rutaNoEnCurso = ErrorDeApi(mensaje: 'La ruta ya se completó.', codigo: 'ruta_no_en_curso', estado: 400);
+const sinSeguimiento = ErrorDeApi(
+  mensaje: 'No tienes una ruta en curso ni entregas en ruta: tu ubicación ya no se envía.',
+  codigo: 'sin_seguimiento',
+  estado: 409,
+);
+
+/// La API de las ubicaciones sin red (tarea 31), que responde como el servidor: la ruta en curso sale de la ruta del día
+/// de [rutas] (así las pruebas de la ruta siguen moviendo solo `alPedirDelDia`), y las entregas en ruta, de
+/// [entregasEnRuta]. Sin nada que seguir, el envío responde `sin_seguimiento`.
+class UbicacionesRepositoryFalso implements UbicacionesRepository {
+  UbicacionesRepositoryFalso({this.rutas});
+
+  final RutasRepositoryFalso? rutas;
+  var entregasEnRuta = 0;
+
+  /// Para que una prueba responda otra cosa al enviar (un error, por ejemplo).
+  Future<Seguimiento> Function(Posicion ubicacion)? alEnviar;
+
+  var revisiones = 0;
+  final enviadas = <Posicion>[];
+
+  Future<Seguimiento> _loQueSigue() async {
+    final ruta = await rutas?.alPedirDelDia();
+    return Seguimiento(
+      rutaEnCurso: ruta != null && ruta.estado == EstadoRuta.enCurso ? ruta.id : null,
+      entregasEnRuta: entregasEnRuta,
+    );
+  }
+
+  @override
+  Future<Seguimiento> seguimiento() {
+    revisiones++;
+    return _loQueSigue();
+  }
+
+  @override
+  Future<Seguimiento> enviar(Posicion ubicacion) async {
+    enviadas.add(ubicacion);
+    if (alEnviar case final responder?) return responder(ubicacion);
+    final seguimiento = await _loQueSigue();
+    if (!seguimiento.hayAlgo) throw sinSeguimiento;
+    return seguimiento;
+  }
+}
 
 /// Los clientes del mapa: Elena disponible (sin visitas), Carmen activa, Silvia inactiva y uno de la Zona Sur.
 const clientesDelMapa = [

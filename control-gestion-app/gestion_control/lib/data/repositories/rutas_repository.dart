@@ -58,21 +58,6 @@ class RutasRepository {
     }
   }
 
-  /// La posición del promotor, que la app manda sola cada 30 s con la ruta en curso (paso 4.3).
-  Future<void> enviarUbicacion(int id, Posicion ubicacion) async {
-    try {
-      await _api.post<void>(
-        '/rutas/$id/ubicaciones',
-        data: {
-          'latitud': double.parse(ubicacion.latitud.toStringAsFixed(6)),
-          'longitud': double.parse(ubicacion.longitud.toStringAsFixed(6)),
-        },
-      );
-    } catch (e) {
-      throw ErrorDeApi.desde(e, porDefecto: 'No se pudo enviar la ubicación.');
-    }
-  }
-
   /// El camino por calles desde donde está el promotor hasta el cliente de la visita (tarea 25). Lo calcula la API con
   /// su proveedor de rutas: el celular nunca habla con el proveedor. Si no se puede, la API responde 503
   /// `navegacion_no_disponible` y el promotor sigue el mapa.

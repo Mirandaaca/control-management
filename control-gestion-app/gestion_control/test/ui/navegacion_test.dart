@@ -82,6 +82,7 @@ void main() {
       letra: letra,
       overrides: [
         rutasRepositoryProvider.overrideWithValue(rutas),
+        ubicacionesRepositoryProvider.overrideWithValue(UbicacionesRepositoryFalso(rutas: rutas)),
         pedidosRepositoryProvider.overrideWithValue(pedidos),
         servicioDeUbicacionProvider.overrideWithValue(gps),
         preferenciasProvider.overrideWithValue(preferencias),
