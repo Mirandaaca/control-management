@@ -15,6 +15,14 @@ Widget? avisoDelGps(WidgetRef ref, ProblemaDelGps? problema, int rutaId) => avis
   darPermiso: () => ref.read(seguimientoDeRutaProvider.notifier).empezar(rutaId, pedirPermiso: true),
 );
 
+/// Sin GPS con entregas en ruta (tarea 31): la oficina no ve dónde está el promotor. Lo usa la bandeja.
+Widget? avisoDelGpsDeLasEntregas(WidgetRef ref, ProblemaDelGps? problema) => avisoSinGps(
+  ref,
+  problema,
+  paraQue: 'para que la oficina vea dónde estás mientras entregas.',
+  darPermiso: () => ref.read(seguimientoDeRutaProvider.notifier).pedirPermiso(),
+);
+
 /// Sin GPS: el aviso con la acción que lo arregla. [paraQue] completa "Actívalo …"; [darPermiso] vuelve a pedir el
 /// permiso (la navegación hasta un pedido, sin ruta en curso, lo pide ella).
 Widget? avisoSinGps(

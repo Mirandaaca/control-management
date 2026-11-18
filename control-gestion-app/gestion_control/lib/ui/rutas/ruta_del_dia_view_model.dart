@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -125,16 +127,18 @@ class RutaDelDiaViewModel extends Notifier<EstadoDeLaRuta> {
     }
   }
 
-  /// Paso 7: la ruta queda completada y el seguimiento se detiene (paso 7.1). Las visitas sin marcar quedan pendientes.
+  /// Paso 7: la ruta queda completada y el seguimiento la deja (paso 7.1); si quedan entregas en ruta, sigue por ellas
+  /// (tarea 31). Las visitas sin marcar quedan pendientes.
   Future<void> terminar() async {
     final ruta = state.ruta;
     if (ruta == null || state.enviando) return;
     state = state.copiar(enviando: true, errorDeAccion: null, mensaje: null);
     try {
       final terminada = await ref.read(rutasRepositoryProvider).terminar(ruta.id);
-      // Si la pantalla ya se cerró, el seguimiento se detiene solo: la API le responde ruta_no_en_curso.
+      // Si la pantalla ya se cerró, el seguimiento se detiene solo: sin nada que seguir, la API le responde
+      // sin_seguimiento.
       if (!ref.mounted) return;
-      ref.read(seguimientoDeRutaProvider.notifier).detener();
+      unawaited(ref.read(seguimientoDeRutaProvider.notifier).rutaTerminada());
       state = state.copiar(
         ruta: terminada,
         enviando: false,

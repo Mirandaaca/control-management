@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gestion_control/data/models/hoja_pedido.dart';
 import 'package:gestion_control/data/models/pedido.dart';
 import 'package:gestion_control/data/services/error_de_api.dart';
+import 'package:gestion_control/data/services/ubicacion.dart';
 import 'package:gestion_control/domain/permisos.dart';
 import 'package:gestion_control/proveedores.dart';
 import 'package:gestion_control/ui/core/formato.dart';
@@ -15,13 +16,17 @@ import 'package:gestion_control/ui/sesion/sesion_notifier.dart';
 import 'package:go_router/go_router.dart';
 
 import '../ayudantes.dart';
+import '../ayudantes_de_rutas.dart';
 
 void main() {
   late PedidosRepositoryFalso pedidos;
+  late UbicacionesRepositoryFalso ubicaciones;
   late UbicacionFalsa gps;
 
   setUp(() {
     pedidos = PedidosRepositoryFalso();
+    // Sin ruta y sin entregas en ruta, salvo que la prueba diga otra cosa: la bandeja de prueba no manda nada.
+    ubicaciones = UbicacionesRepositoryFalso();
     gps = UbicacionFalsa();
   });
 
@@ -79,6 +84,7 @@ void main() {
     alto: alto,
     overrides: [
       pedidosRepositoryProvider.overrideWithValue(pedidos),
+      ubicacionesRepositoryProvider.overrideWithValue(ubicaciones),
       servicioDeUbicacionProvider.overrideWithValue(gps),
       mosaicosDelMapaProvider.overrideWithValue(false),
       sesionProvider.overrideWith(() => SesionFija(ConSesion(promotorCon(conPermisos ?? permisos)))),
@@ -174,6 +180,64 @@ void main() {
       final semantica = tester.ensureSemantics();
       await abrir(tester, letra: 2, alto: 800);
       await tester.pump();
+      await cumpleLasGuias(tester);
+      semantica.dispose();
+    });
+  });
+
+  group('el seguimiento de las entregas (tarea 31)', () {
+    const textoDelSeguimiento = 'Mientras tengas entregas en ruta y la app esté abierta, la oficina ve dónde estás.';
+
+    testWidgets('abrir la bandeja pregunta qué seguir; con entregas en ruta, lo avisa', (tester) async {
+      ubicaciones.entregasEnRuta = 2;
+      await abrir(tester);
+      await tester.pump();
+
+      expect(ubicaciones.revisiones, greaterThanOrEqualTo(1));
+      expect(find.text(textoDelSeguimiento), findsOneWidget);
+    });
+
+    testWidgets('sin entregas en ruta, no lo dice', (tester) async {
+      await abrir(tester);
+      await tester.pump();
+
+      expect(find.text(textoDelSeguimiento), findsNothing);
+    });
+
+    testWidgets('con el GPS desactivado, dice que la oficina no lo ve y ofrece activarlo', (tester) async {
+      ubicaciones.entregasEnRuta = 1;
+      gps.activado = false;
+      await abrir(tester);
+      await tester.pump();
+
+      expect(find.text('El GPS está desactivado.'), findsOneWidget);
+      expect(find.text('Actívalo para que la oficina vea dónde estás mientras entregas.'), findsOneWidget);
+      expect(find.text('Activar GPS'), findsOneWidget);
+      expect(find.text(textoDelSeguimiento), findsNothing);
+    });
+
+    testWidgets('sin permiso del GPS, "Dar permiso" lo pide', (tester) async {
+      ubicaciones.entregasEnRuta = 1;
+      gps.permisoActual = PermisoDeUbicacion.denegado;
+      gps.alPedir = PermisoDeUbicacion.concedido;
+      await abrir(tester);
+      await tester.pump();
+      expect(find.text('Dale permiso para que la oficina vea dónde estás mientras entregas.'), findsOneWidget);
+
+      await tester.tap(find.text('Dar permiso'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(gps.pedidosDePermiso, 1);
+      expect(find.text(textoDelSeguimiento), findsOneWidget);
+    });
+
+    testWidgets('con el aviso y la letra al 200 % cumple las guías', (tester) async {
+      ubicaciones.entregasEnRuta = 2;
+      final semantica = tester.ensureSemantics();
+      await abrir(tester, letra: 2, alto: 800);
+      await tester.pump();
+      expect(find.text(textoDelSeguimiento), findsOneWidget);
       await cumpleLasGuias(tester);
       semantica.dispose();
     });

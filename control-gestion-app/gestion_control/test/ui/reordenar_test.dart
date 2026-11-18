@@ -49,6 +49,7 @@ void main() {
       alto: 2400,
       overrides: [
         rutasRepositoryProvider.overrideWithValue(rutas),
+        ubicacionesRepositoryProvider.overrideWithValue(UbicacionesRepositoryFalso(rutas: rutas)),
         zonasRepositoryProvider.overrideWithValue(ZonasRepositoryFalso()),
         clientesRepositoryProvider.overrideWithValue(ClientesRepositoryFalso()),
         servicioDeUbicacionProvider.overrideWithValue(gps),

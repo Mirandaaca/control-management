@@ -44,6 +44,7 @@ void main() {
     final contenedor = ProviderContainer(
       overrides: [
         rutasRepositoryProvider.overrideWithValue(rutas),
+        ubicacionesRepositoryProvider.overrideWithValue(UbicacionesRepositoryFalso(rutas: rutas)),
         servicioDeUbicacionProvider.overrideWithValue(gps),
         preferenciasProvider.overrideWithValue(preferencias),
         vozProvider.overrideWithValue(voz),

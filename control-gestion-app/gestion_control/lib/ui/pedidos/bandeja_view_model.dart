@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/pedido.dart';
 import '../../data/services/error_de_api.dart';
 import '../../proveedores.dart';
+import '../rutas/seguimiento_de_ruta.dart';
 
 const _igual = Object();
 
@@ -32,6 +35,9 @@ class BandejaViewModel extends Notifier<EstadoDeLaBandeja> {
 
   Future<void> cargar() async {
     state = state.copiar(reintentando: state.error != null);
+    // La bandeja es donde el promotor ve que sus pedidos salieron a ruta, y adonde vuelve después de cada entrega: el
+    // seguimiento pregunta qué seguir (tarea 31).
+    unawaited(ref.read(seguimientoDeRutaProvider.notifier).revisar());
     try {
       final pedidos = await ref.read(pedidosRepositoryProvider).bandeja();
       if (ref.mounted) state = state.copiar(pedidos: pedidos, error: null, reintentando: false);

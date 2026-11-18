@@ -376,7 +376,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<RutaDetalle>().Property(d => d.Latitud).HasPrecision(10, 8);
         builder.Entity<RutaDetalle>().Property(d => d.Longitud).HasPrecision(11, 8);
 
-        // UbicacionPromotor: el seguimiento busca la última de un promotor desde que empezó su ruta.
+        // UbicacionPromotor: el seguimiento busca la última de un promotor desde que empezó su ruta, y "Entregas de hoy"
+        // (tarea 31), la última de hoy y las de la última media hora: las dos por promotor y fecha.
         builder.Entity<UbicacionPromotor>()
             .HasOne(u => u.Promotor).WithMany().HasForeignKey(u => u.PromotorId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<UbicacionPromotor>().HasIndex(u => new { u.PromotorId, u.Fecha });

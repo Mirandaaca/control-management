@@ -23,6 +23,7 @@ const Clientes = lazy(() => import('./pages/Clientes'));
 const HojasPedido = lazy(() => import('./pages/HojasPedido'));
 const Inventario = lazy(() => import('./pages/Inventario'));
 const Pedidos = lazy(() => import('./pages/Pedidos'));
+const Entregas = lazy(() => import('./pages/Entregas'));
 const ReportePedidos = lazy(() => import('./pages/ReportePedidos'));
 const ReporteEventos = lazy(() => import('./pages/ReporteEventos'));
 const Eventos = lazy(() => import('./pages/Eventos'));
@@ -56,6 +57,7 @@ export default function App() {
             )} />
             <Route path="/inventario" element={<PrivateRoute permisos={PANTALLAS.inventario}><Inventario /></PrivateRoute>} />
             <Route path="/pedidos" element={<PrivateRoute permisos={PANTALLAS.pedidos}><Pedidos /></PrivateRoute>} />
+            <Route path="/pedidos/entregas" element={<PrivateRoute permisos={PANTALLAS.entregas}><Entregas /></PrivateRoute>} />
             <Route path="/eventos" element={<PrivateRoute permisos={PANTALLAS.eventos}><Eventos /></PrivateRoute>} />
             <Route path="/eventos/mapa" element={<PrivateRoute permisos={PANTALLAS.mapaEventos}><MapaEventos /></PrivateRoute>} />
             <Route path="/cobranzas" element={<PrivateRoute permisos={PANTALLAS.cobranzas}><Cobranzas /></PrivateRoute>} />

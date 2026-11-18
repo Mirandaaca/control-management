@@ -8,10 +8,13 @@ import '../../proveedores.dart';
 import '../core/formato.dart';
 import '../core/router.dart';
 import '../core/tema.dart';
+import '../core/widgets/aviso.dart';
 import '../core/widgets/cargando.dart';
 import '../core/widgets/error_con_reintento.dart';
 import '../core/widgets/tarjeta_que_se_toca.dart';
 import '../core/widgets/vacio.dart';
+import '../rutas/aviso_del_gps.dart';
+import '../rutas/seguimiento_de_ruta.dart';
 import '../sesion/sesion_notifier.dart';
 import 'bandeja_view_model.dart';
 import 'etiqueta_de_pedido.dart';
@@ -27,6 +30,10 @@ class BandejaScreen extends ConsumerWidget {
     final viewModel = ref.read(bandejaProvider.notifier);
     final sesion = ref.watch(sesionProvider);
     final puedeEntregar = sesion is ConSesion && sesion.sesion.tiene([Permisos.pedidos.registrarEntrega]);
+    // Solo lo que la bandeja muestra: no se redibuja con cada lectura del GPS.
+    final seguimiento = ref.watch(
+      seguimientoDeRutaProvider.select((s) => (entregas: s.entregas, problema: s.problema)),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bandeja del día')),
@@ -38,6 +45,16 @@ class BandejaScreen extends ConsumerWidget {
             children: [
               _Cabeza(cantidad: pedidos.length),
               const SizedBox(height: 12),
+              // Con entregas en ruta, la app manda dónde está el promotor (tarea 31): se lo dice, o le dice por qué no.
+              if (seguimiento.entregas > 0) ...[
+                avisoDelGpsDeLasEntregas(ref, seguimiento.problema) ??
+                    const Aviso(
+                      'Mientras tengas entregas en ruta y la app esté abierta, la oficina ve dónde estás.',
+                      tipo: TipoDeAviso.informacion,
+                      icono: Icons.share_location,
+                    ),
+                const SizedBox(height: 12),
+              ],
               if (pedidos.isEmpty)
                 // 7.3.3, ext. 3.1a, con el texto del 8.6.12.
                 const Vacio(

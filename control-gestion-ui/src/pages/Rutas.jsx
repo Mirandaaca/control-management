@@ -5,7 +5,8 @@ import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import {
-  Alert, Btn, CampoFecha, Confirmar, ErrorDeCarga, EsqueletoDeLista, EsqueletoDeMapa, EstadoVacio, PageHeader, ZonaDeCarga,
+  Alert, Avance, Btn, CampoFecha, Confirmar, ErrorDeCarga, EsqueletoDeLista, EsqueletoDeMapa, EstadoVacio, PageHeader,
+  ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import EstadoRuta from '../components/rutas/EstadoRuta';
@@ -31,18 +32,6 @@ function estadoDeLaCabeza(ruta) {
   if (ruta.estado === EN_CURSO) return `En curso desde las ${formatearHora(ruta.fechaInicio)}`;
   if (ruta.estado === COMPLETADA) return `Completada a las ${formatearHora(ruta.fechaFin)}`;
   return `Planificada para el ${formatearDia(ruta.fecha)}`;
-}
-
-function Avance({ marcadas, total }) {
-  const porcentaje = total > 0 ? Math.round((marcadas / total) * 100) : 0;
-  return (
-    <span className="flex items-center gap-2">
-      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
-        <span className="block h-full rounded-full bg-marca-600" style={{ width: `${porcentaje}%` }} />
-      </span>
-      <span className="text-xs text-slate-600 tabular-nums whitespace-nowrap">{marcadas} de {total}</span>
-    </span>
-  );
 }
 
 // La ruta elegida: el seguimiento (7.3.20, pasos 6 a 6.3), como el 8.6.3.
@@ -238,7 +227,7 @@ export default function Rutas() {
               </span>
               <span className="flex items-center gap-2">
                 <EstadoRuta estado={r.estado} blanca={esLaElegida} />
-                <span className="min-w-0 flex-1"><Avance marcadas={r.marcadas} total={r.total} /></span>
+                <span className="min-w-0 flex-1"><Avance hechas={r.marcadas} total={r.total} /></span>
               </span>
             </button>
           </li>
