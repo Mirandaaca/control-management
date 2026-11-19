@@ -124,7 +124,7 @@ public class HojaPedidoService(AppDbContext db, IUsuarioActual usuario, Numerado
     private async Task<HojaPedido> ArmarAsync(RegistrarHojaPedidoDTO dto)
     {
         // Un cliente de otra cartera responde lo mismo que uno que no existe: no se le confirma que existe.
-        var cliente = await db.Clientes.VisiblesPara(usuario)
+        var cliente = await db.ClientesVisiblesPara(usuario, reloj)
             .FirstOrDefaultAsync(c => c.Id == dto.ClienteId)
             ?? throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
         if (cliente.EstadoClienteId == EstadosDeCliente.Inactivo)

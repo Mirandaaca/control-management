@@ -297,7 +297,7 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
     /// </summary>
     public async Task<List<ClienteSugeridoDTO>> SugeridaAsync(int zonaId, DateOnly fecha)
     {
-        var candidatos = await db.Clientes.VisiblesPara(usuario)
+        var candidatos = await db.ClientesVisiblesPara(usuario, reloj)
             .Where(c => c.ZonaId == zonaId && c.Latitud != 0 && c.Longitud != 0)
             .PorVisitar(HoraBolivia.FinDelDiaUtc(fecha))
             .DelMasAtrasado()
@@ -404,7 +404,7 @@ public class RutaService(AppDbContext db, IUsuarioActual usuario, NumeradorServi
     private async Task<string?> RevisarClientesAsync(List<int> ids, int zonaId, string nombreDeLaZona)
     {
         if (ids.Distinct().Count() != ids.Count) return "Un cliente no puede ir dos veces en la ruta.";
-        var clientes = await db.Clientes.VisiblesPara(usuario).Where(c => ids.Contains(c.Id))
+        var clientes = await db.ClientesVisiblesPara(usuario, reloj).Where(c => ids.Contains(c.Id))
             .Select(c => new { c.Id, c.NombreCompleto, c.ZonaId, ConUbicacion = c.Latitud != 0 && c.Longitud != 0 })
             .ToListAsync();
         if (clientes.Count != ids.Count) return "Uno de los clientes no existe.";

@@ -139,7 +139,7 @@ public class EventoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
         }
 
         var clienteId = dto.ClienteId!.Value;
-        if (!await db.Clientes.VisiblesPara(usuario).AnyAsync(c => c.Id == clienteId))
+        if (!await db.ClientesVisiblesPara(usuario, reloj).AnyAsync(c => c.Id == clienteId))
             throw new ReglaDeNegocioException("cliente_no_existe", "No se encontró el cliente.");
         return (clienteId, null);
     }
