@@ -27,7 +27,7 @@ public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, Tim
     private IQueryable<ClienteNuevoDTO> Nuevos(Periodo p)
     {
         var (inicio, fin) = (p.Inicio, p.Fin);
-        return db.Clientes.VisiblesPara(usuario)
+        return db.ClientesVisiblesPara(usuario, reloj)
             .Where(c => c.FechaCreacion >= inicio && c.FechaCreacion < fin)
             .OrderByDescending(c => c.FechaCreacion).ThenByDescending(c => c.Id)
             .Select(c => new ClienteNuevoDTO(c.Id, c.Codigo, c.NombreCompleto, new ZonaResumenDTO(c.Zona!.Id, c.Zona.Nombre),
@@ -37,7 +37,7 @@ public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, Tim
     private IQueryable<ClienteRecurrenteDTO> Recurrentes(Periodo p)
     {
         var (inicio, fin) = (p.Inicio, p.Fin);
-        return db.Clientes.VisiblesPara(usuario)
+        return db.ClientesVisiblesPara(usuario, reloj)
             .Where(c => c.FechaCreacion < p.Inicio)
             .Select(c => new
             {

@@ -43,7 +43,7 @@ public class TableroService(AppDbContext db, IUsuarioActual usuario, TimeProvide
             .ToList();
 
         return new TableroDTO(
-            await db.Clientes.VisiblesPara(usuario).CountAsync(c => c.EstadoClienteId != EstadosDeCliente.Inactivo),
+            await db.ClientesVisiblesPara(usuario, reloj).CountAsync(c => c.EstadoClienteId != EstadosDeCliente.Inactivo),
             ventas.Count,
             ventas.Sum(v => v.Total),
             await db.Cobranzas.VisiblesPara(usuario).Where(c => CobranzaConsultas.Abiertas.Contains(c.Estado))
@@ -130,7 +130,7 @@ public class TableroService(AppDbContext db, IUsuarioActual usuario, TimeProvide
         VariacionDTO? clientesNuevos = null;
         if (Puede(DeClientes))
         {
-            var clientes = db.Clientes.VisiblesPara(usuario);
+            var clientes = db.ClientesVisiblesPara(usuario, reloj);
             clientesNuevos = new VariacionDTO(
                 await clientes.CountAsync(c => c.FechaCreacion >= desde && c.FechaCreacion < hasta),
                 await clientes.CountAsync(c => c.FechaCreacion >= desdeAnterior && c.FechaCreacion < hastaAnteriorUtc));

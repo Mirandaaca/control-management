@@ -12,7 +12,7 @@ namespace ControlGestion.API.Services;
 /// <summary>Clientes en campo (2.2) y su ubicación (2.4). Cada usuario ve y edita solo su cartera, salvo con cartera completa.</summary>
 public class ClienteService(AppDbContext db, IUsuarioActual usuario, NumeradorService numerador, TimeProvider reloj)
 {
-    private IQueryable<Cliente> Visibles => db.Clientes.VisiblesPara(usuario);
+    private IQueryable<Cliente> Visibles => db.ClientesVisiblesPara(usuario, reloj);
 
     public async Task<Pagina<ClienteListaDTO>> ListarAsync(FiltrosClienteDTO filtros)
     {

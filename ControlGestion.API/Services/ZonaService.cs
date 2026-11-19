@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace ControlGestion.API.Services;
 
 /// <summary>Zonas de venta (7.2): cada una con su promotor, que es el de todos sus clientes.</summary>
-public class ZonaService(AppDbContext db, IUsuarioActual usuario)
+public class ZonaService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
 {
     // La base devuelve el límite como texto: se convierte en la lista de vértices después de leerlo.
     private sealed record ZonaLeida(ZonaDTO Zona, string? Limite)
@@ -21,7 +21,7 @@ public class ZonaService(AppDbContext db, IUsuarioActual usuario)
     private IQueryable<ZonaLeida> Proyectar(IQueryable<Zona> zonas)
     {
         // Los clientes que el usuario puede ver: un promotor no ve cuántos clientes tiene la cartera de otro.
-        var clientesVisibles = db.Clientes.VisiblesPara(usuario);
+        var clientesVisibles = db.ClientesVisiblesPara(usuario, reloj);
         // La misma regla que UsuarioConsultas.ConPermiso, escrita aquí para que la base la resuelva en la misma consulta.
         const string recorrerRuta = Permisos.Territorial.RecorrerRuta;
         return zonas.Select(z => new ZonaLeida(new ZonaDTO(

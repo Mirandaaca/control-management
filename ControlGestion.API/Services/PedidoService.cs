@@ -69,7 +69,7 @@ public class PedidoService(AppDbContext db, IUsuarioActual usuario, NumeradorSer
             return repetido;
 
         // Un cliente de otra cartera responde lo mismo que uno que no existe, como en la HP: no se le confirma que existe.
-        var cliente = await db.Clientes.VisiblesPara(usuario)
+        var cliente = await db.ClientesVisiblesPara(usuario, reloj)
             .Where(c => c.Id == dto.ClienteId)
             .Select(c => new { c.Id, c.ZonaId, c.PromotorId, c.EstadoClienteId })
             .FirstOrDefaultAsync()

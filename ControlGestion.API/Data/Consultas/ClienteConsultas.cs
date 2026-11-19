@@ -8,12 +8,20 @@ namespace ControlGestion.API.Data.Consultas;
 
 public static class ClienteConsultas
 {
-    /// <summary>Sin seguridad.ver-cartera-completa, el usuario solo ve los clientes de su cartera (el promotor del cliente es él).</summary>
-    public static IQueryable<Cliente> VisiblesPara(this IQueryable<Cliente> clientes, IUsuarioActual usuario)
+    /// <summary>
+    /// Sin seguridad.ver-cartera-completa, el usuario ve los clientes de su cartera (el promotor del cliente es él) y los
+    /// de su ruta de hoy, aunque sean de otra zona: quien cubre la ruta de otro promotor registra la venta y el evento de
+    /// sus visitas (7.3.20, ext. 5a y 5.3a). Cuenta toda la ruta de hoy, también terminada; desde el día siguiente, ya no.
+    /// Lo que registró sigue visible por su propia regla (las HP y las cobranzas a su nombre, los eventos que registró).
+    /// Arreglo del 18/11/2026: antes marcaba la visita y el evento respondía "No se encontró el cliente.".
+    /// </summary>
+    public static IQueryable<Cliente> ClientesVisiblesPara(this AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
     {
-        if (usuario.VeCarteraCompleta) return clientes;
+        if (usuario.VeCarteraCompleta) return db.Clientes;
         var usuarioId = usuario.Id;
-        return clientes.Where(c => c.PromotorId == usuarioId);
+        var hoy = HoraBolivia.Hoy(reloj);
+        return db.Clientes.Where(c => c.PromotorId == usuarioId
+            || db.RutasDetalle.Any(v => v.ClienteId == c.Id && v.Ruta!.PromotorId == usuarioId && v.Ruta.FechaPlanificada == hoy));
     }
 
     /// <summary>
