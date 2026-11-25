@@ -33,12 +33,12 @@ public class RolesTests(ApiDePrueba api)
     }
 
     [Fact]
-    public async Task El_catalogo_trae_los_66_permisos_con_su_modulo()
+    public async Task El_catalogo_trae_los_69_permisos_con_su_modulo()
     {
         using var admin = await api.AdminAsync();
         var catalogo = (await (await admin.GetAsync("/api/roles/permisos")).LeerJsonAsync()).EnumerateArray().ToList();
 
-        Assert.Equal(66, catalogo.Count);
+        Assert.Equal(69, catalogo.Count);
         var registrarPago = catalogo.Single(p => p.GetProperty("clave").GetString() == Permisos.Cobranzas.RegistrarPago);
         Assert.Equal(Permisos.Cobranzas.Modulo, registrarPago.GetProperty("modulo").GetString());
         Assert.Equal("Registrar pagos", registrarPago.GetProperty("nombre").GetString());

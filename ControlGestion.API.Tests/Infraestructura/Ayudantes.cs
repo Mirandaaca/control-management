@@ -210,6 +210,18 @@ public static class Ayudantes
         return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
     }
 
+    /// <summary>
+    /// Registra un tipo de evento activo con un nombre único (tarea 32): las pruebas crean los suyos y no tocan los 5
+    /// sembrados. Prioridad 1 es Media.
+    /// </summary>
+    public static async Task<int> CrearTipoEventoAsync(this HttpClient admin, bool requiereEvidencia = false, int nivelPrioridad = 1)
+    {
+        var respuesta = await admin.PostAsJsonAsync("/api/tipos-evento",
+            new { nombre = Unico("T32 Tipo"), requiereEvidencia, nivelPrioridad });
+        respuesta.EnsureSuccessStatusCode();
+        return (await respuesta.LeerJsonAsync()).GetProperty("id").GetInt32();
+    }
+
     /// <summary>Registra un evento Pendiente del cliente, con una ubicación válida. El tipo 3 no pide evidencia.</summary>
     public static async Task<int> CrearEventoAsync(this HttpClient promotor, int clienteId, int tipoEventoId = 3)
     {

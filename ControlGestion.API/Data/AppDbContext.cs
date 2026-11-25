@@ -393,7 +393,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             new EstadoPedido { Id = 5, Nombre = "Anulado",       Orden = 4, Color = "#ef4444", EsEstadoFinal = true }
         );
 
-        // Seed tipos de evento
+        // Tipos de evento (tarea 32): los administra el administrador. El índice único, con la intercalación de la base, no
+        // deja "Otro" y "otro". Los 5 se siembran al instalar; después son datos: cambiar aquí sus valores generaría una
+        // migración que pisa lo que el administrador cambió en la base.
+        builder.Entity<TipoEvento>().Property(t => t.Nombre).HasMaxLength(80);
+        builder.Entity<TipoEvento>().HasIndex(t => t.Nombre).IsUnique();
         builder.Entity<TipoEvento>().HasData(
             new TipoEvento { Id = 1, Nombre = "Cliente ausente",        RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Medio },
             new TipoEvento { Id = 2, Nombre = "Entrega no realizada",   RequiereEvidencia = true,  NivelPrioridad = NivelPrioridad.Alto  },

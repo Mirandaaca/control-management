@@ -7,7 +7,7 @@ import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import DetalleEvento from '../components/eventos/DetalleEvento';
 import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
-import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
+import { ESTADOS, opcionesDeTipo, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import { COLOR_DEL_ESTADO, iconoDelEstado } from '../components/eventos/marcadores';
 import {
   Alert, BarraDeFiltros, BarraDeRecarga, CampoFecha, ErrorDeCarga, EsqueletoDeMapa, EstadoVacio, PageHeader, Selector,
@@ -79,7 +79,7 @@ export default function MapaEventos() {
 
   // Los catálogos de los filtros. Si fallan, el mapa igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
   const cargarFiltros = useCallback(() => Promise.all([
-    api.get('/eventos/tipos'),
+    api.get('/tipos-evento/opciones'),
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
@@ -188,7 +188,7 @@ export default function MapaEventos() {
           >
             <div className="w-full sm:w-48">
               <Selector label="Tipo" todos="Todos" value={filtros.tipo}
-                opciones={tipos.map((t) => ({ valor: String(t.id), texto: t.nombre }))}
+                opciones={opcionesDeTipo(tipos)}
                 onChange={(tipo) => filtrar({ tipo })} />
             </div>
             <div className="w-full sm:w-36">

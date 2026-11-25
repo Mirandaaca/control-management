@@ -144,7 +144,10 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
         return (salida.ToArray(), $"incidencias_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
     }
 
-    /// <summary>Cuántos eventos hay de cada tipo y en cada estado. Salen todos los tipos y los dos estados, también en cero.</summary>
+    /// <summary>
+    /// Cuántos eventos hay de cada tipo y en cada estado. Salen los tipos activos y los dos estados, también en cero; un
+    /// tipo inactivo (tarea 32), solo si tiene eventos en el reporte.
+    /// </summary>
     private async Task<(List<TotalPorTipoDTO> PorTipo, List<TotalPorEstadoEventoDTO> PorEstado, int Cantidad)> TotalesAsync(
         IQueryable<Evento> consulta)
     {
@@ -154,9 +157,10 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
         var porEstadoId = await consulta.GroupBy(e => e.EstadoEvento)
             .Select(g => new { Estado = g.Key, Cantidad = g.Count() })
             .ToDictionaryAsync(g => g.Estado, g => g.Cantidad);
-        var tipos = await db.TiposEvento.OrderBy(t => t.Id).Select(t => new { t.Id, t.Nombre }).ToListAsync();
+        var tipos = await db.TiposEvento.OrderBy(t => t.Id).Select(t => new { t.Id, t.Nombre, t.Activo }).ToListAsync();
 
-        var porTipo = tipos.Select(t => new TotalPorTipoDTO(t.Id, t.Nombre, porTipoId.GetValueOrDefault(t.Id))).ToList();
+        var porTipo = tipos.Where(t => t.Activo || porTipoId.ContainsKey(t.Id))
+            .Select(t => new TotalPorTipoDTO(t.Id, t.Nombre, porTipoId.GetValueOrDefault(t.Id))).ToList();
         var porEstado = Estados.Select(e => new TotalPorEstadoEventoDTO(e.Estado, e.Nombre, porEstadoId.GetValueOrDefault(e.Estado)))
             .ToList();
         return (porTipo, porEstado, porEstado.Sum(e => e.Cantidad));

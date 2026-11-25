@@ -71,6 +71,9 @@ export const PERMISOS = {
     registrarEstadoCliente: 'parametros.registrar-estado-cliente',
     modificarEstadoCliente: 'parametros.modificar-estado-cliente',
     eliminarEstadoCliente: 'parametros.eliminar-estado-cliente',
+    registrarTipoEvento: 'parametros.registrar-tipo-evento',
+    modificarTipoEvento: 'parametros.modificar-tipo-evento',
+    desactivarTipoEvento: 'parametros.desactivar-tipo-evento',
   },
   seguridad: {
     crearUsuario: 'seguridad.crear-usuario',
@@ -115,6 +118,7 @@ export const PANTALLAS = {
   categorias: [parametros.registrarProducto, parametros.modificarProducto, parametros.eliminarProducto],
   configuracionGeneral: [parametros.modificarDiasRevisita],
   estadosCliente: [parametros.registrarEstadoCliente, parametros.modificarEstadoCliente, parametros.eliminarEstadoCliente],
+  tiposEvento: [parametros.registrarTipoEvento, parametros.modificarTipoEvento, parametros.desactivarTipoEvento],
   usuarios: [seguridad.crearUsuario, seguridad.editarUsuario, seguridad.activarUsuario],
   roles: [seguridad.crearRol, seguridad.editarRol, seguridad.eliminarRol],
   // Las pestañas de Reportes (8.6.4): Ventas (6.2), Cobranzas (3.3), Inventario (6.4), Promotores (6.1) y Clientes (6.3).

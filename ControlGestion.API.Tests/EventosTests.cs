@@ -52,10 +52,11 @@ public class EventosTests(ApiDePrueba api)
     {
         using var operador = await api.OperadorAsync();
 
+        // Desde la tarea 32 hay más tipos: los que registran otras pruebas. Los sembrados van primero, por su id.
         var tipos = (await (await operador.GetAsync("/api/eventos/tipos")).LeerJsonAsync()).EnumerateArray()
             .Select(t => (t.GetProperty("id").GetInt32(), t.GetProperty("requiereEvidencia").GetBoolean())).ToList();
 
-        Assert.Equal([(1, true), (2, true), (3, false), (4, false), (5, false)], tipos);
+        Assert.Equal([(1, true), (2, true), (3, false), (4, false), (5, false)], tipos.Take(5));
     }
 
     [Fact]
