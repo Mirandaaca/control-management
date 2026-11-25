@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Layers, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
+  Boxes, CalendarClock, ChartColumn, ChevronDown, ClipboardList, FileSpreadsheet, FileWarning, House, Layers, ListChecks, LogOut, Map as Mapa, MapPin, MapPinHouse, MapPinned, Menu, Package, PanelLeftClose,
   PanelLeftOpen, Route, ScrollText, Settings, Shapes, Shield, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Tag, Tags, TriangleAlert, Truck, UserRound,
   Users, Wallet, X,
 } from 'lucide-react';
@@ -45,6 +45,7 @@ const modulos = [
     { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
     { to: '/categorias', label: 'Categorías', icon: Shapes, permisos: PANTALLAS.categorias },
     { to: '/estados-cliente', label: 'Estados del cliente', icon: Tags, permisos: PANTALLAS.estadosCliente },
+    { to: '/tipos-evento', label: 'Tipos de evento', icon: ListChecks, permisos: PANTALLAS.tiposEvento },
     { to: '/configuracion-general', label: 'Configuración general', icon: Settings, permisos: PANTALLAS.configuracionGeneral },
   ] },
   { id: 'seguridad', seccion: 'administracion', nombre: 'Seguridad', icon: Shield, items: [

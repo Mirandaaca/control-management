@@ -6,6 +6,12 @@ export const ESTADOS = { [PENDIENTE]: 'Pendiente', [RESUELTO]: 'Resuelto' };
 // NivelPrioridad del tipo de evento.
 export const PRIORIDADES = { 0: 'Baja', 1: 'Media', 2: 'Alta' };
 
+/**
+ * Las opciones del filtro "Tipo" (GET /tipos-evento/opciones, tarea 32): los activos y los inactivos que tienen eventos,
+ * así se siguen encontrando los eventos viejos de un tipo que ya no se usa.
+ */
+export const opcionesDeTipo = (tipos) => tipos.map((t) => ({ valor: String(t.id), texto: t.activo ? t.nombre : `${t.nombre} (inactivo)` }));
+
 // Un evento acepta hasta 5 fotos, de hasta 10 MB cada una (lo valida la API).
 export const MAXIMO_DE_FOTOS = 5;
 

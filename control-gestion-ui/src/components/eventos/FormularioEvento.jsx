@@ -34,7 +34,8 @@ function datosIniciales(evento) {
 export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, onGuardado }) {
   const [datos, setDatos] = useState(() => datosIniciales(evento));
   const sinGuardar = useSinGuardar(datos);
-  const [tipos, setTipos] = useState([]);
+  // Null mientras cargan: así no se confunde "todavía no llegaron" con "el tipo del evento ya no está entre los activos".
+  const [tipos, setTipos] = useState(null);
   const clientes = useOpcionesDeClientes();
   const [pedidos, setPedidos] = useState([]);
   const [errores, setErrores] = useState({});
@@ -106,7 +107,15 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
   }));
   if (evento.pedido && String(evento.cliente?.id) === datos.clienteId && !pedidos.some((p) => p.id === evento.pedido.id))
     opcionesDePedido.unshift({ valor: String(evento.pedido.id), texto: evento.pedido.numero });
-  const tipoElegido = tipos.find((t) => String(t.id) === datos.tipoEventoId);
+  // El formulario ofrece los tipos activos. Uno que se desactivó después se conserva (la API lo acepta si no cambia, tarea
+  // 32): se ofrece también, como "(inactivo)".
+  const tipoInactivo = tipos !== null && !tipos.some((t) => t.id === evento.tipo.id);
+  const tiposDelSelector = tipoInactivo ? [...tipos, evento.tipo] : (tipos ?? []);
+  const opcionesDeTipo = tiposDelSelector.map((t) => {
+    const nombre = tipoInactivo && t.id === evento.tipo.id ? `${t.nombre} (inactivo)` : t.nombre;
+    return { valor: String(t.id), texto: t.requiereEvidencia ? `${nombre} · pide foto` : nombre };
+  });
+  const tipoElegido = tiposDelSelector.find((t) => String(t.id) === datos.tipoEventoId);
 
   return (
     <Modal
@@ -129,7 +138,7 @@ export default function FormularioEvento({ evento, puedeVerPedidos, onCerrar, on
       <form id="formulario-evento" ref={formularioRef} onSubmit={(e) => { e.preventDefault(); guardar(); }} className="space-y-4" noValidate>
         {errorFormulario && <Alert type="error">{errorFormulario}</Alert>}
         <Selector label="Tipo de evento" placeholder="Elige el tipo" value={datos.tipoEventoId} error={errores.tipoEventoId}
-          opciones={tipos.map((t) => ({ valor: String(t.id), texto: t.requiereEvidencia ? `${t.nombre} · pide foto` : t.nombre }))}
+          opciones={opcionesDeTipo}
           ayuda={tipoElegido?.requiereEvidencia ? 'Este tipo se resuelve con al menos una foto: agrégala ahora o después.' : undefined}
           onChange={(valor) => cambiar('tipoEventoId', valor)} />
         <div className="grid gap-4 md:grid-cols-2">

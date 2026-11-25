@@ -6,7 +6,7 @@ import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoEvento from '../components/eventos/EstadoEvento';
-import { ESTADOS, PENDIENTE, RESUELTO } from '../components/eventos/estados';
+import { ESTADOS, opcionesDeTipo, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import {
   Alert, BarraDeFiltros, Btn, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
   Paginacion, Selector, ZonaDeCarga,
@@ -40,7 +40,7 @@ export default function ReporteEventos() {
   const [promotores, setPromotores] = useState([]);
 
   // Los catálogos de los filtros. Si fallan, el reporte igual funciona: se avisa en un toast, y "Reintentar" los vuelve a pedir.
-  const cargarFiltros = useCallback(() => Promise.all([api.get('/eventos/tipos'), api.get('/zonas'), api.get('/usuarios/promotores')])
+  const cargarFiltros = useCallback(() => Promise.all([api.get('/tipos-evento/opciones'), api.get('/zonas'), api.get('/usuarios/promotores')])
     .then(([t, z, p]) => { setTipos(t.data); setZonas(z.data); setPromotores(p.data); avisar.quitarError(); })
     .catch((err) => avisar.error(`No se pudieron cargar los filtros: ${mensajeDeError(err, 'error desconocido.')}`)), []);
 
@@ -157,7 +157,7 @@ export default function ReporteEventos() {
             onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
             <div className="w-full sm:w-48">
               <Selector label="Tipo" todos="Todos" value={filtros.tipo}
-                opciones={tipos.map((t) => ({ valor: String(t.id), texto: t.nombre }))}
+                opciones={opcionesDeTipo(tipos)}
                 onChange={(tipo) => filtrar({ tipo })} />
             </div>
             <div className="w-full sm:w-36">

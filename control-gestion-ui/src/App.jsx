@@ -18,6 +18,7 @@ const Categorias = lazy(() => import('./pages/Categorias'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const ConfiguracionGeneral = lazy(() => import('./pages/ConfiguracionGeneral'));
 const EstadosCliente = lazy(() => import('./pages/EstadosCliente'));
+const TiposEvento = lazy(() => import('./pages/TiposEvento'));
 const MapaZonas = lazy(() => import('./pages/MapaZonas'));
 const Clientes = lazy(() => import('./pages/Clientes'));
 const HojasPedido = lazy(() => import('./pages/HojasPedido'));
@@ -76,6 +77,7 @@ export default function App() {
             <Route path="/reportes/pedidos" element={<PrivateRoute permisos={PANTALLAS.reportePedidos}><ReportePedidos /></PrivateRoute>} />
             <Route path="/reportes/eventos" element={<PrivateRoute permisos={PANTALLAS.reporteEventos}><ReporteEventos /></PrivateRoute>} />
             <Route path="/estados-cliente" element={<PrivateRoute permisos={PANTALLAS.estadosCliente}><EstadosCliente /></PrivateRoute>} />
+            <Route path="/tipos-evento" element={<PrivateRoute permisos={PANTALLAS.tiposEvento}><TiposEvento /></PrivateRoute>} />
             <Route path="/configuracion-general" element={<PrivateRoute permisos={PANTALLAS.configuracionGeneral}><ConfiguracionGeneral /></PrivateRoute>} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

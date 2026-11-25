@@ -9,7 +9,7 @@ import EstadoEvento from '../components/eventos/EstadoEvento';
 import FormularioEvento from '../components/eventos/FormularioEvento';
 import GaleriaDeFotos from '../components/eventos/GaleriaDeFotos';
 import ResolverEvento from '../components/eventos/ResolverEvento';
-import { accionesDelEvento, ESTADOS } from '../components/eventos/estados';
+import { accionesDelEvento, ESTADOS, opcionesDeTipo } from '../components/eventos/estados';
 import {
   Alert, BarraDeFiltros, Btn, Buscador, CampoFecha, ErrorDeCarga, EstadoVacio, PageHeader, Paginacion, Selector,
 } from '../components/ui';
@@ -56,7 +56,7 @@ export default function Eventos() {
 
   // Los catálogos de los filtros. Si fallan, la pantalla igual funciona: se avisa arriba, y "Reintentar" los vuelve a pedir.
   const cargarFiltros = useCallback(() => Promise.all([
-    api.get('/eventos/tipos'),
+    api.get('/tipos-evento/opciones'),
     api.get('/zonas'),
     eligePromotor ? api.get('/usuarios/promotores') : Promise.resolve({ data: [] }),
   ])
@@ -174,7 +174,7 @@ export default function Eventos() {
             <Buscador label="Buscar" placeholder="Número, cliente o descripción…" value={filtros.texto} onChange={(texto) => filtrar({ texto })} />
             <div className="w-full sm:w-48">
               <Selector label="Tipo" todos="Todos" value={filtros.tipo}
-                opciones={tipos.map((t) => ({ valor: String(t.id), texto: t.nombre }))}
+                opciones={opcionesDeTipo(tipos)}
                 onChange={(tipo) => filtrar({ tipo })} />
             </div>
             <div className="w-full sm:w-36">
