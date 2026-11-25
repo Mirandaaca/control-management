@@ -1366,15 +1366,16 @@ namespace ControlGestion.API.Data.Migrations
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
 
                     b.Property<bool>("RequiereEvidencia")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("RequiereGeolocalizacion")
-                        .HasColumnType("tinyint(1)");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("Nombre")
+                        .IsUnique();
 
                     b.ToTable("TiposEvento");
 
@@ -1385,8 +1386,7 @@ namespace ControlGestion.API.Data.Migrations
                             Activo = true,
                             NivelPrioridad = 1,
                             Nombre = "Cliente ausente",
-                            RequiereEvidencia = true,
-                            RequiereGeolocalizacion = true
+                            RequiereEvidencia = true
                         },
                         new
                         {
@@ -1394,8 +1394,7 @@ namespace ControlGestion.API.Data.Migrations
                             Activo = true,
                             NivelPrioridad = 2,
                             Nombre = "Entrega no realizada",
-                            RequiereEvidencia = true,
-                            RequiereGeolocalizacion = true
+                            RequiereEvidencia = true
                         },
                         new
                         {
@@ -1403,8 +1402,7 @@ namespace ControlGestion.API.Data.Migrations
                             Activo = true,
                             NivelPrioridad = 1,
                             Nombre = "Problema de acceso",
-                            RequiereEvidencia = false,
-                            RequiereGeolocalizacion = true
+                            RequiereEvidencia = false
                         },
                         new
                         {
@@ -1412,8 +1410,7 @@ namespace ControlGestion.API.Data.Migrations
                             Activo = true,
                             NivelPrioridad = 2,
                             Nombre = "Incidencia de cobro",
-                            RequiereEvidencia = false,
-                            RequiereGeolocalizacion = true
+                            RequiereEvidencia = false
                         },
                         new
                         {
@@ -1421,8 +1418,7 @@ namespace ControlGestion.API.Data.Migrations
                             Activo = true,
                             NivelPrioridad = 0,
                             Nombre = "Otro",
-                            RequiereEvidencia = false,
-                            RequiereGeolocalizacion = true
+                            RequiereEvidencia = false
                         });
                 });
 

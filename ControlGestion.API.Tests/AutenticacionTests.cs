@@ -26,7 +26,7 @@ public class AutenticacionTests(ApiDePrueba api)
         var usuario = cuerpo.GetProperty("usuario");
         Assert.Equal(Roles.Administrador, usuario.GetProperty("rol").GetString());
         var permisos = usuario.GetProperty("permisos").EnumerateArray().Select(p => p.GetString()).ToList();
-        Assert.Equal(14, permisos.Count);
+        Assert.Equal(17, permisos.Count);
         Assert.Contains(Permisos.Seguridad.CrearUsuario, permisos);
     }
 

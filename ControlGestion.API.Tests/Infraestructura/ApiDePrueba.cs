@@ -145,7 +145,7 @@ public class ApiDePrueba : WebApplicationFactory<Program>, IAsyncLifetime
 
     /// <summary>
     /// El administrador ya no puede crear zonas, clientes ni HP. Las pruebas que solo necesitan esos datos los crean con
-    /// este usuario, que tiene los 66 permisos; los permisos de cada rol real se prueban aparte.
+    /// este usuario, que tiene todos los permisos del catálogo; los permisos de cada rol real se prueban aparte.
     /// </summary>
     private async Task CrearOperadorAsync()
     {

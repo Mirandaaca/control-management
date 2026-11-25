@@ -36,9 +36,10 @@ public class ReporteEventosTests(ApiDePrueba api)
 
         var reporte = await (await gerente.GetAsync($"/api/eventos/reporte?zonaId={zonaId}&tamano=2")).LeerJsonAsync();
 
+        // Los 5 sembrados van primero, por su id; después, los activos que registran otras pruebas (tarea 32), en cero.
         var porTipo = reporte.GetProperty("porTipo").EnumerateArray()
             .Select(t => (t.GetProperty("tipoEventoId").GetInt32(), t.GetProperty("cantidad").GetInt32())).ToList();
-        Assert.Equal([(1, 2), (2, 0), (3, 1), (4, 0), (5, 0)], porTipo);
+        Assert.Equal([(1, 2), (2, 0), (3, 1), (4, 0), (5, 0)], porTipo.Take(5));
         var porEstado = reporte.GetProperty("porEstado").EnumerateArray()
             .Select(e => (e.GetProperty("nombre").GetString(), e.GetProperty("cantidad").GetInt32())).ToList();
         Assert.Equal([("Pendiente", 2), ("Resuelto", 1)], porEstado);

@@ -99,6 +99,9 @@ public static class Permisos
         public const string RegistrarEstadoCliente = "parametros.registrar-estado-cliente";
         public const string ModificarEstadoCliente = "parametros.modificar-estado-cliente";
         public const string EliminarEstadoCliente = "parametros.eliminar-estado-cliente";
+        public const string RegistrarTipoEvento = "parametros.registrar-tipo-evento";
+        public const string ModificarTipoEvento = "parametros.modificar-tipo-evento";
+        public const string DesactivarTipoEvento = "parametros.desactivar-tipo-evento";
     }
 
     public static class Seguridad
@@ -183,6 +186,10 @@ public static class Permisos
         new(Parametros.RegistrarEstadoCliente, Parametros.Modulo, "Registrar estados del cliente", [Administrador]),
         new(Parametros.ModificarEstadoCliente, Parametros.Modulo, "Modificar estados del cliente", [Administrador]),
         new(Parametros.EliminarEstadoCliente, Parametros.Modulo, "Eliminar estados del cliente", [Administrador]),
+        // Los tipos de evento (7.3.13, tarea 32): en Parámetros, con los demás catálogos que administra el administrador.
+        new(Parametros.RegistrarTipoEvento, Parametros.Modulo, "Registrar tipos de evento", [Administrador]),
+        new(Parametros.ModificarTipoEvento, Parametros.Modulo, "Modificar tipos de evento", [Administrador]),
+        new(Parametros.DesactivarTipoEvento, Parametros.Modulo, "Activar, desactivar y eliminar tipos de evento", [Administrador]),
 
         new(Seguridad.CrearUsuario, Seguridad.Modulo, "Crear usuarios", [Administrador]),
         new(Seguridad.EditarUsuario, Seguridad.Modulo, "Editar usuarios", [Administrador]),

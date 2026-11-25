@@ -24,8 +24,8 @@ public class PermisosTests(ApiDePrueba api)
             .Select(r => new { r.Name, Cantidad = db.RolesPermisos.Count(rp => rp.RolId == r.Id) })
             .ToDictionaryAsync(r => r.Name!, r => r.Cantidad);
 
-        Assert.Equal(66, await db.Permisos.CountAsync());
-        Assert.Equal(14, porRol[Roles.Administrador]);
+        Assert.Equal(69, await db.Permisos.CountAsync());
+        Assert.Equal(17, porRol[Roles.Administrador]);
         Assert.Equal(21, porRol[Roles.GerenteGeneral]);
         Assert.Equal(27, porRol[Roles.Secretaria]);
         Assert.Equal(23, porRol[Roles.Promotor]);
@@ -64,7 +64,7 @@ public class PermisosTests(ApiDePrueba api)
             await SembradorDeSeguridad.SembrarAsync(db, roles, NullLogger.Instance);
 
             Assert.False(await roles.RoleExistsAsync(Roles.Secretaria));
-            Assert.Equal(66, await db.Permisos.CountAsync());
+            Assert.Equal(69, await db.Permisos.CountAsync());
             Assert.Equal(asignaciones, await db.RolesPermisos.CountAsync());
         }
         finally
