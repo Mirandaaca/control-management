@@ -23,7 +23,7 @@ void main() {
   });
 
   // La app y el panel usan las mismas claves: si cambian en permisos.js, esta prueba avisa que falta cambiarlas aquí.
-  test('las claves son las mismas 66 del panel', () {
+  test('las claves son las mismas 69 del panel', () {
     final archivo = File('../../control-gestion-ui/src/context/permisos.js');
     if (!archivo.existsSync()) {
       markTestSkipped('No está el panel junto a la app.');
@@ -32,7 +32,7 @@ void main() {
     final bloque = archivo.readAsStringSync().split('export const PANTALLAS').first;
     final delPanel = RegExp(r"'([a-z]+\.[a-z-]+)'").allMatches(bloque).map((m) => m.group(1)!).toSet();
 
-    expect(Permisos.todas.length, 66);
+    expect(Permisos.todas.length, 69);
     expect(Permisos.todas.toSet(), delPanel);
   });
 }

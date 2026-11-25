@@ -176,6 +176,10 @@ final class _Parametros {
   final registrarEstadoCliente = 'parametros.registrar-estado-cliente';
   final modificarEstadoCliente = 'parametros.modificar-estado-cliente';
   final eliminarEstadoCliente = 'parametros.eliminar-estado-cliente';
+  // Los tipos de evento (tarea 32) se administran en el panel; la app no los usa, pero comparte el catálogo.
+  final registrarTipoEvento = 'parametros.registrar-tipo-evento';
+  final modificarTipoEvento = 'parametros.modificar-tipo-evento';
+  final desactivarTipoEvento = 'parametros.desactivar-tipo-evento';
 
   List<String> get todas => [
     modificarDiasRevisita,
@@ -188,6 +192,9 @@ final class _Parametros {
     registrarEstadoCliente,
     modificarEstadoCliente,
     eliminarEstadoCliente,
+    registrarTipoEvento,
+    modificarTipoEvento,
+    desactivarTipoEvento,
   ];
 }
 
