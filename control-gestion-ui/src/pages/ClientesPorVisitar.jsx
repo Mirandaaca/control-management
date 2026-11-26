@@ -19,7 +19,6 @@ import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { diaEnBolivia, formatearDia, formatearFecha } from '../utils/formato';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', zonaId: '', promotorId: '' };
 
 function Dato({ titulo, children }) {
@@ -43,7 +42,7 @@ export default function ClientesPorVisitar() {
   const puedePlanificar = tiene(PERMISOS.territorial.planificarRuta);
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -64,7 +63,7 @@ export default function ClientesPorVisitar() {
     return api.get('/clientes/por-visitar', {
       params: {
         pagina: numeroPagina,
-        tamano: TAMANO_PAGINA,
+        tamano,
         buscar: busqueda || undefined,
         zonaId: filtros.zonaId || undefined,
         promotorId: filtros.promotorId || undefined,
@@ -74,7 +73,7 @@ export default function ClientesPorVisitar() {
       .catch(siVigente((err) => setErrorCarga(
         mensajeDeError(err, 'No se pudo cargar la lista de clientes por visitar.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.zonaId, filtros.promotorId, nuevaPeticion]);
+  }, [numeroPagina, tamano, busqueda, filtros.zonaId, filtros.promotorId, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -144,7 +143,7 @@ export default function ClientesPorVisitar() {
         )}
         pie={pagina && (
           <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />
         )}
       >
         {clientes.map((c) => (

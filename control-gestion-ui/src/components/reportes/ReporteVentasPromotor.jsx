@@ -3,12 +3,14 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { ChartColumn, Table2 } from 'lucide-react';
 import api from '../../api/axios';
 import { mensajeDeError } from '../../api/errores';
-import { useReporte } from '../../hooks/useReporte';
+import { usePaginaLocal } from '../../hooks/usePaginaLocal';
+import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { BarraDeFiltros, Btn, CampoFecha, Selector } from '../ui';
+import { BarraDeFiltros, Btn, CampoFecha, Paginacion, Selector } from '../ui';
 import { avisar } from '../ui/avisar';
 import { atajosDePeriodo } from '../../utils/fechas';
+import BotonesExportar from './BotonesExportar';
 
 const SIN_FILTROS = { desde: '', hasta: '', promotor: '' };
 // Los colores del gráfico, de docs/diseno.md: la barra en marca-600 y la grilla y los ejes en gris, para que no compitan.
@@ -31,7 +33,8 @@ function Globo({ active, payload }) {
 
 /**
  * Ventas por promotor (6.1, 7.3.22): cada promotor con sus HP confirmadas y el total vendido, y el total del período.
- * "Ver gráfico" cambia la tabla por barras (paso 3) y "Ver tabla" vuelve (ext. 3a). No se exporta.
+ * "Ver gráfico" cambia la tabla por barras (paso 3) y "Ver tabla" vuelve (ext. 3a). Desde la tarea 33 se exporta a
+ * Excel y a PDF, con la tabla; sin ventas, no.
  */
 export default function ReporteVentasPromotor({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
@@ -49,7 +52,10 @@ export default function ReporteVentasPromotor({ barra, panel }) {
   }), [filtros]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-promotor', parametros, 'No se pudo generar el reporte de ventas por promotor.');
+  const { exportar, exportando } = useExportar('/reportes/ventas-por-promotor', parametros, 'ventas_por_promotor');
 
+  // La tabla se pagina aquí; el gráfico muestra a todos. La fila Total, la del período, va en cada página.
+  const { visibles, paginacion } = usePaginaLocal(reporte?.promotores, JSON.stringify(filtros));
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const sinVentas = reporte?.promotores.length === 0;
   let estado = estadoDeCarga;
@@ -76,13 +82,14 @@ export default function ReporteVentasPromotor({ barra, panel }) {
 
   return (
     <>
-      {barra(null)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinVentas} />)}
       <div {...panel}>
         <Table
           cargando={cargando && 'Generando el reporte…'} recargando={recargando}
           titulo="Ventas por promotor"
           headers={['Promotor', { texto: 'HP', derecha: true }, { texto: 'Total vendido', derecha: true }]}
           estado={estado}
+          pie={<Paginacion {...paginacion} deshabilitada={recargando} />}
           barra={(
             <BarraDeFiltros resultado={reporte && !sinVentas ? `${reporte.cantidad} ${reporte.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => setFiltros(SIN_FILTROS)}>
@@ -109,7 +116,7 @@ export default function ReporteVentasPromotor({ barra, panel }) {
             </BarraDeFiltros>
           )}
         >
-          {(reporte?.promotores ?? []).map((p) => (
+          {visibles.map((p) => (
             <Tr key={p.promotorId}>
               <Td><span className="font-medium">{p.promotor}</span></Td>
               <Td className="text-right tabular-nums">{p.cantidad}</Td>

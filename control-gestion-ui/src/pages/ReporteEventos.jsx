@@ -1,40 +1,39 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CalendarX, CircleCheck, Clock, Download, LoaderCircle, TriangleAlert } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarX, CircleCheck, Clock, TriangleAlert } from 'lucide-react';
 import api from '../api/axios';
-import { descargar } from '../api/descargas';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoEvento from '../components/eventos/EstadoEvento';
 import { ESTADOS, opcionesDeTipo, PENDIENTE, RESUELTO } from '../components/eventos/estados';
 import {
-  Alert, BarraDeFiltros, Btn, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
+  Alert, BarraDeFiltros, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
   Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
-import { diaEnBolivia, formatearFecha } from '../utils/formato';
+import { formatearFecha } from '../utils/formato';
+import BotonesExportar from '../components/reportes/BotonesExportar';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useExportar } from '../hooks/useReporte';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { atajosDePeriodo } from '../utils/fechas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
 const cuantos = (n) => (n === 1 ? '1 evento' : `${n} eventos`);
 
 /**
  * Reporte de incidencias (4.4): los eventos con los filtros de tipo, estado, promotor, zona y fechas, cuántos hay de
- * cada tipo y en cada estado, y el Excel con los mismos filtros. Sin eventos no se exporta.
+ * cada tipo y en cada estado, y el Excel y el PDF (tarea 33) con los mismos filtros. Sin eventos no se exporta.
  */
 export default function ReporteEventos() {
   const [reporte, setReporte] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [erroresFiltro, setErroresFiltro] = useState({});
-  const [exportando, setExportando] = useState(false);
   const [tipos, setTipos] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -48,14 +47,14 @@ export default function ReporteEventos() {
 
   const parametros = useCallback((pagina) => ({
     pagina,
-    tamano: TAMANO_PAGINA,
+    tamano,
     tipoEventoId: filtros.tipo || undefined,
     estado: filtros.estado || undefined,
     zonaId: filtros.zona || undefined,
     promotorId: filtros.promotor || undefined,
     desde: filtros.desde || undefined,
     hasta: filtros.hasta || undefined,
-  }), [filtros]);
+  }), [filtros, tamano]);
 
   const nuevaPeticion = usePeticionVigente();
 
@@ -77,17 +76,9 @@ export default function ReporteEventos() {
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
-  const exportar = async () => {
-    setExportando(true);
-    avisar.quitarError();
-    try {
-      await descargar('/eventos/reporte/excel', parametros(undefined), `incidencias_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
-    } catch (err) {
-      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
-    } finally {
-      setExportando(false);
-    }
-  };
+  // El Excel y el PDF llevan los mismos filtros, sin la página.
+  const filtrosDeLaApi = useMemo(() => parametros(undefined), [parametros]);
+  const { exportar, exportando } = useExportar('/eventos/reporte', filtrosDeLaApi, 'incidencias');
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pagina = reporte?.eventos;
@@ -112,10 +103,7 @@ export default function ReporteEventos() {
         title="Reporte de incidencias"
         subtitle="Los eventos por tipo, estado, promotor, zona y fecha, con sus totales."
         action={(
-          <Btn variant="outline" size="md" onClick={exportar} disabled={exportando || !reporte || sinEventos}>
-            {exportando ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-            {exportando ? 'Exportando…' : 'Exportar Excel'}
-          </Btn>
+          <BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinEventos} />
         )}
       />
 
@@ -187,7 +175,7 @@ export default function ReporteEventos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((e) => (
           <Tr key={e.id}>

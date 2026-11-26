@@ -7,13 +7,14 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input,
-  Modal, PageHeader,
+  Modal, PageHeader, Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide, coincidenLasPalabras } from '../utils/texto';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { seguridad } = PERMISOS;
@@ -181,7 +182,8 @@ export default function Roles() {
     }
   };
 
-  const visibles = roles.filter((r) => coincide(busqueda, r.nombre));
+  const filtrados = roles.filter((r) => coincide(busqueda, r.nombre));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, busqueda);
   // Buscar un permiso (tarea 29): cada palabra, en el nombre del permiso o en el de su módulo. Si coincide el módulo,
   // salen todos los suyos. Solo cambia qué se ve: lo marcado que queda oculto sigue marcado y se guarda.
   const buscando = buscarPermiso.trim() !== '';
@@ -222,9 +224,10 @@ export default function Roles() {
         headers={['Rol', 'Usuarios', 'Permisos', '']}
         empty="Ningún rol coincide con la búsqueda."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || (!errorCarga && roles.length > 0)) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${roles.length} roles` : `${roles.length} roles`)}
+            resultado={cargando ? '' : (busqueda ? `${filtrados.length} de ${roles.length} roles` : `${roles.length} roles`)}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

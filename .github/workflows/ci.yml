@@ -181,7 +181,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: dotnet publish ControlGestion.API -c Release -o publicado
+      # Solo para Linux x64, el App Service: QuestPDF (tarea 33) trae su motor para 8 plataformas, y sin -r el paquete
+      # pasaba de 36 a 108 MB del 1 GB del F1, que comparte con las fotos. Sigue usando el .NET del App Service.
+      - run: dotnet publish ControlGestion.API -c Release -r linux-x64 --self-contained false -o publicado
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}

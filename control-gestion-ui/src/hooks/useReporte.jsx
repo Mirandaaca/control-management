@@ -60,19 +60,28 @@ export function useReporte(ruta, parametros, mensajeDeFallo) {
   return { datos, cargando, recargando, erroresFiltro, estado };
 }
 
-/** "Exportar Excel" de un reporte: descarga el archivo con los mismos filtros, o avisa el error en un toast. */
-export function useExportar(ruta, parametros, prefijo) {
-  const [exportando, setExportando] = useState(false);
+const FORMATOS = {
+  excel: { extension: 'xlsx', nombre: 'Excel' },
+  pdf: { extension: 'pdf', nombre: 'PDF' },
+};
 
-  const exportar = async () => {
-    setExportando(true);
+/**
+ * "Exportar Excel" y "Exportar PDF" de un reporte (el PDF, desde la tarea 33): descarga `${rutaBase}/excel` o
+ * `${rutaBase}/pdf` con los mismos filtros, o avisa el error en un toast. `exportando` dice cuál se está bajando.
+ */
+export function useExportar(rutaBase, parametros, prefijo) {
+  const [exportando, setExportando] = useState(null);
+
+  const exportar = async (formato) => {
+    const { extension, nombre } = FORMATOS[formato];
+    setExportando(formato);
     avisar.quitarError();
     try {
-      await descargar(ruta, parametros, `${prefijo}_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
+      await descargar(`${rutaBase}/${formato}`, parametros, `${prefijo}_${diaEnBolivia().replaceAll('-', '')}.${extension}`);
     } catch (err) {
-      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
+      avisar.error(mensajeDeError(err, `No se pudo exportar el reporte a ${nombre}.`));
     } finally {
-      setExportando(false);
+      setExportando(null);
     }
   };
 

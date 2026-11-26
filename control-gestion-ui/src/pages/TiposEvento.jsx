@@ -8,11 +8,12 @@ import { Table, Td, Tr } from '../components/Table';
 import { PRIORIDADES } from '../components/eventos/estados';
 import {
   Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Casilla, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Selector,
+  PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
@@ -149,8 +150,9 @@ export default function TiposEvento() {
     }
   };
 
-  const visibles = tipos.filter((t) => coincide(filtros.texto, t.nombre)
+  const filtrados = tipos.filter((t) => coincide(filtros.texto, t.nombre)
     && (!filtros.estado || (filtros.estado === 'activos') === t.activo));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, JSON.stringify(filtros));
   const total = tipos.length;
   const hayFiltros = filtros.texto !== '' || filtros.estado !== '';
   // Sin un tipo activo, la app no podría registrar eventos: el último no se desactiva ni se elimina.
@@ -186,9 +188,10 @@ export default function TiposEvento() {
         headers={['Tipo de evento', 'Pide foto', 'Prioridad', { texto: 'Eventos', derecha: true }, { texto: 'Acciones', oculto: true }]}
         empty="Ningún tipo de evento coincide con los filtros."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || (!errorCarga && total > 0)) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (hayFiltros ? `${visibles.length} de ${enPlural(total, 'tipo', 'tipos')}` : enPlural(total, 'tipo', 'tipos'))}
+            resultado={cargando ? '' : (hayFiltros ? `${filtrados.length} de ${enPlural(total, 'tipo', 'tipos')}` : enPlural(total, 'tipo', 'tipos'))}
             hayFiltros={hayFiltros}
             onLimpiar={() => setFiltros(SIN_FILTROS)}
           >

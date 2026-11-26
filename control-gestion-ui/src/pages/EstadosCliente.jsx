@@ -9,13 +9,14 @@ import { Table, Td, Tr } from '../components/Table';
 import { PALETA } from '../components/paletaDeEstados';
 import {
   Alert, AreaDeTexto, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input,
-  Modal, PageHeader,
+  Modal, PageHeader, Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { parametros } = PERMISOS;
@@ -144,7 +145,8 @@ export default function EstadosCliente() {
     }
   };
 
-  const visibles = estados.filter((e) => coincide(busqueda, e.nombre, e.descripcion));
+  const filtrados = estados.filter((e) => coincide(busqueda, e.nombre, e.descripcion));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, busqueda);
 
   let estado = null;
   if (errorCarga) estado = <ErrorDeCarga mensaje={errorCarga} onReintentar={() => { setReintentando(true); cargar(); }} reintentando={reintentando} />;
@@ -168,9 +170,10 @@ export default function EstadosCliente() {
         headers={['Estado', 'Descripción', 'Tipo', { texto: 'Clientes', derecha: true }, { texto: 'Acciones', oculto: true }]}
         empty="Ningún estado coincide con la búsqueda."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || (!errorCarga && estados.length > 0)) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${estados.length} estados` : `${estados.length} estados`)}
+            resultado={cargando ? '' : (busqueda ? `${filtrados.length} de ${estados.length} estados` : `${estados.length} estados`)}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
+import { usePaginaLocal } from '../../hooks/usePaginaLocal';
 import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearCantidad, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
 import { BarraDeFiltros, CampoFecha, Paginacion, Selector } from '../ui';
-import BotonExportar from './BotonExportar';
+import BotonesExportar from './BotonesExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
+import { TAMANO_PAGINA } from '../../utils/paginas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { categoria: '', desde: '', hasta: '' };
 const TIPOS = { 0: 'Entrada', 1: 'Salida', 2: 'Ajuste', 3: 'Devolución' };
 
@@ -31,22 +32,27 @@ const Titulo = ({ children }) => <h3 className="mb-2 mt-6 text-base font-semibol
 export default function ReporteInventario({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [numeroPagina, setNumeroPagina] = useState(1);
+  const [tamano, setTamano] = useState(TAMANO_PAGINA);
   const filtrosDeLaApi = useMemo(() => ({
     categoriaId: filtros.categoria || undefined, desde: filtros.desde || undefined, hasta: filtros.hasta || undefined,
   }), [filtros]);
-  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
+  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/inventario', parametros, 'No se pudo generar el reporte de inventario.');
-  const { exportar, exportando } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
+  const { exportar, exportando } = useExportar('/reportes/inventario', filtrosDeLaApi, 'inventario');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const movimientos = reporte?.movimientos;
-  const columnas = ['Código', 'Producto', 'Categoría', { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }];
+  // El stock y los que están bajo el mínimo llegan enteros: se paginan aquí, cada tabla con la suya. Las fechas solo
+  // filtran los movimientos, así que solo la categoría las vuelve a la página 1.
+  const stock = usePaginaLocal(reporte?.productos, filtros.categoria);
+  const bajoElMinimo = usePaginaLocal(reporte?.bajoElMinimo, filtros.categoria);
+  const columnas =['Código', 'Producto', 'Categoría', { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }];
 
   return (
     <>
-      {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
       <div {...panel}>
         <Table
           cargando={cargando && 'Generando el reporte…'} recargando={recargando}
@@ -54,6 +60,7 @@ export default function ReporteInventario({ barra, panel }) {
           headers={columnas}
           empty="No hay productos activos en esta categoría."
           estado={estado}
+          pie={<Paginacion {...stock.paginacion} deshabilitada={recargando} />}
           barra={(
             <BarraDeFiltros resultado={reporte ? `${reporte.productos.length} ${reporte.productos.length === 1 ? 'producto' : 'productos'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
@@ -74,15 +81,16 @@ export default function ReporteInventario({ barra, panel }) {
             </BarraDeFiltros>
           )}
         >
-          {reporte ? filasDeProductos(reporte.productos) : []}
+          {filasDeProductos(stock.visibles)}
         </Table>
 
         {reporte && (
           <>
             <Titulo>Bajo el mínimo</Titulo>
             <Table titulo="Bajo el mínimo" headers={[...columnas, { texto: 'Falta', derecha: true }]}
-              empty="Ningún producto está por debajo de su mínimo.">
-              {filasDeProductos(reporte.bajoElMinimo, true)}
+              empty="Ningún producto está por debajo de su mínimo."
+              pie={<Paginacion {...bajoElMinimo.paginacion} deshabilitada={recargando} />}>
+              {filasDeProductos(bajoElMinimo.visibles, true)}
             </Table>
 
             <Titulo>Movimientos</Titulo>
@@ -90,7 +98,9 @@ export default function ReporteInventario({ barra, panel }) {
               titulo="Movimientos"
               headers={['Fecha', 'Producto', 'Tipo', { texto: 'Cantidad', derecha: true }, { texto: 'Stock resultante', derecha: true }, 'Usuario']}
               empty="No hay movimientos en el período."
-              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
+              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina}
+                total={movimientos.total} tamano={movimientos.tamano}
+                onCambiarTamano={(nuevo) => { setTamano(nuevo); setNumeroPagina(1); }} deshabilitada={recargando} />}
             >
               {movimientos.items.map((m) => (
                 <Tr key={m.id}>

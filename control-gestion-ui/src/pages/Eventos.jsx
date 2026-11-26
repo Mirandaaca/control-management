@@ -24,7 +24,6 @@ import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const { eventos: permisos, seguridad } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', tipo: '', estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
 /**
@@ -40,7 +39,7 @@ export default function Eventos() {
   const acciones = (evento) => accionesDelEvento(evento, { tiene, permisos, veCarteraCompleta, yo });
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -72,7 +71,7 @@ export default function Eventos() {
     return api.get('/eventos', {
       params: {
         pagina: numeroPagina,
-        tamano: TAMANO_PAGINA,
+        tamano,
         buscar: busqueda || undefined,
         tipoEventoId: filtros.tipo || undefined,
         estado: filtros.estado || undefined,
@@ -85,7 +84,7 @@ export default function Eventos() {
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de eventos.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde,
+  }, [numeroPagina, tamano, busqueda, filtros.tipo, filtros.estado, filtros.zona, filtros.promotor, filtros.desde,
     filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
@@ -204,7 +203,7 @@ export default function Eventos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {eventos.map((e) => (
           <Tr key={e.id}>

@@ -40,6 +40,14 @@ public class CobranzasController(CobranzaService cobranzas, ReporteCobranzasServ
         return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
 
+    [HttpGet("reporte/pdf")]
+    [Permiso(Permisos.Cobranzas.GenerarReporte)]
+    public async Task<IActionResult> GetReportePdf([FromQuery] FiltrosCobranzaDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.PdfAsync(filtros);
+        return File(contenido, "application/pdf", nombre);
+    }
+
     [HttpGet("{id}")]
     [Permiso(Permisos.Cobranzas.ConsultarDeudas, Permisos.Cobranzas.ConsultarPagos)]
     public async Task<ActionResult<CobranzaDetalleDTO>> GetById(int id) =>

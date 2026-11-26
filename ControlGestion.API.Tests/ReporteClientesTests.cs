@@ -132,6 +132,54 @@ public class ReporteClientesTests(ApiDePrueba api)
         Assert.Equal([suyo], reporte.GetProperty("nuevos").GetProperty("items").EnumerateArray().Select(c => c.GetProperty("id").GetInt32()));
     }
 
+    // Tarea 33: el PDF, con el mismo período, la misma cartera y la misma regla de "sin datos". Usa octubre y noviembre.
+
+    private static async Task<string> CodigoAsync(HttpClient operador, int clienteId) =>
+        (await (await operador.GetAsync($"/api/clientes/{clienteId}")).LeerJsonAsync()).GetProperty("codigo").GetString()!;
+
+    [Fact]
+    public async Task El_PDF_trae_las_cantidades_y_las_dos_listas_del_periodo()
+    {
+        using var operador = await api.OperadorAsync();
+        var escenario = await MesAsync(operador, 10);
+        using var gerente = await GerenteAsync();
+
+        var texto = await (await gerente.GetAsync("/api/reportes/clientes/pdf?desde=2003-10-01&hasta=2003-10-31")).TextoDelPdfAsync("clientes");
+
+        Assert.Contains("Reporte de clientes nuevos y recurrentes", texto);
+        Assert.Contains("Período: 01/10/2003 al 31/10/2003", texto);
+        Assert.Contains("Clientes nuevos (registrados en el período) 2", texto);
+        Assert.Contains("Clientes recurrentes (registrados antes, con compras en el período) 1", texto);
+        // Registrado a las 16:00 UTC: las 12:00 de Bolivia.
+        Assert.Contains($"{await CodigoAsync(operador, escenario.NuevoQueCompro)}", texto);
+        Assert.Contains("11/10/2003 12:00", texto);
+        Assert.Contains(await CodigoAsync(operador, escenario.Recurrente), texto);
+    }
+
+    [Fact]
+    public async Task El_PDF_respeta_la_cartera_sin_clientes_no_se_exporta_y_pide_su_permiso()
+    {
+        using var operador = await api.OperadorAsync();
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Reportes.ClientesNuevosRecurrentes, Permisos.Territorial.RecorrerRuta);
+        var usuario = await api.CrearUsuarioAsync(rol);
+        var suyo = await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id));
+        var ajeno = await operador.CrearClienteAsync(await operador.CrearZonaAsync());
+        await RegistradoElAsync(suyo, Dia(11, 5));
+        await RegistradoElAsync(ajeno, Dia(11, 6));
+        using var cliente = api.ClienteCon(usuario.Token);
+
+        var texto = await (await cliente.GetAsync("/api/reportes/clientes/pdf?desde=2003-11-01&hasta=2003-11-30")).TextoDelPdfAsync("clientes");
+
+        Assert.Contains(await CodigoAsync(operador, suyo), texto);
+        Assert.DoesNotContain(await CodigoAsync(operador, ajeno), texto);
+        using var gerente = await GerenteAsync();
+        await (await gerente.GetAsync("/api/reportes/clientes/pdf")).ProblemaAsync(400, "validacion");
+        await (await gerente.GetAsync("/api/reportes/clientes/pdf?desde=2003-12-01&hasta=2003-12-31")).ProblemaAsync(400, "reporte_sin_datos");
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+        await (await secretaria.GetAsync("/api/reportes/clientes/pdf?desde=2003-11-01&hasta=2003-11-30")).ProblemaAsync(403, "sin_permiso");
+    }
+
     [Fact]
     public async Task Pide_las_dos_fechas_sin_clientes_no_exporta_y_pide_su_permiso()
     {

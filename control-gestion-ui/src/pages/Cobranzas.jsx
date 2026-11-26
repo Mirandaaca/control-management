@@ -27,7 +27,6 @@ import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const { cobranzas: permisos, seguridad } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', desde: '', hasta: '' };
 
 // Las abiertas son las que todavía se deben: reciben pagos y cuentan en el saldo.
@@ -56,7 +55,7 @@ export default function Cobranzas() {
 
   const [pagina, setPagina] = useState(null);
   const [resumen, setResumen] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -93,13 +92,13 @@ export default function Cobranzas() {
       hasta: filtros.hasta || undefined,
     };
     return Promise.all([
-      api.get('/cobranzas', { params: { ...params, pagina: numeroPagina, tamano: TAMANO_PAGINA } }),
+      api.get('/cobranzas', { params: { ...params, pagina: numeroPagina, tamano } }),
       api.get('/cobranzas/resumen', { params }),
     ])
       .then(siVigente(([lista, totales]) => { setPagina(lista.data); setResumen(totales.data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de cobranzas.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.estado, filtros.desde, filtros.hasta, nuevaPeticion]);
+  }, [numeroPagina, tamano, busqueda, filtros.estado, filtros.desde, filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -305,7 +304,7 @@ export default function Cobranzas() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {cobranzas.map((c) => (
           <Tr key={c.id}>

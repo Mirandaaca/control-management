@@ -18,6 +18,7 @@ public class ReportesController(
     ReporteInventarioService inventario) : ControllerBase
 {
     private const string TipoExcel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private const string TipoPdf = "application/pdf";
 
     // Sin operación en el catálogo: es el inicio del panel, y cada usuario lo ve con su cartera.
     [HttpGet("tablero")]
@@ -34,10 +35,42 @@ public class ReportesController(
     public async Task<ActionResult<ReporteVentasPorZonaDTO>> GetVentasPorZona([FromQuery] FiltrosPeriodoDTO filtros) =>
         await ventas.PorZonaAsync(filtros);
 
+    [HttpGet("ventas-por-zona/excel")]
+    [Permiso(Permisos.Reportes.VentasPorZona)]
+    public async Task<IActionResult> GetVentasPorZonaExcel([FromQuery] FiltrosPeriodoDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.ExcelPorZonaAsync(filtros);
+        return File(contenido, TipoExcel, nombre);
+    }
+
+    [HttpGet("ventas-por-zona/pdf")]
+    [Permiso(Permisos.Reportes.VentasPorZona)]
+    public async Task<IActionResult> GetVentasPorZonaPdf([FromQuery] FiltrosPeriodoDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.PdfPorZonaAsync(filtros);
+        return File(contenido, TipoPdf, nombre);
+    }
+
     [HttpGet("ventas-por-promotor")]
     [Permiso(Permisos.Reportes.VentasPorPromotor)]
     public async Task<ActionResult<ReporteVentasPorPromotorDTO>> GetVentasPorPromotor([FromQuery] FiltrosVentasPorPromotorDTO filtros) =>
         await ventas.PorPromotorAsync(filtros);
+
+    [HttpGet("ventas-por-promotor/excel")]
+    [Permiso(Permisos.Reportes.VentasPorPromotor)]
+    public async Task<IActionResult> GetVentasPorPromotorExcel([FromQuery] FiltrosVentasPorPromotorDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.ExcelPorPromotorAsync(filtros);
+        return File(contenido, TipoExcel, nombre);
+    }
+
+    [HttpGet("ventas-por-promotor/pdf")]
+    [Permiso(Permisos.Reportes.VentasPorPromotor)]
+    public async Task<IActionResult> GetVentasPorPromotorPdf([FromQuery] FiltrosVentasPorPromotorDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.PdfPorPromotorAsync(filtros);
+        return File(contenido, TipoPdf, nombre);
+    }
 
     [HttpGet("clientes")]
     [Permiso(Permisos.Reportes.ClientesNuevosRecurrentes)]
@@ -52,6 +85,14 @@ public class ReportesController(
         return File(contenido, TipoExcel, nombre);
     }
 
+    [HttpGet("clientes/pdf")]
+    [Permiso(Permisos.Reportes.ClientesNuevosRecurrentes)]
+    public async Task<IActionResult> GetClientesPdf([FromQuery] FiltrosReporteClientesDTO filtros)
+    {
+        var (contenido, nombre) = await clientes.PdfAsync(filtros);
+        return File(contenido, TipoPdf, nombre);
+    }
+
     [HttpGet("inventario")]
     [Permiso(Permisos.Reportes.Inventario)]
     public async Task<ActionResult<ReporteInventarioDTO>> GetInventario([FromQuery] FiltrosReporteInventarioDTO filtros) =>
@@ -63,5 +104,13 @@ public class ReportesController(
     {
         var (contenido, nombre) = await inventario.ExcelAsync(filtros);
         return File(contenido, TipoExcel, nombre);
+    }
+
+    [HttpGet("inventario/pdf")]
+    [Permiso(Permisos.Reportes.Inventario)]
+    public async Task<IActionResult> GetInventarioPdf([FromQuery] FiltrosReporteInventarioDTO filtros)
+    {
+        var (contenido, nombre) = await inventario.PdfAsync(filtros);
+        return File(contenido, TipoPdf, nombre);
     }
 }

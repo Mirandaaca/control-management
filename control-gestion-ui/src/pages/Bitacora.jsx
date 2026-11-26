@@ -3,7 +3,7 @@ import { ScrollText } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import BotonExportar from '../components/reportes/BotonExportar';
+import BotonesExportar from '../components/reportes/BotonesExportar';
 import { Table, Td, Tr } from '../components/Table';
 import { Alert, BarraDeFiltros, CampoFecha, EstadoVacio, PageHeader, Paginacion, Selector } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -12,7 +12,6 @@ import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
 import { formatearFecha } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { usuario: '', modulo: '', desde: '', hasta: '' };
 
 /**
@@ -20,7 +19,7 @@ const SIN_FILTROS = { usuario: '', modulo: '', desde: '', hasta: '' };
  * al más antiguo. Solo se consulta y se exporta: los registros no se modifican ni se eliminan.
  */
 export default function Bitacora() {
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [opciones, setOpciones] = useState({ usuarios: [], modulos: [] });
 
   useEffect(() => {
@@ -35,10 +34,10 @@ export default function Bitacora() {
     desde: filtros.desde || undefined,
     hasta: filtros.hasta || undefined,
   }), [filtros]);
-  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
+  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const { datos: pagina, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/bitacora', parametros, 'No se pudo consultar la bitácora.');
-  const { exportar, exportando } = useExportar('/bitacora/excel', filtrosDeLaApi, 'bitacora');
+  const { exportar, exportando } = useExportar('/bitacora', filtrosDeLaApi, 'bitacora');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -56,7 +55,7 @@ export default function Bitacora() {
       <PageHeader
         title="Bitácora"
         subtitle="Quién hizo cada operación y cuándo. Los registros no se modifican ni se eliminan."
-        action={<BotonExportar onExportar={exportar} exportando={exportando} disabled={!pagina || sinRegistros} />}
+        action={<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!pagina || sinRegistros} />}
       />
 
       {sinRegistros && hayFiltros && (
@@ -92,7 +91,8 @@ export default function Bitacora() {
             </div>
           </BarraDeFiltros>
         )}
-        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
+        pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+          total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((r) => (
           <Tr key={r.id}>

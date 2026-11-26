@@ -26,7 +26,6 @@ import { formatearFecha, formatearMonto } from '../utils/formato';
 import { atajosDePeriodo } from '../utils/fechas';
 
 const { pedidos: permisos, seguridad } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', zona: '', promotor: '', asignado: '', desde: '', hasta: '' };
 // Valor del filtro "Asignado a" para los pedidos que todavía no tienen promotor asignado.
 const SIN_ASIGNAR = 'sin-asignar';
@@ -44,7 +43,7 @@ export default function Pedidos() {
   const eligePromotor = tiene(...ELIGEN_PROMOTOR);
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -93,7 +92,7 @@ export default function Pedidos() {
     return api.get('/pedidos', {
       params: {
         pagina: numeroPagina,
-        tamano: TAMANO_PAGINA,
+        tamano,
         buscar: busqueda || undefined,
         estadoId: filtros.estado || undefined,
         zonaId: filtros.zona || undefined,
@@ -107,7 +106,7 @@ export default function Pedidos() {
       .then(siVigente(({ data }) => { setPagina(data); actualizarElegidos(data.items); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de pedidos.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde,
+  }, [numeroPagina, tamano, busqueda, filtros.estado, filtros.zona, filtros.promotor, filtros.asignado, filtros.desde,
     filtros.hasta, actualizarElegidos, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
@@ -274,7 +273,7 @@ export default function Pedidos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {pedidos.map((p) => (
           <Tr key={p.id}>

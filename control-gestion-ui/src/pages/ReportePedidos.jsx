@@ -1,37 +1,36 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CalendarX, Download, LoaderCircle, Package } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarX, Package } from 'lucide-react';
 import api from '../api/axios';
-import { descargar } from '../api/descargas';
 import { erroresPorCampo, mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import EstadoPedido from '../components/pedidos/EstadoPedido';
 import {
-  Alert, BarraDeFiltros, Btn, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
+  Alert, BarraDeFiltros, CampoFecha, ErrorDeCarga, EsqueletoDeIndicadores, EstadoVacio, Indicador, PageHeader,
   Paginacion, Selector, ZonaDeCarga,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
-import { diaEnBolivia, formatearFecha, formatearMonto } from '../utils/formato';
+import { formatearFecha, formatearMonto } from '../utils/formato';
+import BotonesExportar from '../components/reportes/BotonesExportar';
 import { useFiltrosEnLaUrl } from '../hooks/useFiltrosEnLaUrl';
+import { useExportar } from '../hooks/useReporte';
 import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { atajosDePeriodo } from '../utils/fechas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
 /**
  * Reporte de pedidos (1.4): los pedidos con los filtros de estado, zona, promotor y días de entrega, los totales por
- * estado y el Excel con los mismos filtros. El total general no suma los anulados.
+ * estado y el Excel y el PDF (tarea 33) con los mismos filtros. El total general no suma los anulados.
  */
 export default function ReportePedidos() {
   const [reporte, setReporte] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
   const [erroresFiltro, setErroresFiltro] = useState({});
-  const [exportando, setExportando] = useState(false);
   const [estados, setEstados] = useState([]);
   const [zonas, setZonas] = useState([]);
   const [promotores, setPromotores] = useState([]);
@@ -44,13 +43,13 @@ export default function ReportePedidos() {
 
   const parametros = useCallback((pagina) => ({
     pagina,
-    tamano: TAMANO_PAGINA,
+    tamano,
     estadoId: filtros.estado || undefined,
     zonaId: filtros.zona || undefined,
     promotorId: filtros.promotor || undefined,
     desde: filtros.desde || undefined,
     hasta: filtros.hasta || undefined,
-  }), [filtros]);
+  }), [filtros, tamano]);
 
   const nuevaPeticion = usePeticionVigente();
 
@@ -72,21 +71,13 @@ export default function ReportePedidos() {
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
 
-  const exportar = async () => {
-    setExportando(true);
-    avisar.quitarError();
-    try {
-      await descargar('/pedidos/reporte/excel', parametros(undefined), `pedidos_${diaEnBolivia().replaceAll('-', '')}.xlsx`);
-    } catch (err) {
-      avisar.error(mensajeDeError(err, 'No se pudo exportar el reporte a Excel.'));
-    } finally {
-      setExportando(false);
-    }
-  };
+  // El Excel y el PDF llevan los mismos filtros, sin la página.
+  const filtrosDeLaApi = useMemo(() => parametros(undefined), [parametros]);
+  const { exportar, exportando } = useExportar('/pedidos/reporte', filtrosDeLaApi, 'pedidos');
 
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const pagina = reporte?.pedidos;
-  // Los anulados también cuentan: son filas del Excel.
+  // Los anulados también cuentan: son filas del Excel y del PDF.
   const sinPedidos = pagina?.total === 0;
 
   let estado = null;
@@ -106,10 +97,7 @@ export default function ReportePedidos() {
         title="Reporte de pedidos"
         subtitle="Los pedidos por estado, zona, promotor y fecha de entrega. El total no suma los anulados."
         action={(
-          <Btn variant="outline" size="md" onClick={exportar} disabled={exportando || !reporte || sinPedidos}>
-            {exportando ? <LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-            {exportando ? 'Exportando…' : 'Exportar Excel'}
-          </Btn>
+          <BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinPedidos} />
         )}
       />
 
@@ -169,7 +157,7 @@ export default function ReportePedidos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((p) => (
           <Tr key={p.id}>

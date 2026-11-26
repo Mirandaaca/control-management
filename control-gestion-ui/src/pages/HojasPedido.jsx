@@ -26,7 +26,6 @@ import { formatearCantidad, formatearFecha, formatearMonto } from '../utils/form
 import { atajosDePeriodo } from '../utils/fechas';
 
 const { ventas, seguridad, reportes } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', estado: '', tipo: '', desde: '', hasta: '' };
 
 // TipoVenta de la API.
@@ -53,7 +52,7 @@ export default function HojasPedido() {
   const veCarteraCompleta = tiene(seguridad.verCarteraCompleta);
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -72,7 +71,7 @@ export default function HojasPedido() {
     return api.get('/hojas-pedido', {
       params: {
         pagina: numeroPagina,
-        tamano: TAMANO_PAGINA,
+        tamano,
         buscar: busqueda || undefined,
         estado: filtros.estado || undefined,
         tipoVenta: filtros.tipo || undefined,
@@ -83,7 +82,7 @@ export default function HojasPedido() {
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de hojas de pedido.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta, nuevaPeticion]);
+  }, [numeroPagina, tamano, busqueda, filtros.estado, filtros.tipo, filtros.desde, filtros.hasta, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -181,7 +180,7 @@ export default function HojasPedido() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {hojas.map((hp) => (
           <Tr key={hp.id}>

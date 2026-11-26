@@ -8,6 +8,7 @@ import {
   aTextoDeDia, dateADia, diaADate, enmascararDia, enmascararHora, HORAS_DEL_DIA, textoADia, textoAHora,
 } from '../../utils/fechas';
 import { diaEnBolivia } from '../../utils/formato';
+import { TAMANOS_DE_PAGINA } from '../../utils/paginas';
 import { coincide } from '../../utils/texto';
 import { Calendario } from './calendar';
 import { Checkbox } from './checkbox';
@@ -854,12 +855,33 @@ export function BarraDeFiltros({ children, resultado, hayFiltros, onLimpiar }) {
   );
 }
 
-/** Página anterior y siguiente de una lista paginada en la API. Mientras la lista recarga, quedan deshabilitadas. */
-export function Paginacion({ pagina, totalPaginas, onCambiar, deshabilitada = false }) {
-  if (totalPaginas <= 1) return null;
+/**
+ * La página de una lista: "Página N de M", las filas por página (25, 50 o 100, con `onCambiarTamano` y `total`) y
+ * Anterior y Siguiente. Con el selector, el pie se ve si hay más filas que la página más chica (tarea 33): si se ocultara
+ * con una sola página, con 100 por página no habría cómo volver a 25. Mientras la lista recarga, todo queda deshabilitado.
+ */
+export function Paginacion({ pagina, totalPaginas, onCambiar, deshabilitada = false, total, tamano, onCambiarTamano }) {
+  const idTamano = useId();
+  const conTamano = Boolean(onCambiarTamano) && total != null;
+  if (conTamano ? total <= TAMANOS_DE_PAGINA[0] : totalPaginas <= 1) return null;
   return (
-    <nav aria-label="Paginación" className="flex items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
-      <span>Página {pagina} de {totalPaginas}</span>
+    <nav aria-label="Paginación" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-3 border-t border-slate-200 text-sm text-slate-600">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <span>Página {pagina} de {totalPaginas}</span>
+        {conTamano && (
+          <div className="flex items-center gap-2">
+            <label htmlFor={idTamano}>Filas por página</label>
+            <Select value={String(tamano)} onValueChange={(v) => onCambiarTamano(Number(v))} disabled={deshabilitada}>
+              <SelectTrigger id={idTamano} size="sm" className="w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TAMANOS_DE_PAGINA.map((t) => <SelectItem key={t} value={String(t)}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
       <div className="flex gap-2">
         <Btn variant="outline" onClick={() => onCambiar(pagina - 1)} disabled={deshabilitada || pagina <= 1}>
           <ChevronLeft size={14} aria-hidden="true" />

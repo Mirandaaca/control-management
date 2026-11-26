@@ -61,6 +61,14 @@ public class PedidosController(PedidoService pedidos, ReportePedidosService repo
         return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
 
+    [HttpGet("reporte/pdf")]
+    [Permiso(Permisos.Pedidos.GenerarReporte)]
+    public async Task<IActionResult> GetReportePdf([FromQuery] FiltrosPedidoDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.PdfAsync(filtros);
+        return File(contenido, "application/pdf", nombre);
+    }
+
     [HttpGet("estados")]
     public async Task<ActionResult<List<EstadoPedidoDTO>>> GetEstados() =>
         await pedidos.EstadosAsync();

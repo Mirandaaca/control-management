@@ -140,6 +140,9 @@ builder.Services.AddScoped<ControlGestion.API.Services.EstadoClienteService>();
 builder.Services.AddScoped<ControlGestion.API.Services.ZonaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.PuntoReferenciaService>();
 builder.Services.AddScoped<ControlGestion.API.Services.BitacoraService>();
+// Los reportes en PDF (tarea 33): QuestPDF, con la letra Inter embebida.
+ControlGestion.API.Services.Pdf.GeneradorDePdf.Configurar();
+builder.Services.AddSingleton<ControlGestion.API.Services.Pdf.GeneradorDePdf>();
 builder.Services.AddHostedService<ControlGestion.API.Services.ProcesoDiarioService>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 

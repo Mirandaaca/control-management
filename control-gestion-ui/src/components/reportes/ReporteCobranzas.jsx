@@ -12,10 +12,10 @@ import { ESTADOS_DE_COBRANZA, textoDeMora } from '../cobranzas/estados';
 import { Table, Td, Tr } from '../Table';
 import { Alert, BarraDeFiltros, Btn, CampoFecha, Combobox, EstadoVacio, Paginacion, Selector } from '../ui';
 import { avisar } from '../ui/avisar';
-import BotonExportar from './BotonExportar';
+import BotonesExportar from './BotonesExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
+import { TAMANO_PAGINA } from '../../utils/paginas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', promotor: '', cliente: '', desde: '', hasta: '' };
 // Las incobrables y las anuladas ya no se cobran: tienen su fila, pero la fila Total no las suma.
 const FUERA_DEL_TOTAL = [4, 5];
@@ -74,6 +74,7 @@ export default function ReporteCobranzas({ barra, panel }) {
   const [vista, setVista] = useState(POR_COBRANZA);
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [numeroPagina, setNumeroPagina] = useState(1);
+  const [tamano, setTamano] = useState(TAMANO_PAGINA);
   const [abiertos, setAbiertos] = useState(() => new Set());
   const [promotores, setPromotores] = useState([]);
   const opcionesDeClientes = useOpcionesDeClientes({ incluirInactivos: true });
@@ -92,14 +93,15 @@ export default function ReporteCobranzas({ barra, panel }) {
     desde: filtros.desde || undefined,
     hasta: filtros.hasta || undefined,
   }), [filtros]);
-  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
+  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const porCliente = vista === POR_CLIENTE;
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } = useReporte(
     porCliente ? '/cobranzas/reporte/por-cliente' : '/cobranzas/reporte', parametros, 'No se pudo generar el reporte de cobranzas.');
-  // El Excel trae las dos: las cobranzas y la hoja "Por cliente".
-  const { exportar, exportando } = useExportar('/cobranzas/reporte/excel', filtrosDeLaApi, 'cobranzas');
+  // El Excel y el PDF traen las dos: las cobranzas y lo que debe cada cliente.
+  const { exportar, exportando } = useExportar('/cobranzas/reporte', filtrosDeLaApi, 'cobranzas');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
+  const cambiarTamano = (nuevo) => { setTamano(nuevo); setNumeroPagina(1); };
   const cambiarVista = (nueva) => { setVista(nueva); setNumeroPagina(1); setAbiertos(new Set()); };
   const alternar = (clienteId) => setAbiertos((antes) => {
     const despues = new Set(antes);
@@ -156,12 +158,13 @@ export default function ReporteCobranzas({ barra, panel }) {
   );
   const mostrarBarra = cargando || deOtraVista || hayFiltros || pagina?.total > 0;
   const pie = pagina && (
-    <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />
+    <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
+      total={pagina.total} tamano={pagina.tamano} onCambiarTamano={cambiarTamano} deshabilitada={recargando} />
   );
 
   return (
     <>
-      {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinCobranzas} />)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinCobranzas} />)}
       <div {...panel}>
         {sinCobranzas && hayFiltros && (
           <Alert type="info" className="mb-4">Ninguna cobranza coincide con los filtros: no hay nada que exportar.</Alert>

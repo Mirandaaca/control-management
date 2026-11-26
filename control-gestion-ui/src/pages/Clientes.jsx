@@ -23,7 +23,6 @@ import { mostrarPrimerProblema } from '../utils/foco';
 import { diasDesdeHoy, formatearFecha, formatearMonto } from '../utils/formato';
 
 const { ventas, seguridad } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', zonaId: '', estadoId: '', porVisitar: false };
 const FORMULARIO_VACIO = {
   nombreCompleto: '', telefono: '', razonSocial: '', nit: '', email: '', direccionTexto: '', zonaId: '', ubicacion: null,
@@ -69,7 +68,7 @@ export default function Clientes() {
   const puedeCambiarUbicacion = tiene(ventas.capturarUbicacion);
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [zonas, setZonas] = useState([]);
   const [estados, setEstados] = useState([]);
@@ -106,7 +105,7 @@ export default function Clientes() {
     return api.get('/clientes', {
       params: {
         pagina: numeroPagina,
-        tamano: TAMANO_PAGINA,
+        tamano,
         buscar: busqueda || undefined,
         zonaId: filtros.zonaId || undefined,
         estadoId: filtros.estadoId || undefined,
@@ -116,7 +115,7 @@ export default function Clientes() {
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de clientes.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.zonaId, filtros.estadoId, filtros.porVisitar, nuevaPeticion]);
+  }, [numeroPagina, tamano, busqueda, filtros.zonaId, filtros.estadoId, filtros.porVisitar, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -312,7 +311,7 @@ export default function Clientes() {
         )}
         pie={pagina && (
           <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />
         )}
       >
         {clientes.map((c) => (

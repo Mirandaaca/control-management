@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
+import { TAMANO_PAGINA, tamanoValido } from '../utils/paginas';
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -17,7 +18,7 @@ const filtrosDe = (parametros, sinFiltros) => Object.fromEntries(
 );
 
 /**
- * Los filtros y la página de una lista, guardados en la URL (docs/diseno.md, sección 8): al recargar, al volver atrás o
+ * Los filtros, la página y las filas por página de una lista, guardados en la URL (docs/diseno.md, sección 8): al recargar, al volver atrás o
  * al abrir un enlace, la lista queda como estaba. Devuelve lo mismo que dos useState, así cada pantalla cambia solo esa
  * línea. La URL lleva solo lo que no es el valor por defecto.
  *
@@ -38,6 +39,7 @@ export function useFiltrosEnLaUrl(sinFiltros) {
   const filtros = local?.desde === search ? local.filtros : deLaUrl;
   const pagina = Number.parseInt(parametros.get('pagina') ?? '', 10);
   const numeroPagina = Number.isInteger(pagina) && pagina > 1 ? pagina : 1;
+  const tamano = tamanoValido(parametros.get('tamano') ?? TAMANO_PAGINA);
 
   // Solo se llama desde los manejadores de eventos: ahí se puede leer el ref.
   const escribir = (cambiar, reemplazar) => {
@@ -65,5 +67,13 @@ export function useFiltrosEnLaUrl(sinFiltros) {
     else nuevos.delete('pagina');
   }, false);
 
-  return { filtros, setFiltros, numeroPagina, setNumeroPagina };
+  // Las filas por página (tarea 33) se guardan como un filtro: reemplazan la entrada y vuelven a la página 1. Los filtros
+  // no las tocan, así que se conservan al buscar o limpiar.
+  const setTamano = (nuevo) => escribir((nuevos) => {
+    if (nuevo === TAMANO_PAGINA) nuevos.delete('tamano');
+    else nuevos.set('tamano', String(nuevo));
+    nuevos.delete('pagina');
+  }, true);
+
+  return { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano };
 }
