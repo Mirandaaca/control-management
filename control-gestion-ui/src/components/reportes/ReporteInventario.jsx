@@ -6,8 +6,8 @@ import { Table, Td, Tr } from '../Table';
 import { BarraDeFiltros, CampoFecha, Paginacion, Selector } from '../ui';
 import BotonExportar from './BotonExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
+import { TAMANO_PAGINA } from '../../utils/paginas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { categoria: '', desde: '', hasta: '' };
 const TIPOS = { 0: 'Entrada', 1: 'Salida', 2: 'Ajuste', 3: 'Devolución' };
 
@@ -32,10 +32,11 @@ const Titulo = ({ children }) => <h3 className="mb-2 mt-6 text-base font-semibol
 export default function ReporteInventario({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const [numeroPagina, setNumeroPagina] = useState(1);
+  const [tamano, setTamano] = useState(TAMANO_PAGINA);
   const filtrosDeLaApi = useMemo(() => ({
     categoriaId: filtros.categoria || undefined, desde: filtros.desde || undefined, hasta: filtros.hasta || undefined,
   }), [filtros]);
-  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano: TAMANO_PAGINA }), [filtrosDeLaApi, numeroPagina]);
+  const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/inventario', parametros, 'No se pudo generar el reporte de inventario.');
   const { exportar, exportando } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
@@ -97,7 +98,9 @@ export default function ReporteInventario({ barra, panel }) {
               titulo="Movimientos"
               headers={['Fecha', 'Producto', 'Tipo', { texto: 'Cantidad', derecha: true }, { texto: 'Stock resultante', derecha: true }, 'Usuario']}
               empty="No hay movimientos en el período."
-              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina} deshabilitada={recargando} />}
+              pie={<Paginacion pagina={movimientos.numeroPagina} totalPaginas={movimientos.totalPaginas} onCambiar={setNumeroPagina}
+                total={movimientos.total} tamano={movimientos.tamano}
+                onCambiarTamano={(nuevo) => { setTamano(nuevo); setNumeroPagina(1); }} deshabilitada={recargando} />}
             >
               {movimientos.items.map((m) => (
                 <Tr key={m.id}>

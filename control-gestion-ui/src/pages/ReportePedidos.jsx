@@ -17,7 +17,6 @@ import { useRecarga } from '../hooks/useRecarga';
 import { usePeticionVigente } from '../hooks/usePeticionVigente';
 import { atajosDePeriodo } from '../utils/fechas';
 
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' };
 
 /**
@@ -26,7 +25,7 @@ const SIN_FILTROS = { estado: '', zona: '', promotor: '', desde: '', hasta: '' }
  */
 export default function ReportePedidos() {
   const [reporte, setReporte] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
   const [errorCarga, setErrorCarga] = useState('');
@@ -44,13 +43,13 @@ export default function ReportePedidos() {
 
   const parametros = useCallback((pagina) => ({
     pagina,
-    tamano: TAMANO_PAGINA,
+    tamano,
     estadoId: filtros.estado || undefined,
     zonaId: filtros.zona || undefined,
     promotorId: filtros.promotor || undefined,
     desde: filtros.desde || undefined,
     hasta: filtros.hasta || undefined,
-  }), [filtros]);
+  }), [filtros, tamano]);
 
   const nuevaPeticion = usePeticionVigente();
 
@@ -169,7 +168,7 @@ export default function ReportePedidos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {(pagina?.items ?? []).map((p) => (
           <Tr key={p.id}>

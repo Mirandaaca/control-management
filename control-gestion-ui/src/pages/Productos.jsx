@@ -22,7 +22,6 @@ import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearCantidad, formatearMonto } from '../utils/formato';
 
 const { parametros } = PERMISOS;
-const TAMANO_PAGINA = 25;
 const SIN_FILTROS = { texto: '', categoria: '' };
 const FORMULARIO_VACIO = { sku: '', descripcion: '', categoriaId: '', precioCompra: '', precio: '', stockMinimo: '0' };
 
@@ -36,7 +35,7 @@ export default function Productos() {
   const puedeEliminar = tiene(parametros.eliminarProducto);
 
   const [pagina, setPagina] = useState(null);
-  const { filtros, setFiltros, numeroPagina, setNumeroPagina } = useFiltrosEnLaUrl(SIN_FILTROS);
+  const { filtros, setFiltros, numeroPagina, setNumeroPagina, tamano, setTamano } = useFiltrosEnLaUrl(SIN_FILTROS);
   const busqueda = useDemorado(filtros.texto.trim(), 300);
   const [cargando, setCargando] = useState(true);
   const [reintentando, setReintentando] = useState(false);
@@ -62,13 +61,13 @@ export default function Productos() {
     const siVigente = nuevaPeticion();
     return api.get('/productos', {
       params: {
-        pagina: numeroPagina, tamano: TAMANO_PAGINA, buscar: busqueda || undefined, categoriaId: filtros.categoria || undefined,
+        pagina: numeroPagina, tamano, buscar: busqueda || undefined, categoriaId: filtros.categoria || undefined,
       },
     })
       .then(siVigente(({ data }) => { setPagina(data); setErrorCarga(''); }))
       .catch(siVigente((err) => setErrorCarga(mensajeDeError(err, 'No se pudo cargar la lista de productos.'))))
       .finally(siVigente(() => { setCargando(false); setReintentando(false); }));
-  }, [numeroPagina, busqueda, filtros.categoria, nuevaPeticion]);
+  }, [numeroPagina, tamano, busqueda, filtros.categoria, nuevaPeticion]);
 
   const { recargando, terminar } = useRecarga(cargar);
   useEffect(() => { cargar().finally(() => terminar(cargar)); }, [cargar, terminar]);
@@ -212,7 +211,7 @@ export default function Productos() {
           </BarraDeFiltros>
         )}
         pie={pagina && <Paginacion pagina={pagina.numeroPagina} totalPaginas={pagina.totalPaginas} onCambiar={setNumeroPagina}
-            deshabilitada={recargando} />}
+            total={pagina.total} tamano={pagina.tamano} onCambiarTamano={setTamano} deshabilitada={recargando} />}
       >
         {productos.map((p) => (
           <Tr key={p.id}>

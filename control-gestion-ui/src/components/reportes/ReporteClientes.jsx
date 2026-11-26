@@ -6,8 +6,8 @@ import { Table, Td, Tr } from '../Table';
 import { Alert, BarraDeFiltros, CampoFecha, EsqueletoDeIndicadores, Indicador, Paginacion, ZonaDeCarga } from '../ui';
 import BotonExportar from './BotonExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
+import { TAMANO_PAGINA } from '../../utils/paginas';
 
-const TAMANO_PAGINA = 25;
 
 // El período pide las dos fechas (ext. 2a): empieza con el mes en curso.
 const delMesEnCurso = () => {
@@ -34,9 +34,12 @@ export default function ReporteClientes({ barra, panel }) {
   const [periodo, setPeriodo] = useState(delMesEnCurso);
   const [paginaNuevos, setPaginaNuevos] = useState(1);
   const [paginaRecurrentes, setPaginaRecurrentes] = useState(1);
+  // Las dos tablas comparten las filas por página: la API recibe un solo `tamano`.
+  const [tamano, setTamano] = useState(TAMANO_PAGINA);
+  const cambiarTamano = (nuevo) => { setTamano(nuevo); setPaginaNuevos(1); setPaginaRecurrentes(1); };
   const filtrosDeLaApi = useMemo(() => ({ desde: periodo.desde || undefined, hasta: periodo.hasta || undefined }), [periodo]);
-  const parametros = useMemo(() => ({ ...filtrosDeLaApi, paginaNuevos, paginaRecurrentes, tamano: TAMANO_PAGINA }),
-    [filtrosDeLaApi, paginaNuevos, paginaRecurrentes]);
+  const parametros = useMemo(() => ({ ...filtrosDeLaApi, paginaNuevos, paginaRecurrentes, tamano }),
+    [filtrosDeLaApi, paginaNuevos, paginaRecurrentes, tamano]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/clientes', parametros, 'No se pudo generar el reporte de clientes.');
   const { exportar, exportando } = useExportar('/reportes/clientes/excel', filtrosDeLaApi, 'clientes');
@@ -87,7 +90,8 @@ export default function ReporteClientes({ barra, panel }) {
               </div>
             </BarraDeFiltros>
           )}
-          pie={reporte && <Paginacion pagina={reporte.nuevos.numeroPagina} totalPaginas={reporte.nuevos.totalPaginas} onCambiar={setPaginaNuevos} deshabilitada={recargando} />}
+          pie={reporte && <Paginacion pagina={reporte.nuevos.numeroPagina} totalPaginas={reporte.nuevos.totalPaginas} onCambiar={setPaginaNuevos}
+            total={reporte.nuevos.total} tamano={reporte.nuevos.tamano} onCambiarTamano={cambiarTamano} deshabilitada={recargando} />}
         >
           {(reporte?.nuevos.items ?? []).map((c) => (
             <Tr key={c.id}>
@@ -105,7 +109,8 @@ export default function ReporteClientes({ barra, panel }) {
               titulo="Clientes recurrentes"
               headers={['Cliente recurrente', 'Zona', 'Promotor', { texto: 'Compras', derecha: true }]}
               empty="Ningún cliente de antes compró en el período."
-              pie={<Paginacion pagina={reporte.recurrentes.numeroPagina} totalPaginas={reporte.recurrentes.totalPaginas} onCambiar={setPaginaRecurrentes} deshabilitada={recargando} />}
+              pie={<Paginacion pagina={reporte.recurrentes.numeroPagina} totalPaginas={reporte.recurrentes.totalPaginas} onCambiar={setPaginaRecurrentes}
+                total={reporte.recurrentes.total} tamano={reporte.recurrentes.tamano} onCambiarTamano={cambiarTamano} deshabilitada={recargando} />}
             >
               {reporte.recurrentes.items.map((c) => (
                 <Tr key={c.id}>
