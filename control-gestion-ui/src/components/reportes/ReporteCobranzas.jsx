@@ -12,7 +12,7 @@ import { ESTADOS_DE_COBRANZA, textoDeMora } from '../cobranzas/estados';
 import { Table, Td, Tr } from '../Table';
 import { Alert, BarraDeFiltros, Btn, CampoFecha, Combobox, EstadoVacio, Paginacion, Selector } from '../ui';
 import { avisar } from '../ui/avisar';
-import BotonExportar from './BotonExportar';
+import BotonesExportar from './BotonesExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
 import { TAMANO_PAGINA } from '../../utils/paginas';
 
@@ -97,8 +97,8 @@ export default function ReporteCobranzas({ barra, panel }) {
   const porCliente = vista === POR_CLIENTE;
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } = useReporte(
     porCliente ? '/cobranzas/reporte/por-cliente' : '/cobranzas/reporte', parametros, 'No se pudo generar el reporte de cobranzas.');
-  // El Excel trae las dos: las cobranzas y la hoja "Por cliente".
-  const { exportar, exportando } = useExportar('/cobranzas/reporte/excel', filtrosDeLaApi, 'cobranzas');
+  // El Excel y el PDF traen las dos: las cobranzas y lo que debe cada cliente.
+  const { exportar, exportando } = useExportar('/cobranzas/reporte', filtrosDeLaApi, 'cobranzas');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const cambiarTamano = (nuevo) => { setTamano(nuevo); setNumeroPagina(1); };
@@ -164,7 +164,7 @@ export default function ReporteCobranzas({ barra, panel }) {
 
   return (
     <>
-      {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinCobranzas} />)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinCobranzas} />)}
       <div {...panel}>
         {sinCobranzas && hayFiltros && (
           <Alert type="info" className="mb-4">Ninguna cobranza coincide con los filtros: no hay nada que exportar.</Alert>

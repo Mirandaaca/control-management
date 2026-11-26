@@ -3,7 +3,7 @@ import { ScrollText } from 'lucide-react';
 import api from '../api/axios';
 import { mensajeDeError } from '../api/errores';
 import Layout from '../components/Layout';
-import BotonExportar from '../components/reportes/BotonExportar';
+import BotonesExportar from '../components/reportes/BotonesExportar';
 import { Table, Td, Tr } from '../components/Table';
 import { Alert, BarraDeFiltros, CampoFecha, EstadoVacio, PageHeader, Paginacion, Selector } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
@@ -37,7 +37,7 @@ export default function Bitacora() {
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const { datos: pagina, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/bitacora', parametros, 'No se pudo consultar la bitácora.');
-  const { exportar, exportando } = useExportar('/bitacora/excel', filtrosDeLaApi, 'bitacora');
+  const { exportar, exportando } = useExportar('/bitacora', filtrosDeLaApi, 'bitacora');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -55,7 +55,7 @@ export default function Bitacora() {
       <PageHeader
         title="Bitácora"
         subtitle="Quién hizo cada operación y cuándo. Los registros no se modifican ni se eliminan."
-        action={<BotonExportar onExportar={exportar} exportando={exportando} disabled={!pagina || sinRegistros} />}
+        action={<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!pagina || sinRegistros} />}
       />
 
       {sinRegistros && hayFiltros && (

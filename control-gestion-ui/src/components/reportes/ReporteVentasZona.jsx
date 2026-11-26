@@ -1,22 +1,24 @@
 import { useMemo, useState } from 'react';
 import { usePaginaLocal } from '../../hooks/usePaginaLocal';
-import { useReporte } from '../../hooks/useReporte';
+import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
 import { BarraDeFiltros, CampoFecha, Paginacion } from '../ui';
 import { atajosDePeriodo } from '../../utils/fechas';
+import BotonesExportar from './BotonesExportar';
 
 const SIN_FILTROS = { desde: '', hasta: '' };
 
 /**
  * Ventas por zona (6.2, 7.3.23): cada zona con sus HP confirmadas, el total, el contado y el crédito; las que no
- * vendieron, en cero. Sin fechas, todas las ventas. No se exporta: la especificación no lo pide.
+ * vendieron, en cero. Sin fechas, todas las ventas. Desde la tarea 33 se exporta a Excel y a PDF; sin ventas, no.
  */
 export default function ReporteVentasZona({ barra, panel }) {
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const parametros = useMemo(() => ({ desde: filtros.desde || undefined, hasta: filtros.hasta || undefined }), [filtros]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-zona', parametros, 'No se pudo generar el reporte de ventas por zona.');
+  const { exportar, exportando } = useExportar('/reportes/ventas-por-zona', parametros, 'ventas_por_zona');
 
   // Las zonas llegan todas: se paginan aquí. La fila Total, que es la del período, va en cada página.
   const { visibles, paginacion } = usePaginaLocal(reporte?.zonas, JSON.stringify(filtros));
@@ -28,7 +30,7 @@ export default function ReporteVentasZona({ barra, panel }) {
 
   return (
     <>
-      {barra(null)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinVentas} />)}
       <div {...panel}>
         <Table
           cargando={cargando && 'Generando el reporte…'} recargando={recargando}

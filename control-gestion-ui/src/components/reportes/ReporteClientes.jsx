@@ -4,7 +4,7 @@ import { useExportar, useReporte } from '../../hooks/useReporte';
 import { diaEnBolivia, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
 import { Alert, BarraDeFiltros, CampoFecha, EsqueletoDeIndicadores, Indicador, Paginacion, ZonaDeCarga } from '../ui';
-import BotonExportar from './BotonExportar';
+import BotonesExportar from './BotonesExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
 import { TAMANO_PAGINA } from '../../utils/paginas';
 
@@ -42,7 +42,7 @@ export default function ReporteClientes({ barra, panel }) {
     [filtrosDeLaApi, paginaNuevos, paginaRecurrentes, tamano]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/clientes', parametros, 'No se pudo generar el reporte de clientes.');
-  const { exportar, exportando } = useExportar('/reportes/clientes/excel', filtrosDeLaApi, 'clientes');
+  const { exportar, exportando } = useExportar('/reportes/clientes', filtrosDeLaApi, 'clientes');
 
   const cambiar = (cambios) => {
     setPeriodo((p) => ({ ...p, ...cambios }));
@@ -53,7 +53,7 @@ export default function ReporteClientes({ barra, panel }) {
 
   return (
     <>
-      {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinClientes} />)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte || sinClientes} />)}
       <div {...panel}>
         {sinClientes && (
           <Alert type="info" className="mb-4">No hay clientes nuevos ni recurrentes en el período: no hay nada que exportar.</Alert>

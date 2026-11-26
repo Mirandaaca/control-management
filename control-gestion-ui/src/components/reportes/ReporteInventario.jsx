@@ -4,7 +4,7 @@ import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearCantidad, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
 import { BarraDeFiltros, CampoFecha, Paginacion, Selector } from '../ui';
-import BotonExportar from './BotonExportar';
+import BotonesExportar from './BotonesExportar';
 import { atajosDePeriodo } from '../../utils/fechas';
 import { TAMANO_PAGINA } from '../../utils/paginas';
 
@@ -39,7 +39,7 @@ export default function ReporteInventario({ barra, panel }) {
   const parametros = useMemo(() => ({ ...filtrosDeLaApi, pagina: numeroPagina, tamano }), [filtrosDeLaApi, numeroPagina, tamano]);
   const { datos: reporte, cargando, recargando, erroresFiltro, estado } =
     useReporte('/reportes/inventario', parametros, 'No se pudo generar el reporte de inventario.');
-  const { exportar, exportando } = useExportar('/reportes/inventario/excel', filtrosDeLaApi, 'inventario');
+  const { exportar, exportando } = useExportar('/reportes/inventario', filtrosDeLaApi, 'inventario');
 
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
@@ -52,7 +52,7 @@ export default function ReporteInventario({ barra, panel }) {
 
   return (
     <>
-      {barra(<BotonExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
+      {barra(<BotonesExportar onExportar={exportar} exportando={exportando} disabled={!reporte} />)}
       <div {...panel}>
         <Table
           cargando={cargando && 'Generando el reporte…'} recargando={recargando}
