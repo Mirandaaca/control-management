@@ -34,10 +34,26 @@ public class ReportesController(
     public async Task<ActionResult<ReporteVentasPorZonaDTO>> GetVentasPorZona([FromQuery] FiltrosPeriodoDTO filtros) =>
         await ventas.PorZonaAsync(filtros);
 
+    [HttpGet("ventas-por-zona/excel")]
+    [Permiso(Permisos.Reportes.VentasPorZona)]
+    public async Task<IActionResult> GetVentasPorZonaExcel([FromQuery] FiltrosPeriodoDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.ExcelPorZonaAsync(filtros);
+        return File(contenido, TipoExcel, nombre);
+    }
+
     [HttpGet("ventas-por-promotor")]
     [Permiso(Permisos.Reportes.VentasPorPromotor)]
     public async Task<ActionResult<ReporteVentasPorPromotorDTO>> GetVentasPorPromotor([FromQuery] FiltrosVentasPorPromotorDTO filtros) =>
         await ventas.PorPromotorAsync(filtros);
+
+    [HttpGet("ventas-por-promotor/excel")]
+    [Permiso(Permisos.Reportes.VentasPorPromotor)]
+    public async Task<IActionResult> GetVentasPorPromotorExcel([FromQuery] FiltrosVentasPorPromotorDTO filtros)
+    {
+        var (contenido, nombre) = await ventas.ExcelPorPromotorAsync(filtros);
+        return File(contenido, TipoExcel, nombre);
+    }
 
     [HttpGet("clientes")]
     [Permiso(Permisos.Reportes.ClientesNuevosRecurrentes)]

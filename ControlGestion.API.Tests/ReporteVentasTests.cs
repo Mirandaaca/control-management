@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ClosedXML.Excel;
 using ControlGestion.API.Data;
 using ControlGestion.API.Seguridad;
 using ControlGestion.API.Tests.Infraestructura;
@@ -142,6 +143,93 @@ public class ReporteVentasTests(ApiDePrueba api)
         var uno = await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor?{periodo}&promotorId={menosVende}")).LeerJsonAsync();
         Assert.Equal(5m, uno.GetProperty("total").GetDecimal());
         Assert.Single(uno.GetProperty("promotores").EnumerateArray());
+    }
+
+    // Tarea 33: los dos reportes se exportan a Excel, con los mismos filtros y la misma cartera.
+
+    private const string TipoExcel = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    // La fila de la hoja cuyo primer valor es ese texto.
+    private static IXLRow FilaDe(IXLWorksheet hoja, string texto) =>
+        hoja.RowsUsed().Single(f => f.Cell(1).GetString() == texto);
+
+    [Fact]
+    public async Task El_Excel_por_zona_trae_las_zonas_tambien_en_cero_la_fila_Total_y_el_periodo()
+    {
+        using var operador = await api.OperadorAsync();
+        var conVentas = await operador.CrearZonaAsync();
+        var sinVentas = await operador.CrearZonaAsync();
+        var clienteId = await operador.CrearClienteAsync(conVentas);
+        var productoId = await operador.CrearProductoAsync(1m, stockInicial: 100);
+        var dia = new DateOnly(2002, 5, 10);
+        await MoverAsync(dia,
+            await ConfirmadaAsync(operador, clienteId, productoId, 10, credito: false),
+            await ConfirmadaAsync(operador, clienteId, productoId, 20, credito: true));
+        using var gerente = await GerenteAsync();
+        var periodo = $"desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}";
+        var json = await (await gerente.GetAsync($"/api/reportes/ventas-por-zona?{periodo}")).LeerJsonAsync();
+
+        var respuesta = await gerente.GetAsync($"/api/reportes/ventas-por-zona/excel?{periodo}");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal(TipoExcel, respuesta.Content.Headers.ContentType?.MediaType);
+        Assert.StartsWith("ventas_por_zona_", respuesta.Content.Headers.ContentDisposition?.FileNameStar);
+        using var libro = new XLWorkbook(await respuesta.Content.ReadAsStreamAsync());
+        var hoja = libro.Worksheet("Ventas por zona");
+        Assert.Equal(["Zona", "HP", "Total", "Contado", "Crédito"], hoja.Row(1).Cells(1, 5).Select(c => c.GetString()));
+        var conFila = FilaDe(hoja, ZonaDe(json, conVentas).GetProperty("zona").GetString()!);
+        Assert.Equal((2, 30m, 10m, 20m), (conFila.Cell(2).GetValue<int>(), conFila.Cell(3).GetValue<decimal>(),
+            conFila.Cell(4).GetValue<decimal>(), conFila.Cell(5).GetValue<decimal>()));
+        var sinFila = FilaDe(hoja, ZonaDe(json, sinVentas).GetProperty("zona").GetString()!);
+        Assert.Equal(0m, sinFila.Cell(3).GetValue<decimal>());
+        var total = FilaDe(hoja, "Total");
+        Assert.Equal((2, 30m), (total.Cell(2).GetValue<int>(), total.Cell(3).GetValue<decimal>()));
+        Assert.Equal("10/05/2002 al 10/05/2002", FilaDe(hoja, "Período").Cell(2).GetString());
+    }
+
+    [Fact]
+    public async Task El_Excel_por_promotor_trae_al_promotor_elegido_con_su_total()
+    {
+        using var operador = await api.OperadorAsync();
+        var productoId = await operador.CrearProductoAsync(1m, stockInicial: 100);
+        var promotor = await api.CrearUsuarioAsync(Roles.Promotor);
+        using var vendedor = api.ClienteCon(promotor.Token);
+        var clienteId = await operador.CrearClienteAsync(await operador.CrearZonaAsync(promotor.Id));
+        var dia = new DateOnly(2002, 6, 10);
+        await MoverAsync(dia,
+            await ConfirmadaAsync(vendedor, clienteId, productoId, 10, credito: true),
+            await ConfirmadaAsync(vendedor, clienteId, productoId, 15, credito: false));
+        using var gerente = await GerenteAsync();
+        var periodo = $"desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}";
+        var nombre = (await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor?{periodo}")).LeerJsonAsync())
+            .GetProperty("promotores")[0].GetProperty("promotor").GetString()!;
+
+        var respuesta = await gerente.GetAsync($"/api/reportes/ventas-por-promotor/excel?{periodo}&promotorId={promotor.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.StartsWith("ventas_por_promotor_", respuesta.Content.Headers.ContentDisposition?.FileNameStar);
+        using var libro = new XLWorkbook(await respuesta.Content.ReadAsStreamAsync());
+        var hoja = libro.Worksheet("Ventas por promotor");
+        var suya = FilaDe(hoja, nombre);
+        Assert.Equal((2, 25m), (suya.Cell(2).GetValue<int>(), suya.Cell(3).GetValue<decimal>()));
+        Assert.Equal(25m, FilaDe(hoja, "Total").Cell(3).GetValue<decimal>());
+        // Debajo, el período y el promotor elegido ("Promotor" es también el encabezado de la primera columna).
+        var ultima = hoja.LastRowUsed()!;
+        Assert.Equal(("Promotor", nombre), (ultima.Cell(1).GetString(), ultima.Cell(2).GetString()));
+    }
+
+    [Fact]
+    public async Task Sin_ventas_no_se_exporta_y_cada_Excel_pide_su_permiso()
+    {
+        using var gerente = await GerenteAsync();
+        // Un día de 2002 sin ventas: las zonas salen en cero, y en cero no hay nada que exportar (ext. 3).
+        const string vacio = "desde=2002-07-10&hasta=2002-07-10";
+        await (await gerente.GetAsync($"/api/reportes/ventas-por-zona/excel?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
+        await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor/excel?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
+
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+        await (await secretaria.GetAsync("/api/reportes/ventas-por-zona/excel")).ProblemaAsync(403, "sin_permiso");
+        await (await secretaria.GetAsync("/api/reportes/ventas-por-promotor/excel")).ProblemaAsync(403, "sin_permiso");
     }
 
     [Fact]
