@@ -7,7 +7,7 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Selector,
+  PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
@@ -15,6 +15,7 @@ import { PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { formatearFecha } from '../utils/formato';
 import { coincide } from '../utils/texto';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { seguridad } = PERMISOS;
@@ -123,9 +124,10 @@ export default function Usuarios() {
     }
   };
 
-  const visibles = usuarios.filter((u) => coincide(filtros.texto, u.nombreCompleto, u.email)
+  const filtrados = usuarios.filter((u) => coincide(filtros.texto, u.nombreCompleto, u.email)
     && (!filtros.rol || u.rol === filtros.rol)
     && (!filtros.estado || (filtros.estado === 'activos') === u.activo));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, JSON.stringify(filtros));
   const rolesDeLaLista = [...new Set(usuarios.map((u) => u.rol).filter(Boolean))].sort();
   const hayFiltros = filtros.texto !== '' || filtros.rol !== '' || filtros.estado !== '';
   const esYo = (u) => u.id === yo?.id;
@@ -157,9 +159,10 @@ export default function Usuarios() {
         headers={['Usuario', 'Correo', 'Rol', 'Estado', 'Alta', '']}
         empty="Ningún usuario coincide con la búsqueda."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || usuarios.length > 0) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (hayFiltros ? `${visibles.length} de ${usuarios.length} usuarios` : `${usuarios.length} usuarios`)}
+            resultado={cargando ? '' : (hayFiltros ? `${filtrados.length} de ${usuarios.length} usuarios` : `${usuarios.length} usuarios`)}
             hayFiltros={hayFiltros}
             onLimpiar={() => setFiltros(SIN_FILTROS)}
           >

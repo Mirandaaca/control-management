@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { usePaginaLocal } from '../../hooks/usePaginaLocal';
 import { useExportar, useReporte } from '../../hooks/useReporte';
 import { formatearCantidad, formatearFecha } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
@@ -42,7 +43,11 @@ export default function ReporteInventario({ barra, panel }) {
   const filtrar = (cambios) => { setFiltros((f) => ({ ...f, ...cambios })); setNumeroPagina(1); };
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const movimientos = reporte?.movimientos;
-  const columnas = ['Código', 'Producto', 'Categoría', { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }];
+  // El stock y los que están bajo el mínimo llegan enteros: se paginan aquí, cada tabla con la suya. Las fechas solo
+  // filtran los movimientos, así que solo la categoría las vuelve a la página 1.
+  const stock = usePaginaLocal(reporte?.productos, filtros.categoria);
+  const bajoElMinimo = usePaginaLocal(reporte?.bajoElMinimo, filtros.categoria);
+  const columnas =['Código', 'Producto', 'Categoría', { texto: 'Stock', derecha: true }, { texto: 'Mínimo', derecha: true }];
 
   return (
     <>
@@ -54,6 +59,7 @@ export default function ReporteInventario({ barra, panel }) {
           headers={columnas}
           empty="No hay productos activos en esta categoría."
           estado={estado}
+          pie={<Paginacion {...stock.paginacion} deshabilitada={recargando} />}
           barra={(
             <BarraDeFiltros resultado={reporte ? `${reporte.productos.length} ${reporte.productos.length === 1 ? 'producto' : 'productos'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => { setFiltros(SIN_FILTROS); setNumeroPagina(1); }}>
@@ -74,15 +80,16 @@ export default function ReporteInventario({ barra, panel }) {
             </BarraDeFiltros>
           )}
         >
-          {reporte ? filasDeProductos(reporte.productos) : []}
+          {filasDeProductos(stock.visibles)}
         </Table>
 
         {reporte && (
           <>
             <Titulo>Bajo el mínimo</Titulo>
             <Table titulo="Bajo el mínimo" headers={[...columnas, { texto: 'Falta', derecha: true }]}
-              empty="Ningún producto está por debajo de su mínimo.">
-              {filasDeProductos(reporte.bajoElMinimo, true)}
+              empty="Ningún producto está por debajo de su mínimo."
+              pie={<Paginacion {...bajoElMinimo.paginacion} deshabilitada={recargando} />}>
+              {filasDeProductos(bajoElMinimo.visibles, true)}
             </Table>
 
             <Titulo>Movimientos</Titulo>

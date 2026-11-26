@@ -8,13 +8,14 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, Badge, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal,
-  PageHeader, Selector,
+  PageHeader, Paginacion, Selector,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PANTALLAS, PERMISOS } from '../context/permisos';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 
 const { parametros } = PERMISOS;
@@ -125,7 +126,8 @@ export default function Zonas() {
     }
   };
 
-  const visibles = zonas.filter((z) => coincide(busqueda, z.nombre, z.codigo, z.promotor?.nombreCompleto));
+  const filtrados = zonas.filter((z) => coincide(busqueda, z.nombre, z.codigo, z.promotor?.nombreCompleto));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, busqueda);
   const porReasignar = zonas.filter((z) => !z.promotorValido).length;
 
   let estado = null;
@@ -165,9 +167,10 @@ export default function Zonas() {
           { texto: 'Acciones', oculto: true }]}
         empty="Ninguna zona coincide con la búsqueda."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || (!errorCarga && zonas.length > 0)) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${cuantasZonas(zonas.length)}` : cuantasZonas(zonas.length))}
+            resultado={cargando ? '' : (busqueda ? `${filtrados.length} de ${cuantasZonas(zonas.length)}` : cuantasZonas(zonas.length))}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >

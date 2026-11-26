@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
+import { usePaginaLocal } from '../../hooks/usePaginaLocal';
 import { useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { BarraDeFiltros, CampoFecha } from '../ui';
+import { BarraDeFiltros, CampoFecha, Paginacion } from '../ui';
 import { atajosDePeriodo } from '../../utils/fechas';
 
 const SIN_FILTROS = { desde: '', hasta: '' };
@@ -17,6 +18,8 @@ export default function ReporteVentasZona({ barra, panel }) {
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-zona', parametros, 'No se pudo generar el reporte de ventas por zona.');
 
+  // Las zonas llegan todas: se paginan aquí. La fila Total, que es la del período, va en cada página.
+  const { visibles, paginacion } = usePaginaLocal(reporte?.zonas, JSON.stringify(filtros));
   const hayFiltros = filtros.desde !== '' || filtros.hasta !== '';
   const sinVentas = reporte?.total.cantidad === 0;
   let estado = estadoDeCarga;
@@ -34,6 +37,7 @@ export default function ReporteVentasZona({ barra, panel }) {
             { texto: 'Crédito', derecha: true }]}
           empty="Todavía no hay zonas."
           estado={estado}
+          pie={<Paginacion {...paginacion} deshabilitada={recargando} />}
           barra={(
             <BarraDeFiltros
               resultado={reporte && !sinVentas ? `${reporte.total.cantidad} ${reporte.total.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
@@ -50,7 +54,7 @@ export default function ReporteVentasZona({ barra, panel }) {
             </BarraDeFiltros>
           )}
         >
-          {(reporte?.zonas ?? []).map((z) => (
+          {visibles.map((z) => (
             <Tr key={z.zonaId}>
               <Td><span className="font-medium">{z.zona}</span></Td>
               <Td className="text-right tabular-nums">{z.cantidad}</Td>

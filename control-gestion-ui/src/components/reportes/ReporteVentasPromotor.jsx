@@ -3,10 +3,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { ChartColumn, Table2 } from 'lucide-react';
 import api from '../../api/axios';
 import { mensajeDeError } from '../../api/errores';
+import { usePaginaLocal } from '../../hooks/usePaginaLocal';
 import { useReporte } from '../../hooks/useReporte';
 import { formatearMonto } from '../../utils/formato';
 import { Table, Td, Tr } from '../Table';
-import { BarraDeFiltros, Btn, CampoFecha, Selector } from '../ui';
+import { BarraDeFiltros, Btn, CampoFecha, Paginacion, Selector } from '../ui';
 import { avisar } from '../ui/avisar';
 import { atajosDePeriodo } from '../../utils/fechas';
 
@@ -50,6 +51,8 @@ export default function ReporteVentasPromotor({ barra, panel }) {
   const { datos: reporte, cargando, recargando, erroresFiltro, estado: estadoDeCarga } =
     useReporte('/reportes/ventas-por-promotor', parametros, 'No se pudo generar el reporte de ventas por promotor.');
 
+  // La tabla se pagina aquí; el gráfico muestra a todos. La fila Total, la del período, va en cada página.
+  const { visibles, paginacion } = usePaginaLocal(reporte?.promotores, JSON.stringify(filtros));
   const hayFiltros = Object.values(filtros).some((v) => v !== '');
   const sinVentas = reporte?.promotores.length === 0;
   let estado = estadoDeCarga;
@@ -83,6 +86,7 @@ export default function ReporteVentasPromotor({ barra, panel }) {
           titulo="Ventas por promotor"
           headers={['Promotor', { texto: 'HP', derecha: true }, { texto: 'Total vendido', derecha: true }]}
           estado={estado}
+          pie={<Paginacion {...paginacion} deshabilitada={recargando} />}
           barra={(
             <BarraDeFiltros resultado={reporte && !sinVentas ? `${reporte.cantidad} ${reporte.cantidad === 1 ? 'venta' : 'ventas'}` : ''}
               hayFiltros={hayFiltros} onLimpiar={() => setFiltros(SIN_FILTROS)}>
@@ -109,7 +113,7 @@ export default function ReporteVentasPromotor({ barra, panel }) {
             </BarraDeFiltros>
           )}
         >
-          {(reporte?.promotores ?? []).map((p) => (
+          {visibles.map((p) => (
             <Tr key={p.promotorId}>
               <Td><span className="font-medium">{p.promotor}</span></Td>
               <Td className="text-right tabular-nums">{p.cantidad}</Td>

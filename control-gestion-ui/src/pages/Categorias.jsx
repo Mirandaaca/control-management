@@ -7,10 +7,12 @@ import Layout from '../components/Layout';
 import { Table, Td, Tr } from '../components/Table';
 import {
   Alert, BarraDeFiltros, BotonCancelar, Btn, Buscador, Confirmar, ErrorDeCarga, EstadoVacio, Input, Modal, PageHeader,
+  Paginacion,
 } from '../components/ui';
 import { avisar } from '../components/ui/avisar';
 import { useAuth } from '../context/auth';
 import { PERMISOS } from '../context/permisos';
+import { usePaginaLocal } from '../hooks/usePaginaLocal';
 import { useSinGuardar } from '../hooks/useSinGuardar';
 import { mostrarPrimerProblema } from '../utils/foco';
 import { coincide } from '../utils/texto';
@@ -111,7 +113,8 @@ export default function Categorias() {
     }
   };
 
-  const visibles = categorias.filter((c) => coincide(busqueda, c.nombre));
+  const filtrados = categorias.filter((c) => coincide(busqueda, c.nombre));
+  const { visibles, paginacion } = usePaginaLocal(filtrados, busqueda);
   const total = categorias.length;
   const enUso = (c) => c.productos + c.inactivos > 0;
   const botonNueva = puedeRegistrar && (
@@ -142,9 +145,10 @@ export default function Categorias() {
         headers={['Categoría', { texto: 'Productos', derecha: true }, { texto: 'Acciones', oculto: true }]}
         empty="Ninguna categoría coincide con la búsqueda."
         estado={estado}
+        pie={<Paginacion {...paginacion} />}
         barra={(cargando || (!errorCarga && total > 0)) && (
           <BarraDeFiltros
-            resultado={cargando ? '' : (busqueda ? `${visibles.length} de ${enPlural(total, 'categoría', 'categorías')}` : enPlural(total, 'categoría', 'categorías'))}
+            resultado={cargando ? '' : (busqueda ? `${filtrados.length} de ${enPlural(total, 'categoría', 'categorías')}` : enPlural(total, 'categoría', 'categorías'))}
             hayFiltros={busqueda !== ''}
             onLimpiar={() => setBusqueda('')}
           >
