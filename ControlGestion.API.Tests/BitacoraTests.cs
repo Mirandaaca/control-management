@@ -182,6 +182,30 @@ public class BitacoraTests(ApiDePrueba api)
         using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
         Assert.Equal(HttpStatusCode.Forbidden, (await gerente.GetAsync("/api/bitacora")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await gerente.GetAsync("/api/bitacora/excel")).StatusCode);
+        await (await gerente.GetAsync("/api/bitacora/pdf")).ProblemaAsync(403, "sin_permiso");
+        await (await admin.GetAsync("/api/bitacora/pdf?desde=2001-01-01&hasta=2001-01-01")).ProblemaAsync(400, "reporte_sin_datos");
+    }
+
+    [Fact]
+    public async Task El_PDF_trae_los_registros_del_filtro_del_mas_reciente_al_mas_antiguo()
+    {
+        var secretaria = await api.CrearUsuarioAsync(Roles.Secretaria);
+        using (var operador = await api.OperadorAsync())
+        using (var cliente = api.ClienteCon(secretaria.Token))
+            await cliente.CrearClienteAsync(await operador.CrearZonaAsync());
+        using var admin = await api.AdminAsync();
+        var hoy = HoraBolivia.Hoy(TimeProvider.System);
+
+        var texto = await (await admin.GetAsync($"/api/bitacora/pdf?usuarioId={secretaria.Id}&desde={hoy:yyyy-MM-dd}&hasta={hoy:yyyy-MM-dd}"))
+            .TextoDelPdfAsync("bitacora");
+
+        Assert.Contains("Bitácora", texto);
+        Assert.Contains($"Usuario: Prueba Secretaria", texto);
+        Assert.Contains($"Fecha: {hoy:dd/MM/yyyy} al {hoy:dd/MM/yyyy}", texto);
+        // Dos registros: el inicio de sesión y, después, el cliente que registró, que va primero.
+        var registro = texto.IndexOf("Registrar clientes", StringComparison.Ordinal);
+        var sesion = texto.IndexOf("Iniciar sesión", StringComparison.Ordinal);
+        Assert.True(registro >= 0 && sesion > registro, texto);
     }
 
     [Fact]

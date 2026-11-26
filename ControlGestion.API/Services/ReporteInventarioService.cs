@@ -4,15 +4,17 @@ using ControlGestion.API.Data;
 using ControlGestion.API.Data.Consultas;
 using ControlGestion.API.DTOs;
 using ControlGestion.API.Models;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
 /// <summary>
 /// El reporte de inventario (6.4, 7.3.25): el stock de los productos activos, los que están en su mínimo o debajo y los
-/// movimientos del período, con la categoría como filtro. El inventario es de la empresa: no tiene cartera.
+/// movimientos del período, con la categoría como filtro; en Excel y en PDF (tarea 33). El inventario es de la empresa: no
+/// tiene cartera.
 /// </summary>
-public class ReporteInventarioService(AppDbContext db, TimeProvider reloj)
+public class ReporteInventarioService(AppDbContext db, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy hh:mm";
 
@@ -83,12 +85,12 @@ public class ReporteInventarioService(AppDbContext db, TimeProvider reloj)
         var bajo = libro.Worksheets.Add("Bajo el mínimo");
         Encabezados(bajo, "Código", "Producto", "Categoría", "Stock", "Mínimo", "Falta");
         var bajoElMinimo = BajoElMinimo(productos);
-        if (bajoElMinimo.Count == 0) bajo.Cell(2, 1).Value = "Ningún producto está por debajo de su mínimo.";
+        if (bajoElMinimo.Count == 0) bajo.Cell(2, 1).Value = SinBajoElMinimo;
         else Productos(bajo, bajoElMinimo, conFalta: true);
 
         var hoja = libro.Worksheets.Add("Movimientos");
         Encabezados(hoja, "Fecha", "Producto", "Tipo", "Cantidad", "Stock resultante", "Usuario");
-        if (movimientos.Count == 0) hoja.Cell(2, 1).Value = "No hay movimientos en el período.";
+        if (movimientos.Count == 0) hoja.Cell(2, 1).Value = SinMovimientos;
         var fila = 2;
         foreach (var m in movimientos)
         {
@@ -106,6 +108,51 @@ public class ReporteInventarioService(AppDbContext db, TimeProvider reloj)
         using var salida = new MemoryStream();
         libro.SaveAs(salida);
         return (salida.ToArray(), $"inventario_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
+    }
+
+    private const string SinBajoElMinimo = "Ningún producto está por debajo de su mínimo.";
+    private const string SinMovimientos = "No hay movimientos en el período.";
+
+    /// <summary>
+    /// El PDF (tarea 33): el stock, los que están bajo el mínimo y los movimientos, como el Excel. Este reporte no tiene la
+    /// regla de "sin datos": una parte vacía lo dice (7.3.25, ext. 3 y 4).
+    /// </summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosReporteInventarioDTO filtros)
+    {
+        var productos = await Productos(filtros).ToListAsync();
+        var movimientos = await Movimientos(filtros).Select(ComoDTO).ToListAsync();
+
+        var elegidos = new List<FiltroPdf>();
+        if (filtros.CategoriaId is { } categoriaId)
+            elegidos.Agregar("Categoría", await db.Categorias.Where(c => c.Id == categoriaId).Select(c => c.Nombre).FirstOrDefaultAsync());
+        elegidos.Agregar("Movimientos", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta));
+
+        ColumnaPdf[] columnas =
+        [
+            new("Código", 1.3f), new("Producto", 3f), new("Categoría", 1.6f), new("Stock", 1f, Derecha: true),
+            new("Mínimo", 1f, Derecha: true)
+        ];
+        var c = TextosDelPdf.Cantidad;
+        var reporte = new ReportePdf("Reporte de inventario", elegidos,
+        [
+            new SeccionPdf("Stock", columnas,
+                productos.Select(p => TextosDelPdf.Fila(p.Codigo, p.Producto, TextosDelPdf.Texto(p.Categoria), c(p.StockActual),
+                    c(p.StockMinimo))).ToList(),
+                SiVacia: "No hay productos activos en esta categoría."),
+            new SeccionPdf("Bajo el mínimo", [.. columnas, new("Falta", 1f, Derecha: true)],
+                BajoElMinimo(productos).Select(p => TextosDelPdf.Fila(p.Codigo, p.Producto, TextosDelPdf.Texto(p.Categoria),
+                    c(p.StockActual), c(p.StockMinimo), c(p.Falta))).ToList(),
+                SiVacia: SinBajoElMinimo),
+            new SeccionPdf("Movimientos",
+                [
+                    new("Fecha", 1.5f), new("Producto", 2.6f), new("Tipo", 1.1f), new("Cantidad", 1f, Derecha: true),
+                    new("Stock resultante", 1.3f, Derecha: true), new("Usuario", 2f)
+                ],
+                movimientos.Select(m => TextosDelPdf.Fila(TextosDelPdf.FechaHora(m.Fecha), m.Producto, Tipos[m.Tipo],
+                    c(m.Cantidad), c(m.StockResultante), m.Usuario.NombreCompleto)).ToList(),
+                SiVacia: SinMovimientos)
+        ]);
+        return (pdf.Generar(reporte), $"inventario_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
     }
 
     private static void Encabezados(IXLWorksheet hoja, params string[] encabezados)

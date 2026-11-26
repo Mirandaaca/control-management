@@ -18,6 +18,14 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microting.EntityFrameworkCore.MySql" Version="10.0.13" />
+    <PackageReference Include="QuestPDF" Version="2026.9.2" />
+  </ItemGroup>
+
+  <!-- La letra de los PDF (tarea 33): Inter, la del panel, con su licencia OFL. Va embebida porque el App Service de
+       Linux casi no trae fuentes. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Recursos\Fuentes\*.ttf" LogicalName="Fuentes.%(Filename)%(Extension)" />
+    <None Include="Recursos\Fuentes\OFL.txt" />
   </ItemGroup>
 
 </Project>

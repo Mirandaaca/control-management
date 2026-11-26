@@ -6,15 +6,16 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
 /// <summary>
-/// Reporte de pedidos (1.4): filtros de estado, zona, promotor y días de entrega, totales por estado y Excel. Respeta la
-/// cartera como la lista.
+/// Reporte de pedidos (1.4): filtros de estado, zona, promotor y días de entrega, totales por estado, Excel y PDF (tarea
+/// 33). Respeta la cartera como la lista.
 /// </summary>
-public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy hh:mm";
 
@@ -34,11 +35,17 @@ public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, Time
         return new ReportePedidosDTO(porEstado, cantidad, monto, new Pagina<PedidoListaDTO>(items, total, filtros.Pagina, filtros.Tamano));
     }
 
+    private sealed record FilaDelPedido(
+        string Numero, string Estado, string Cliente, string Zona, string? Promotor, string? Asignado, DateTime FechaRegistro,
+        DateTime? FechaEntregaEstimada, DateTime? FechaEntregaReal, string DireccionEntrega, string? RecibidoPor, string? Hoja,
+        decimal Total);
+
     /// <summary>
-    /// El Excel del reporte: todos los pedidos de los filtros, sin paginar, y una hoja con los totales. Sin pedidos no se
-    /// exporta; un anulado sí cuenta, porque es una fila del Excel.
+    /// Lo que se exporta, a Excel o a PDF: todos los pedidos de los filtros, sin paginar, y los totales. Sin pedidos no se
+    /// exporta; un anulado sí cuenta, porque es una fila del archivo.
     /// </summary>
-    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosPedidoDTO filtros)
+    private async Task<(List<TotalPorEstadoDTO> PorEstado, int Cantidad, decimal Monto, List<FilaDelPedido> Filas)> ParaExportarAsync(
+        FiltrosPedidoDTO filtros)
     {
         var consulta = Filtrados(filtros);
         if (!await consulta.AnyAsync())
@@ -46,23 +53,28 @@ public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, Time
         var (porEstado, cantidad, monto) = await TotalesAsync(consulta);
         var filas = await consulta
             .OrderBy(p => p.FechaEntregaEstimada).ThenBy(p => p.Id)
-            .Select(p => new
-            {
+            .Select(p => new FilaDelPedido(
                 p.Numero,
-                Estado = p.EstadoPedido!.Nombre,
-                Cliente = p.Cliente!.NombreCompleto,
-                Zona = p.Zona!.Nombre,
-                Promotor = p.Promotor == null ? null : p.Promotor.NombreCompleto,
-                Asignado = p.Repartidor == null ? null : p.Repartidor.NombreCompleto,
+                p.EstadoPedido!.Nombre,
+                p.Cliente!.NombreCompleto,
+                p.Zona!.Nombre,
+                p.Promotor == null ? null : p.Promotor.NombreCompleto,
+                p.Repartidor == null ? null : p.Repartidor.NombreCompleto,
                 p.FechaRegistro,
                 p.FechaEntregaEstimada,
                 p.FechaEntregaReal,
                 p.DireccionEntrega,
                 p.RecibidoPor,
-                Hoja = p.HojaPedido == null ? null : p.HojaPedido.Numero,
-                p.Total
-            })
+                p.HojaPedido == null ? null : p.HojaPedido.Numero,
+                p.Total))
             .ToListAsync();
+        return (porEstado, cantidad, monto, filas);
+    }
+
+    /// <summary>El Excel del reporte: una hoja con los pedidos y otra con los totales.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosPedidoDTO filtros)
+    {
+        var (porEstado, cantidad, monto, filas) = await ParaExportarAsync(filtros);
 
         using var libro = new XLWorkbook();
         var hoja = libro.Worksheets.Add("Pedidos");
@@ -115,6 +127,44 @@ public class ReportePedidosService(AppDbContext db, IUsuarioActual usuario, Time
         using var salida = new MemoryStream();
         libro.SaveAs(salida);
         return (salida.ToArray(), $"pedidos_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>
+    /// El PDF del reporte (tarea 33): lo mismo que el Excel, con las columnas de la tabla del panel. La hoja va de costado.
+    /// </summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosPedidoDTO filtros)
+    {
+        var (porEstado, cantidad, monto, filas) = await ParaExportarAsync(filtros);
+
+        var elegidos = new List<FiltroPdf>();
+        if (filtros.EstadoId is { } estadoId)
+            elegidos.Agregar("Estado", await db.EstadosPedido.Where(e => e.Id == estadoId).Select(e => e.Nombre).FirstOrDefaultAsync());
+        if (filtros.ZonaId is { } zonaId) elegidos.Agregar("Zona", await db.NombreDeZonaAsync(zonaId));
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) elegidos.Agregar("Promotor", await db.NombreDeUsuarioAsync(filtros.PromotorId));
+        if (!string.IsNullOrEmpty(filtros.RepartidorId)) elegidos.Agregar("Asignado a", await db.NombreDeUsuarioAsync(filtros.RepartidorId));
+        if (filtros.SinAsignar) elegidos.Agregar("Asignado a", "Sin asignar");
+        if (filtros.ClienteId is { } clienteId) elegidos.Agregar("Cliente", await db.NombreDeClienteAsync(clienteId, usuario, reloj));
+        elegidos.Agregar("Búsqueda", filtros.Buscar?.Trim());
+        elegidos.Agregar("Entrega", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta));
+
+        var reporte = new ReportePdf("Reporte de pedidos", elegidos,
+        [
+            new SeccionPdf("Totales por estado",
+                [new ColumnaPdf("Estado", 3), new ColumnaPdf("Pedidos", 1, Derecha: true), new ColumnaPdf("Monto", 1.5f, Derecha: true)],
+                porEstado.Select(e => TextosDelPdf.Fila(e.Estado, TextosDelPdf.Cantidad(e.Cantidad), TextosDelPdf.Monto(e.Monto))).ToList(),
+                Total: ["Total sin anulados", TextosDelPdf.Cantidad(cantidad), TextosDelPdf.Monto(monto)],
+                AnchoMaximo: AnchosPdf.Totales),
+            new SeccionPdf("Pedidos",
+                [
+                    new ColumnaPdf("Número", 1.6f), new ColumnaPdf("Cliente", 2.2f), new ColumnaPdf("Zona", 1.4f),
+                    new ColumnaPdf("Promotor", 1.8f), new ColumnaPdf("Entrega", 1.5f), new ColumnaPdf("Asignado a", 1.8f),
+                    new ColumnaPdf("Total", 1.2f, Derecha: true), new ColumnaPdf("Estado", 1f)
+                ],
+                filas.Select(p => TextosDelPdf.Fila(p.Numero, p.Cliente, p.Zona, TextosDelPdf.Texto(p.Promotor),
+                    TextosDelPdf.FechaHora(p.FechaEntregaEstimada), TextosDelPdf.Texto(p.Asignado), TextosDelPdf.Monto(p.Total),
+                    p.Estado)).ToList())
+        ], Horizontal: true);
+        return (pdf.Generar(reporte), $"pedidos_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
     }
 
     /// <summary>

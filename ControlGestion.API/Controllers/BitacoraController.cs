@@ -27,4 +27,11 @@ public class BitacoraController(BitacoraService bitacora) : ControllerBase
         var (contenido, nombre) = await bitacora.ExcelAsync(filtros);
         return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
+
+    [HttpGet("pdf")]
+    public async Task<IActionResult> GetPdf([FromQuery] FiltrosBitacoraDTO filtros)
+    {
+        var (contenido, nombre) = await bitacora.PdfAsync(filtros);
+        return File(contenido, "application/pdf", nombre);
+    }
 }

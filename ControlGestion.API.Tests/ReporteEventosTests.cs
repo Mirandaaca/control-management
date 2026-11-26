@@ -96,5 +96,50 @@ public class ReporteEventosTests(ApiDePrueba api)
 
         await (await secretaria.GetAsync("/api/eventos/reporte")).ProblemaAsync(403, "sin_permiso");
         await (await secretaria.GetAsync("/api/eventos/reporte/excel")).ProblemaAsync(403, "sin_permiso");
+        await (await secretaria.GetAsync("/api/eventos/reporte/pdf")).ProblemaAsync(403, "sin_permiso");
+    }
+
+    // Tarea 33: el PDF, con los mismos filtros, la misma cartera y la misma regla de "sin datos".
+
+    private static async Task<string> NumeroAsync(HttpClient cliente, int eventoId) =>
+        (await (await cliente.GetAsync($"/api/eventos/{eventoId}")).LeerJsonAsync()).GetProperty("numero").GetString()!;
+
+    [Fact]
+    public async Task El_PDF_trae_los_totales_y_los_eventos_del_filtro_con_la_hora_de_Bolivia()
+    {
+        using var operador = await api.OperadorAsync();
+        var (clienteId, zonaId, resuelto) = await TresEventosAsync(operador);
+        using (var scope = api.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().Eventos.Where(e => e.Id == resuelto)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.FechaEvento, new DateTime(2026, 5, 16, 2, 0, 0, DateTimeKind.Utc)));
+        var deOtraZona = await operador.CrearEventoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync()));
+        using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
+
+        var texto = await (await gerente.GetAsync($"/api/eventos/reporte/pdf?zonaId={zonaId}")).TextoDelPdfAsync("incidencias");
+
+        Assert.Contains("Reporte de incidencias", texto);
+        Assert.Contains("Zona: Zona Z-", texto);
+        Assert.Contains("Total 3", texto);
+        Assert.Contains($"{await NumeroAsync(operador, resuelto)} 15/05/2026 22:00 Cliente ausente", texto);
+        Assert.DoesNotContain(await NumeroAsync(operador, deOtraZona), texto);
+    }
+
+    [Fact]
+    public async Task El_PDF_respeta_la_cartera_y_sin_eventos_no_se_exporta()
+    {
+        using var operador = await api.OperadorAsync();
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Eventos.GenerarReporte, Permisos.Territorial.RecorrerRuta);
+        var usuario = await api.CrearUsuarioAsync(rol);
+        var suyo = await operador.CrearEventoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)));
+        var ajeno = await operador.CrearEventoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync()));
+        using var sinCartera = api.ClienteCon(usuario.Token);
+
+        var texto = await (await sinCartera.GetAsync("/api/eventos/reporte/pdf")).TextoDelPdfAsync("incidencias");
+
+        Assert.Contains(await NumeroAsync(operador, suyo), texto);
+        Assert.DoesNotContain(await NumeroAsync(operador, ajeno), texto);
+        using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
+        await (await gerente.GetAsync("/api/eventos/reporte/pdf?desde=2001-01-01&hasta=2001-01-01")).ProblemaAsync(400, "reporte_sin_datos");
     }
 }

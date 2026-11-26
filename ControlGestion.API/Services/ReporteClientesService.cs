@@ -6,6 +6,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
@@ -14,7 +15,7 @@ namespace ControlGestion.API.Services;
 /// Clientes nuevos y recurrentes (6.3, 7.3.24), con la cartera del usuario. Nuevo es el registrado en el período;
 /// recurrente, el registrado antes con al menos una HP confirmada en el período. Un nuevo que compró sale solo como nuevo.
 /// </summary>
-public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy hh:mm";
 
@@ -67,8 +68,12 @@ public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, Tim
             new Pagina<ClienteRecurrenteDTO>(paginaRecurrentes, cantidadRecurrentes, filtros.PaginaRecurrentes, filtros.Tamano));
     }
 
-    /// <summary>Las dos listas completas y sus cantidades. Sin clientes en el período no se exporta (7.3.24, ext. 2.3a).</summary>
-    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosReporteClientesDTO filtros)
+    /// <summary>
+    /// Lo que se exporta, a Excel o a PDF: las dos listas completas. Sin clientes en el período no se exporta (7.3.24,
+    /// ext. 2.3a).
+    /// </summary>
+    private async Task<(List<ClienteNuevoDTO> Nuevos, List<ClienteRecurrenteDTO> Recurrentes)> ParaExportarAsync(
+        FiltrosReporteClientesDTO filtros)
     {
         var periodo = DelFiltro(filtros);
         var nuevos = await Nuevos(periodo).ToListAsync();
@@ -76,6 +81,13 @@ public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, Tim
         if (nuevos.Count == 0 && recurrentes.Count == 0)
             throw new ReglaDeNegocioException("reporte_sin_datos",
                 "No hay clientes nuevos ni recurrentes en el período: no hay nada que exportar.");
+        return (nuevos, recurrentes);
+    }
+
+    /// <summary>El Excel: los nuevos, los recurrentes y sus cantidades, cada uno en su hoja.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosReporteClientesDTO filtros)
+    {
+        var (nuevos, recurrentes) = await ParaExportarAsync(filtros);
 
         using var libro = new XLWorkbook();
         var hojaNuevos = libro.Worksheets.Add("Nuevos");
@@ -111,6 +123,35 @@ public class ReporteClientesService(AppDbContext db, IUsuarioActual usuario, Tim
         using var salida = new MemoryStream();
         libro.SaveAs(salida);
         return (salida.ToArray(), $"clientes_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>El PDF (tarea 33): las cantidades de cada grupo y las dos listas, como el Excel.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosReporteClientesDTO filtros)
+    {
+        var (nuevos, recurrentes) = await ParaExportarAsync(filtros);
+        var columnas = new[] { new ColumnaPdf("Código", 1.1f), new ColumnaPdf("Cliente", 2.4f), new ColumnaPdf("Zona", 1.6f),
+            new ColumnaPdf("Promotor", 2f) };
+
+        var reporte = new ReportePdf("Reporte de clientes nuevos y recurrentes",
+            [new FiltroPdf("Período", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta)!)],
+            [
+                new SeccionPdf("Cantidades", [new ColumnaPdf("Grupo", 3), new ColumnaPdf("Clientes", 1, Derecha: true)],
+                    [
+                        TextosDelPdf.Fila("Clientes nuevos (registrados en el período)", TextosDelPdf.Cantidad(nuevos.Count)),
+                        TextosDelPdf.Fila("Clientes recurrentes (registrados antes, con compras en el período)",
+                            TextosDelPdf.Cantidad(recurrentes.Count))
+                    ],
+                    AnchoMaximo: 440),
+                new SeccionPdf("Clientes nuevos", [.. columnas, new ColumnaPdf("Registrado", 1.4f)],
+                    nuevos.Select(c => TextosDelPdf.Fila(c.Codigo, c.NombreCompleto, c.Zona.Nombre,
+                        TextosDelPdf.Texto(c.Promotor?.NombreCompleto), TextosDelPdf.FechaHora(c.FechaRegistro))).ToList(),
+                    SiVacia: "Ningún cliente se registró en el período."),
+                new SeccionPdf("Clientes recurrentes", [.. columnas, new ColumnaPdf("Compras", 1f, Derecha: true)],
+                    recurrentes.Select(c => TextosDelPdf.Fila(c.Codigo, c.NombreCompleto, c.Zona.Nombre,
+                        TextosDelPdf.Texto(c.Promotor?.NombreCompleto), TextosDelPdf.Cantidad(c.Compras))).ToList(),
+                    SiVacia: "Ningún cliente de antes compró en el período.")
+            ]);
+        return (pdf.Generar(reporte), $"clientes_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
     }
 
     private static void Encabezados(IXLWorksheet hoja, params string[] encabezados)

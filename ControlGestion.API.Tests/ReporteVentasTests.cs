@@ -112,6 +112,14 @@ public class ReporteVentasTests(ApiDePrueba api)
 
         Assert.Equal([suya], reporte.GetProperty("zonas").EnumerateArray().Select(z => z.GetProperty("zonaId").GetInt32()));
         Assert.Equal(6m, reporte.GetProperty("total").GetProperty("total").GetDecimal());
+
+        // El PDF, con la misma cartera (tarea 33).
+        var texto = await (await cliente.GetAsync($"/api/reportes/ventas-por-zona/pdf?desde={dia:yyyy-MM-dd}&hasta={dia:yyyy-MM-dd}"))
+            .TextoDelPdfAsync("ventas_por_zona");
+        Assert.Contains(ZonaDe(reporte, suya).GetProperty("zona").GetString()!, texto);
+        var nombreAjena = (await (await operador.GetAsync($"/api/zonas/{ajena}")).LeerJsonAsync()).GetProperty("nombre").GetString()!;
+        Assert.DoesNotContain(nombreAjena, texto);
+        Assert.Contains("Total 1 Bs 6,00", texto);
     }
 
     [Fact]
@@ -154,7 +162,7 @@ public class ReporteVentasTests(ApiDePrueba api)
         hoja.RowsUsed().Single(f => f.Cell(1).GetString() == texto);
 
     [Fact]
-    public async Task El_Excel_por_zona_trae_las_zonas_tambien_en_cero_la_fila_Total_y_el_periodo()
+    public async Task El_Excel_y_el_PDF_por_zona_traen_las_zonas_tambien_en_cero_la_fila_Total_y_el_periodo()
     {
         using var operador = await api.OperadorAsync();
         var conVentas = await operador.CrearZonaAsync();
@@ -185,10 +193,17 @@ public class ReporteVentasTests(ApiDePrueba api)
         var total = FilaDe(hoja, "Total");
         Assert.Equal((2, 30m), (total.Cell(2).GetValue<int>(), total.Cell(3).GetValue<decimal>()));
         Assert.Equal("10/05/2002 al 10/05/2002", FilaDe(hoja, "Período").Cell(2).GetString());
+
+        var texto = await (await gerente.GetAsync($"/api/reportes/ventas-por-zona/pdf?{periodo}")).TextoDelPdfAsync("ventas_por_zona");
+        Assert.Contains("Reporte de ventas por zona", texto);
+        Assert.Contains("Período: 10/05/2002 al 10/05/2002", texto);
+        Assert.Contains($"{ZonaDe(json, conVentas).GetProperty("zona").GetString()} 2 Bs 30,00 Bs 10,00 Bs 20,00", texto);
+        Assert.Contains($"{ZonaDe(json, sinVentas).GetProperty("zona").GetString()} 0 Bs 0,00 Bs 0,00 Bs 0,00", texto);
+        Assert.Contains("Total 2 Bs 30,00 Bs 10,00 Bs 20,00", texto);
     }
 
     [Fact]
-    public async Task El_Excel_por_promotor_trae_al_promotor_elegido_con_su_total()
+    public async Task El_Excel_y_el_PDF_por_promotor_traen_al_promotor_elegido_con_su_total()
     {
         using var operador = await api.OperadorAsync();
         var productoId = await operador.CrearProductoAsync(1m, stockInicial: 100);
@@ -216,20 +231,31 @@ public class ReporteVentasTests(ApiDePrueba api)
         // Debajo, el período y el promotor elegido ("Promotor" es también el encabezado de la primera columna).
         var ultima = hoja.LastRowUsed()!;
         Assert.Equal(("Promotor", nombre), (ultima.Cell(1).GetString(), ultima.Cell(2).GetString()));
+
+        var texto = await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor/pdf?{periodo}&promotorId={promotor.Id}"))
+            .TextoDelPdfAsync("ventas_por_promotor");
+        Assert.Contains("Reporte de ventas por promotor", texto);
+        Assert.Contains($"Promotor: {nombre}", texto);
+        Assert.Contains($"{nombre} 2 Bs 25,00", texto);
+        Assert.Contains("Total 2 Bs 25,00", texto);
     }
 
     [Fact]
-    public async Task Sin_ventas_no_se_exporta_y_cada_Excel_pide_su_permiso()
+    public async Task Sin_ventas_no_se_exporta_y_cada_archivo_pide_su_permiso()
     {
         using var gerente = await GerenteAsync();
         // Un día de 2002 sin ventas: las zonas salen en cero, y en cero no hay nada que exportar (ext. 3).
         const string vacio = "desde=2002-07-10&hasta=2002-07-10";
         await (await gerente.GetAsync($"/api/reportes/ventas-por-zona/excel?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
         await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor/excel?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
+        await (await gerente.GetAsync($"/api/reportes/ventas-por-zona/pdf?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
+        await (await gerente.GetAsync($"/api/reportes/ventas-por-promotor/pdf?{vacio}")).ProblemaAsync(400, "reporte_sin_datos");
 
         using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
         await (await secretaria.GetAsync("/api/reportes/ventas-por-zona/excel")).ProblemaAsync(403, "sin_permiso");
         await (await secretaria.GetAsync("/api/reportes/ventas-por-promotor/excel")).ProblemaAsync(403, "sin_permiso");
+        await (await secretaria.GetAsync("/api/reportes/ventas-por-zona/pdf")).ProblemaAsync(403, "sin_permiso");
+        await (await secretaria.GetAsync("/api/reportes/ventas-por-promotor/pdf")).ProblemaAsync(403, "sin_permiso");
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
@@ -15,7 +16,7 @@ namespace ControlGestion.API.Services;
 /// Bolivia, con la cartera del usuario. Desde la tarea 33 se exportan a Excel y a PDF, como los demás reportes (una
 /// extensión nueva de la 7.3.22 y la 7.3.23): sin ventas, no se exporta.
 /// </summary>
-public class ReporteVentasService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class ReporteVentasService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoMonto = "#,##0.00";
     /// <summary>Las HP confirmadas del período (una anulada ya no es una venta). Sin fechas, todas.</summary>
@@ -120,14 +121,47 @@ public class ReporteVentasService(AppDbContext db, IUsuarioActual usuario, TimeP
         return (Guardar(libro), $"ventas_por_promotor_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
     }
 
-    /// <summary>"01/09/2026 al 29/10/2026", "Desde el …", "Hasta el …" o, sin fechas, todas las ventas (ext. 2).</summary>
-    internal static string TextoDelPeriodo(FiltrosPeriodoDTO filtros) => (filtros.Desde, filtros.Hasta) switch
+    /// <summary>El PDF por zona (tarea 33): las zonas, también en cero, con la fila Total.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfPorZonaAsync(FiltrosPeriodoDTO filtros)
     {
-        ({ } desde, { } hasta) => $"{FormatoBolivia.Fecha(desde)} al {FormatoBolivia.Fecha(hasta)}",
-        ({ } desde, null) => $"Desde el {FormatoBolivia.Fecha(desde)}",
-        (null, { } hasta) => $"Hasta el {FormatoBolivia.Fecha(hasta)}",
-        _ => "Todas las ventas"
-    };
+        var reporte = await PorZonaAsync(filtros);
+        if (reporte.Total.Cantidad == 0) throw SinVentas("No hay ventas confirmadas en el período");
+        var c = TextosDelPdf.Cantidad;
+        var m = TextosDelPdf.Monto;
+        var t = reporte.Total;
+        var documento = new ReportePdf("Reporte de ventas por zona", [new FiltroPdf("Período", TextoDelPeriodo(filtros))],
+        [
+            new SeccionPdf("Ventas por zona",
+                [new("Zona", 2.4f), new("HP", 0.8f, Derecha: true), new("Total", 1.4f, Derecha: true),
+                    new("Contado", 1.4f, Derecha: true), new("Crédito", 1.4f, Derecha: true)],
+                reporte.Zonas.Select(z => TextosDelPdf.Fila(z.Zona, c(z.Cantidad), m(z.Total), m(z.Contado), m(z.Credito))).ToList(),
+                Total: ["Total", c(t.Cantidad), m(t.Total), m(t.Contado), m(t.Credito)])
+        ]);
+        return (pdf.Generar(documento), $"ventas_por_zona_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
+    }
+
+    /// <summary>El PDF por promotor (tarea 33): cada promotor con sus HP y su total, con la fila Total.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfPorPromotorAsync(FiltrosVentasPorPromotorDTO filtros)
+    {
+        var reporte = await PorPromotorAsync(filtros);
+        if (reporte.Cantidad == 0) throw SinVentas("Ninguna hoja de pedido confirmada coincide con los filtros");
+        var elegidos = new List<FiltroPdf> { new("Período", TextoDelPeriodo(filtros)) };
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) elegidos.Add(new("Promotor", await NombreDelPromotorAsync(filtros.PromotorId)));
+        var documento = new ReportePdf("Reporte de ventas por promotor", elegidos,
+        [
+            new SeccionPdf("Ventas por promotor",
+                [new("Promotor", 3f), new("HP", 1f, Derecha: true), new("Total vendido", 1.5f, Derecha: true)],
+                reporte.Promotores.Select(p => TextosDelPdf.Fila(p.Promotor, TextosDelPdf.Cantidad(p.Cantidad), TextosDelPdf.Monto(p.Total)))
+                    .ToList(),
+                Total: ["Total", TextosDelPdf.Cantidad(reporte.Cantidad), TextosDelPdf.Monto(reporte.Total)],
+                AnchoMaximo: 440)
+        ]);
+        return (pdf.Generar(documento), $"ventas_por_promotor_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
+    }
+
+    /// <summary>"01/09/2026 al 29/10/2026", "Desde el …", "Hasta el …" o, sin fechas, todas las ventas (ext. 2).</summary>
+    private static string TextoDelPeriodo(FiltrosPeriodoDTO filtros) =>
+        TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta) ?? "Todas las ventas";
 
     /// <summary>El nombre del promotor del filtro, o "Todos" si no se eligió uno.</summary>
     private async Task<string> NombreDelPromotorAsync(string? promotorId) => string.IsNullOrEmpty(promotorId)

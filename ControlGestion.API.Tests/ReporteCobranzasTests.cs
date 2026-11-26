@@ -166,6 +166,50 @@ public class ReporteCobranzasTests(ApiDePrueba api)
     }
 
     [Fact]
+    public async Task El_PDF_trae_lo_mismo_que_el_Excel_los_totales_cada_cobranza_y_por_cliente()
+    {
+        var escenario = await CobranzasDelDisenoAsync();
+        using var gerente = await GerenteAsync();
+
+        var texto = await (await gerente.GetAsync($"/api/cobranzas/reporte/pdf?promotorId={escenario.PromotorId}"))
+            .TextoDelPdfAsync("cobranzas");
+
+        Assert.Contains("Reporte de cobranzas", texto);
+        Assert.Contains("Promotor: Prueba Promotor", texto);
+        Assert.Contains("Total 6 Bs 1.069,00 Bs 249,00 Bs 820,00", texto);
+        Assert.Contains("La fila Total no suma las cobranzas incobrables ni las anuladas.", texto);
+        Assert.Contains("Cada cobranza", texto);
+        Assert.Contains("14 días", texto);
+        Assert.Contains("Por cliente", texto);
+        Assert.Contains("Los montos de cada cliente no suman las cobranzas incobrables ni las anuladas.", texto);
+    }
+
+    [Fact]
+    public async Task El_PDF_respeta_la_cartera_pide_el_permiso_y_sin_cobranzas_no_se_exporta()
+    {
+        using var operador = await api.OperadorAsync();
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Cobranzas.GenerarReporte, Permisos.Territorial.RecorrerRuta);
+        var usuario = await api.CrearUsuarioAsync(rol);
+        var productoId = await operador.CrearProductoAsync(1m, stockInicial: 100);
+        var suya = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)), productoId, 12);
+        var ajena = await operador.CrearCobranzaAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync()), productoId, 13);
+        async Task<string> NumeroAsync(int id) =>
+            (await (await operador.GetAsync($"/api/cobranzas/{id}")).LeerJsonAsync()).GetProperty("numero").GetString()!;
+        using var sinCartera = api.ClienteCon(usuario.Token);
+
+        var texto = await (await sinCartera.GetAsync("/api/cobranzas/reporte/pdf")).TextoDelPdfAsync("cobranzas");
+
+        Assert.Contains(await NumeroAsync(suya), texto);
+        Assert.DoesNotContain(await NumeroAsync(ajena), texto);
+
+        using var gerente = await GerenteAsync();
+        await (await gerente.GetAsync("/api/cobranzas/reporte/pdf?desde=2001-01-01&hasta=2001-01-01")).ProblemaAsync(400, "reporte_sin_datos");
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+        await (await secretaria.GetAsync("/api/cobranzas/reporte/pdf")).ProblemaAsync(403, "sin_permiso");
+    }
+
+    [Fact]
     public async Task Rechaza_un_rango_al_reves_sin_cobranzas_no_exporta_y_pide_su_permiso()
     {
         using var gerente = await GerenteAsync();

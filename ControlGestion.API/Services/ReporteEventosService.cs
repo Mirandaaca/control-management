@@ -6,15 +6,16 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
 /// <summary>
-/// Reporte de incidencias (4.4): filtros de tipo, estado, promotor, zona y fechas, totales por tipo y por estado, y
-/// Excel. Respeta la cartera como la lista.
+/// Reporte de incidencias (4.4): filtros de tipo, estado, promotor, zona y fechas, totales por tipo y por estado, Excel y
+/// PDF (tarea 33). Respeta la cartera como la lista.
 /// </summary>
-public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy hh:mm";
 
@@ -42,11 +43,17 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
         return new ReporteEventosDTO(porTipo, porEstado, cantidad, new Pagina<EventoListaDTO>(items, cantidad, filtros.Pagina, filtros.Tamano));
     }
 
+    private sealed record FilaDelEvento(
+        string Numero, DateTime FechaEvento, string Tipo, NivelPrioridad NivelPrioridad, EstadoEvento EstadoEvento,
+        string? Cliente, string? Pedido, string? Zona, string Registro, string Descripcion, int Fotos, string? Solucion,
+        string? ResueltoPor, DateTime? FechaResolucion, decimal Latitud, decimal Longitud);
+
     /// <summary>
-    /// El Excel del reporte: todos los eventos de los filtros, sin paginar, y una hoja con los totales. Sin eventos no se
+    /// Lo que se exporta, a Excel o a PDF: todos los eventos de los filtros, sin paginar, y los totales. Sin eventos no se
     /// exporta (7.3.16).
     /// </summary>
-    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosEventoDTO filtros)
+    private async Task<(List<TotalPorTipoDTO> PorTipo, List<TotalPorEstadoEventoDTO> PorEstado, int Cantidad, List<FilaDelEvento> Filas)>
+        ParaExportarAsync(FiltrosEventoDTO filtros)
     {
         var consulta = Filtrados(filtros);
         var (porTipo, porEstado, cantidad) = await TotalesAsync(consulta);
@@ -55,26 +62,31 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
 
         var filas = await consulta
             .OrderBy(e => e.FechaEvento).ThenBy(e => e.Id)
-            .Select(e => new
-            {
+            .Select(e => new FilaDelEvento(
                 e.Numero,
                 e.FechaEvento,
-                Tipo = e.TipoEvento!.Nombre,
+                e.TipoEvento!.Nombre,
                 e.TipoEvento.NivelPrioridad,
                 e.EstadoEvento,
-                Cliente = e.Cliente == null ? null : e.Cliente.NombreCompleto,
-                Pedido = e.Pedido == null ? null : e.Pedido.Numero,
-                Zona = e.Cliente == null ? null : e.Cliente.Zona!.Nombre,
-                Registro = e.Promotor!.NombreCompleto,
+                e.Cliente == null ? null : e.Cliente.NombreCompleto,
+                e.Pedido == null ? null : e.Pedido.Numero,
+                e.Cliente == null ? null : e.Cliente.Zona!.Nombre,
+                e.Promotor!.NombreCompleto,
                 e.Descripcion,
-                Fotos = e.Evidencias.Count,
+                e.Evidencias.Count,
                 e.Solucion,
-                ResueltoPor = e.ResueltoPor == null ? null : e.ResueltoPor.NombreCompleto,
+                e.ResueltoPor == null ? null : e.ResueltoPor.NombreCompleto,
                 e.FechaResolucion,
                 e.Latitud,
-                e.Longitud
-            })
+                e.Longitud))
             .ToListAsync();
+        return (porTipo, porEstado, cantidad, filas);
+    }
+
+    /// <summary>El Excel del reporte: una hoja con los eventos y otra con los totales.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosEventoDTO filtros)
+    {
+        var (porTipo, porEstado, cantidad, filas) = await ParaExportarAsync(filtros);
 
         using var libro = new XLWorkbook();
         var hoja = libro.Worksheets.Add("Eventos");
@@ -142,6 +154,47 @@ public class ReporteEventosService(AppDbContext db, IUsuarioActual usuario, Time
         using var salida = new MemoryStream();
         libro.SaveAs(salida);
         return (salida.ToArray(), $"incidencias_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>
+    /// El PDF del reporte (tarea 33): los totales y los eventos, con las columnas de la tabla del panel (las 16 del Excel
+    /// no caben en una hoja). La hoja va de costado.
+    /// </summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosEventoDTO filtros)
+    {
+        var (porTipo, porEstado, cantidad, filas) = await ParaExportarAsync(filtros);
+
+        var elegidos = new List<FiltroPdf>();
+        if (filtros.TipoEventoId is { } tipoId)
+            elegidos.Agregar("Tipo", await db.TiposEvento.Where(t => t.Id == tipoId).Select(t => t.Nombre).FirstOrDefaultAsync());
+        if (filtros.Estado is { } estado) elegidos.Agregar("Estado", NombreDe(estado));
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) elegidos.Agregar("Registró", await db.NombreDeUsuarioAsync(filtros.PromotorId));
+        if (filtros.ZonaId is { } zonaId) elegidos.Agregar("Zona", await db.NombreDeZonaAsync(zonaId));
+        if (filtros.ClienteId is { } clienteId) elegidos.Agregar("Cliente", await db.NombreDeClienteAsync(clienteId, usuario, reloj));
+        elegidos.Agregar("Búsqueda", filtros.Buscar?.Trim());
+        elegidos.Agregar("Fecha", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta));
+
+        ColumnaPdf[] deTotales = [new("Tipo", 3), new("Eventos", 1, Derecha: true)];
+        var reporte = new ReportePdf("Reporte de incidencias", elegidos,
+        [
+            new SeccionPdf("Totales por tipo", deTotales,
+                porTipo.Select(t => TextosDelPdf.Fila(t.Tipo, TextosDelPdf.Cantidad(t.Cantidad))).ToList(),
+                AnchoMaximo: AnchosPdf.Totales),
+            new SeccionPdf("Totales por estado", [new("Estado", 3), new("Eventos", 1, Derecha: true)],
+                porEstado.Select(e => TextosDelPdf.Fila(e.Nombre, TextosDelPdf.Cantidad(e.Cantidad))).ToList(),
+                Total: ["Total", TextosDelPdf.Cantidad(cantidad)],
+                AnchoMaximo: AnchosPdf.Totales),
+            new SeccionPdf("Eventos",
+                [
+                    new ColumnaPdf("Número", 1.5f), new ColumnaPdf("Fecha", 1.5f), new ColumnaPdf("Tipo", 1.6f),
+                    new ColumnaPdf("Cliente", 2.1f), new ColumnaPdf("Zona", 1.4f), new ColumnaPdf("Registró", 1.8f),
+                    new ColumnaPdf("Fotos", 0.7f, Derecha: true), new ColumnaPdf("Estado", 1f)
+                ],
+                filas.Select(e => TextosDelPdf.Fila(e.Numero, TextosDelPdf.FechaHora(e.FechaEvento), e.Tipo,
+                    TextosDelPdf.Texto(e.Cliente ?? (e.Pedido is { } pedido ? $"Pedido {pedido}" : null)), TextosDelPdf.Texto(e.Zona),
+                    e.Registro, TextosDelPdf.Cantidad(e.Fotos), NombreDe(e.EstadoEvento))).ToList())
+        ], Horizontal: true);
+        return (pdf.Generar(reporte), $"incidencias_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
     }
 
     /// <summary>

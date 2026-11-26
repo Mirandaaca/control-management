@@ -6,15 +6,16 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
 /// <summary>
-/// Reporte de cobranzas (3.3, 7.3.12): filtros de estado, promotor, cliente y días de emisión, totales por estado y Excel.
-/// Respeta la cartera como la lista.
+/// Reporte de cobranzas (3.3, 7.3.12): filtros de estado, promotor, cliente y días de emisión, totales por estado, Excel y
+/// PDF (tarea 33). Respeta la cartera como la lista.
 /// </summary>
-public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj)
+public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy";
 
@@ -121,18 +122,33 @@ public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, Ti
         public DateTime? VenceLaMasAtrasada { get; init; }
     }
 
+    private sealed record ParaExportar(
+        List<TotalCobranzasPorEstadoDTO> PorEstado, TotalCobranzasDTO Total, List<CobranzaResumenDTO> Filas,
+        List<FilaDelCliente> PorCliente, DateOnly Hoy)
+    {
+        public bool ConFueraDelTotal => PorEstado.Any(e => FueraDelTotal.Contains(e.Estado));
+    }
+
     /// <summary>
-    /// El Excel del reporte: todas las cobranzas de los filtros, sin paginar, y una hoja con los totales. Sin cobranzas no
-    /// se exporta (7.3.12, ext. 2.1a).
+    /// Lo que se exporta, a Excel o a PDF: todas las cobranzas de los filtros, sin paginar, lo que debe cada cliente y los
+    /// totales. Sin cobranzas no se exporta (7.3.12, ext. 2.1a).
     /// </summary>
-    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosCobranzaDTO filtros)
+    private async Task<ParaExportar> ParaExportarAsync(FiltrosCobranzaDTO filtros)
     {
         var consulta = Filtradas(filtros);
         if (!await consulta.AnyAsync())
             throw new ReglaDeNegocioException("reporte_sin_datos", "No hay cobranzas con esos filtros: no hay nada que exportar.");
         var (porEstado, total) = await TotalesAsync(consulta);
         var filas = await Ordenadas(consulta).Select(CobranzaConsultas.ComoResumen).ToListAsync();
-        var hoy = HoraBolivia.Hoy(reloj);
+        var porCliente = await PorCliente(consulta).ToListAsync();
+        return new ParaExportar(porEstado, total, filas, porCliente, HoraBolivia.Hoy(reloj));
+    }
+
+    /// <summary>El Excel del reporte: las cobranzas, lo que debe cada cliente y los totales, cada uno en su hoja.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosCobranzaDTO filtros)
+    {
+        var datos = await ParaExportarAsync(filtros);
+        var (porEstado, total, filas, hoy) = (datos.PorEstado, datos.Total, datos.Filas, datos.Hoy);
 
         using var libro = new XLWorkbook();
         var hoja = libro.Worksheets.Add("Cobranzas");
@@ -165,7 +181,7 @@ public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, Ti
         for (var c = 0; c < deCliente.Length; c++) porCliente.Cell(1, c + 1).Value = deCliente[c];
         porCliente.Row(1).Style.Font.Bold = true;
         var filaDeCliente = 2;
-        foreach (var f in await PorCliente(consulta).ToListAsync())
+        foreach (var f in datos.PorCliente)
         {
             porCliente.Cell(filaDeCliente, 1).Value = f.Nombre;
             porCliente.Cell(filaDeCliente, 2).Value = f.PromotorNombre ?? "";
@@ -178,8 +194,7 @@ public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, Ti
             filaDeCliente++;
         }
         porCliente.Range(2, 4, Math.Max(filaDeCliente - 1, 2), 7).Style.NumberFormat.Format = "#,##0.00";
-        if (porEstado.Any(e => FueraDelTotal.Contains(e.Estado)))
-            porCliente.Cell(filaDeCliente + 1, 1).Value = "Los montos de cada cliente no suman las cobranzas incobrables ni las anuladas.";
+        if (datos.ConFueraDelTotal) porCliente.Cell(filaDeCliente + 1, 1).Value = NotaDeCadaCliente;
         porCliente.Columns(1, 8).AdjustToContents();
 
         var totales = libro.Worksheets.Add("Totales por estado");
@@ -196,8 +211,7 @@ public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, Ti
         totales.Cell(t, 1).Value = "Total";
         Cifras(totales, t, total.Cantidad, total.Emitido, total.Cobrado, total.Saldo);
         totales.Row(t).Style.Font.Bold = true;
-        if (porEstado.Any(e => FueraDelTotal.Contains(e.Estado)))
-            totales.Cell(t + 2, 1).Value = "La fila Total no suma las cobranzas incobrables ni las anuladas.";
+        if (datos.ConFueraDelTotal) totales.Cell(t + 2, 1).Value = NotaDelTotal;
         totales.Range(2, 3, t, 5).Style.NumberFormat.Format = "#,##0.00";
         totales.Columns(1, 5).AdjustToContents();
 
@@ -205,6 +219,73 @@ public class ReporteCobranzasService(AppDbContext db, IUsuarioActual usuario, Ti
         libro.SaveAs(salida);
         return (salida.ToArray(), $"cobranzas_{hoy:yyyyMMdd}.xlsx");
     }
+
+    private const string NotaDelTotal = "La fila Total no suma las cobranzas incobrables ni las anuladas.";
+    private const string NotaDeCadaCliente = "Los montos de cada cliente no suman las cobranzas incobrables ni las anuladas.";
+
+    /// <summary>
+    /// El PDF del reporte (tarea 33): lo mismo que el Excel, una sección por hoja (decisión de Cristopher del 26/11/2026),
+    /// sin importar la vista que se esté mirando. La hoja va de costado.
+    /// </summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosCobranzaDTO filtros)
+    {
+        var datos = await ParaExportarAsync(filtros);
+        var m = TextosDelPdf.Monto;
+
+        var elegidos = new List<FiltroPdf>();
+        if (filtros.Estado is { } estado) elegidos.Agregar("Estado", NombreDe(estado));
+        if (filtros.PorCobrar) elegidos.Agregar("Estado", "Por cobrar");
+        if (!string.IsNullOrEmpty(filtros.PromotorId)) elegidos.Agregar("Promotor", await db.NombreDeUsuarioAsync(filtros.PromotorId));
+        if (filtros.ClienteId is { } clienteId) elegidos.Agregar("Cliente", await db.NombreDeClienteAsync(clienteId, usuario, reloj));
+        elegidos.Agregar("Búsqueda", filtros.Buscar?.Trim());
+        elegidos.Agregar("Emitida", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta));
+
+        var reporte = new ReportePdf("Reporte de cobranzas", elegidos,
+        [
+            new SeccionPdf("Totales por estado",
+                [
+                    new ColumnaPdf("Estado", 2), new ColumnaPdf("Cobranzas", 1.2f, Derecha: true),
+                    new ColumnaPdf("Emitido", 1.5f, Derecha: true), new ColumnaPdf("Cobrado", 1.5f, Derecha: true),
+                    new ColumnaPdf("Saldo", 1.5f, Derecha: true)
+                ],
+                datos.PorEstado.Select(e => TextosDelPdf.Fila(e.Nombre, TextosDelPdf.Cantidad(e.Cantidad), m(e.Emitido), m(e.Cobrado), m(e.Saldo)))
+                    .ToList(),
+                Total: ["Total", TextosDelPdf.Cantidad(datos.Total.Cantidad), m(datos.Total.Emitido), m(datos.Total.Cobrado), m(datos.Total.Saldo)],
+                Nota: datos.ConFueraDelTotal ? NotaDelTotal : null,
+                AnchoMaximo: 520),
+            new SeccionPdf("Cada cobranza",
+                [
+                    new ColumnaPdf("Número", 1.8f), new ColumnaPdf("Cliente", 2.1f), new ColumnaPdf("Promotor", 1.9f),
+                    new ColumnaPdf("Emitida", 1.1f), new ColumnaPdf("Vence", 1.1f), new ColumnaPdf("Mora", 0.8f, Derecha: true),
+                    new ColumnaPdf("Total", 1.2f, Derecha: true), new ColumnaPdf("Pagado", 1.2f, Derecha: true),
+                    new ColumnaPdf("Saldo", 1.2f, Derecha: true), new ColumnaPdf("Estado", 1.1f)
+                ],
+                datos.Filas.Select(c => TextosDelPdf.Fila(c.Numero, c.Cliente.NombreCompleto, c.Promotor.NombreCompleto,
+                    TextosDelPdf.Fecha(c.FechaEmision), TextosDelPdf.Fecha(c.FechaVencimiento),
+                    Mora(CobranzaConsultas.DiasDeMora(c.Estado, c.FechaVencimiento, datos.Hoy)),
+                    m(c.MontoTotal), m(c.MontoPagado), m(c.SaldoPendiente), NombreDe(c.Estado))).ToList()),
+            new SeccionPdf("Por cliente",
+                [
+                    new ColumnaPdf("Cliente", 2.4f), new ColumnaPdf("Promotor", 2f), new ColumnaPdf("Cobranzas", 1f, Derecha: true),
+                    new ColumnaPdf("Emitido", 1.3f, Derecha: true), new ColumnaPdf("Cobrado", 1.3f, Derecha: true),
+                    new ColumnaPdf("Saldo", 1.3f, Derecha: true), new ColumnaPdf("Vencido", 1.3f, Derecha: true),
+                    new ColumnaPdf("Mora", 0.8f, Derecha: true)
+                ],
+                datos.PorCliente.Select(f => TextosDelPdf.Fila(f.Nombre, TextosDelPdf.Texto(f.PromotorNombre),
+                    TextosDelPdf.Cantidad(f.Cantidad), m(f.Emitido), m(f.Cobrado), m(f.Saldo), m(f.Vencido),
+                    Mora(DiasDeMora(f, datos.Hoy)))).ToList(),
+                Nota: datos.ConFueraDelTotal ? NotaDeCadaCliente : null)
+        ], Horizontal: true);
+        return (pdf.Generar(reporte), $"cobranzas_{datos.Hoy:yyyyMMdd}.pdf");
+    }
+
+    // Los días de mora de una vencida, como en el panel ("14 días"); las demás no tienen.
+    private static string Mora(int? dias) => dias switch
+    {
+        null => TextosDelPdf.SinDato,
+        1 => "1 día",
+        _ => $"{dias} días"
+    };
 
     /// <summary>Los estados que tienen cobranzas, en el orden del 8.6.4, y la fila Total sin las que ya no se cobran.</summary>
     private static async Task<(List<TotalCobranzasPorEstadoDTO> PorEstado, TotalCobranzasDTO Total)> TotalesAsync(

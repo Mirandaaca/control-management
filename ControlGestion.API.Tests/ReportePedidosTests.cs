@@ -115,6 +115,61 @@ public class ReportePedidosTests(ApiDePrueba api)
         Assert.Equal(HttpStatusCode.OK, (await gerente.GetAsync($"/api/pedidos/reporte/excel?zonaId={zonaConAnulado}")).StatusCode);
     }
 
+    // Tarea 33: el PDF, con los mismos filtros, la misma cartera, el mismo permiso y la misma regla de "sin datos".
+
+    private static List<string> NumerosDe(JsonElement reporte) =>
+        reporte.GetProperty("pedidos").GetProperty("items").EnumerateArray().Select(p => p.GetProperty("numero").GetString()!).ToList();
+
+    [Fact]
+    public async Task El_PDF_trae_los_filtros_los_totales_y_solo_los_pedidos_que_los_cumplen()
+    {
+        using var operador = await api.OperadorAsync();
+        var e = await TresPedidosAsync(operador);
+        var otraZona = await operador.CrearZonaAsync();
+        var deOtraZona = await operador.CrearPedidoAsync(await operador.CrearClienteAsync(otraZona), await operador.CrearProductoAsync(10m), 1);
+        using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
+        var reporte = await ReporteAsync(gerente, $"?zonaId={e.ZonaId}");
+        var zona = reporte.GetProperty("pedidos").GetProperty("items")[0].GetProperty("zona").GetProperty("nombre").GetString();
+        var numeroDeOtraZona = (await (await operador.GetAsync($"/api/pedidos/{deOtraZona}")).LeerJsonAsync()).GetProperty("numero").GetString()!;
+
+        var texto = await (await gerente.GetAsync($"/api/pedidos/reporte/pdf?zonaId={e.ZonaId}")).TextoDelPdfAsync("pedidos");
+
+        Assert.Contains("Reporte de pedidos", texto);
+        Assert.Contains($"Zona: {zona}", texto);
+        Assert.Contains("Total sin anulados 2 Bs 30,00", texto);
+        foreach (var numero in NumerosDe(reporte)) Assert.Contains(numero, texto);
+        Assert.DoesNotContain(numeroDeOtraZona, texto);
+        Assert.Contains("Página 1 de 1", texto);
+    }
+
+    [Fact]
+    public async Task El_PDF_respeta_la_cartera_pide_el_permiso_y_sin_pedidos_no_se_exporta()
+    {
+        using var operador = await api.OperadorAsync();
+        using var admin = await api.AdminAsync();
+        var (_, rol) = await admin.CrearRolAsync(Permisos.Pedidos.GenerarReporte, Permisos.Territorial.RecorrerRuta);
+        var usuario = await api.CrearUsuarioAsync(rol);
+        var productoId = await operador.CrearProductoAsync(10m);
+        var suyo = await operador.CrearPedidoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync(usuario.Id)), productoId, 1);
+        var ajeno = await operador.CrearPedidoAsync(await operador.CrearClienteAsync(await operador.CrearZonaAsync()), productoId, 1);
+        async Task<string> NumeroAsync(int id) =>
+            (await (await operador.GetAsync($"/api/pedidos/{id}")).LeerJsonAsync()).GetProperty("numero").GetString()!;
+        using var sinCartera = api.ClienteCon(usuario.Token);
+
+        var texto = await (await sinCartera.GetAsync("/api/pedidos/reporte/pdf")).TextoDelPdfAsync("pedidos");
+
+        Assert.Contains(await NumeroAsync(suyo), texto);
+        Assert.DoesNotContain(await NumeroAsync(ajeno), texto);
+        // Sin filtros, el encabezado lo dice (7.3.4, ext. 2).
+        Assert.Contains("Sin filtros", texto);
+
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+        await (await secretaria.GetAsync("/api/pedidos/reporte/pdf")).ProblemaAsync(403, "sin_permiso");
+        using var gerente = api.ClienteCon((await api.CrearUsuarioAsync(Roles.GerenteGeneral)).Token);
+        await (await gerente.GetAsync($"/api/pedidos/reporte/pdf?zonaId={await operador.CrearZonaAsync()}"))
+            .ProblemaAsync(400, "reporte_sin_datos");
+    }
+
     [Fact]
     public async Task Solo_quien_genera_el_reporte_lo_ve_y_puede_filtrar_por_promotor()
     {

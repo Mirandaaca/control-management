@@ -44,6 +44,14 @@ public class EventosController(EventoService eventos, ReporteEventosService repo
         return File(contenido, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombre);
     }
 
+    [HttpGet("reporte/pdf")]
+    [Permiso(Permisos.Eventos.GenerarReporte)]
+    public async Task<IActionResult> GetReportePdf([FromQuery] FiltrosEventoDTO filtros)
+    {
+        var (contenido, nombre) = await reporte.PdfAsync(filtros);
+        return File(contenido, "application/pdf", nombre);
+    }
+
     [HttpGet("tipos")]
     public async Task<ActionResult<List<TipoEventoDTO>>> GetTipos() =>
         await eventos.TiposAsync();

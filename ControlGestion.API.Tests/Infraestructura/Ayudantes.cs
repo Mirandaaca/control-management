@@ -1,5 +1,7 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using ControlGestion.API.Configuracion;
 using ControlGestion.API.Services;
@@ -8,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using UglyToad.PdfPig;
 
 namespace ControlGestion.API.Tests.Infraestructura;
 
@@ -107,6 +110,22 @@ public static class Ayudantes
         if (codigo != null)
             Assert.Equal(codigo, problema.GetProperty("codigo").GetString());
         return problema;
+    }
+
+    /// <summary>
+    /// El PDF de un reporte (tarea 33): comprueba que la respuesta sea un PDF con su nombre ("pedidos_aaaammdd.pdf") y
+    /// devuelve su texto, palabra por palabra, separado por espacios y con un salto entre páginas.
+    /// </summary>
+    public static async Task<string> TextoDelPdfAsync(this HttpResponseMessage respuesta, string prefijo)
+    {
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal("application/pdf", respuesta.Content.Headers.ContentType?.MediaType);
+        var nombre = respuesta.Content.Headers.ContentDisposition?.FileNameStar ?? respuesta.Content.Headers.ContentDisposition?.FileName;
+        Assert.Matches($"^{prefijo}_\\d{{8}}\\.pdf$", nombre);
+        var bytes = await respuesta.Content.ReadAsByteArrayAsync();
+        Assert.Equal("%PDF", Encoding.ASCII.GetString(bytes, 0, 4));
+        using var documento = PdfDocument.Open(bytes);
+        return string.Join("\n", documento.GetPages().Select(p => string.Join(" ", p.GetWords().Select(w => w.Text))));
     }
 
     /// <summary>Crea una zona con ese promotor; sin él, con el promotor de zonas de la corrida (ApiDePrueba.PromotorDeZonasId).</summary>

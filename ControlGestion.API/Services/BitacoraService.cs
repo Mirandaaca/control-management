@@ -5,15 +5,16 @@ using ControlGestion.API.DTOs;
 using ControlGestion.API.Excepciones;
 using ControlGestion.API.Models;
 using ControlGestion.API.Seguridad;
+using ControlGestion.API.Services.Pdf;
 using Microsoft.EntityFrameworkCore;
 
 namespace ControlGestion.API.Services;
 
 /// <summary>
-/// Consultar y exportar la bitácora (8.5). La escribe AuditoriaMiddleware; aquí solo se lee: los registros no se
-/// modifican ni se eliminan.
+/// Consultar y exportar la bitácora (8.5), a Excel y a PDF (tarea 33). La escribe AuditoriaMiddleware; aquí solo se lee:
+/// los registros no se modifican ni se eliminan.
 /// </summary>
-public class BitacoraService(AppDbContext db, TimeProvider reloj)
+public class BitacoraService(AppDbContext db, TimeProvider reloj, GeneradorDePdf pdf)
 {
     private const string FormatoFecha = "dd/mm/yyyy hh:mm:ss";
 
@@ -33,12 +34,21 @@ public class BitacoraService(AppDbContext db, TimeProvider reloj)
         await db.Users.OrderBy(u => u.NombreCompleto).Select(u => new UsuarioResumenDTO(u.Id, u.NombreCompleto)).ToListAsync(),
         OperacionesDeBitacora.Modulos);
 
-    /// <summary>Los registros de los filtros, sin paginar. Sin registros no se exporta (7.3.35, ext. 2.1a).</summary>
-    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosBitacoraDTO filtros)
+    /// <summary>
+    /// Lo que se exporta, a Excel o a PDF: los registros de los filtros, sin paginar, del más reciente al más antiguo. Sin
+    /// registros no se exporta (7.3.35, ext. 2.1a).
+    /// </summary>
+    private async Task<List<RegistroBitacoraDTO>> ParaExportarAsync(FiltrosBitacoraDTO filtros)
     {
         var filas = await Ordenados(Filtrar(filtros)).Select(ComoDTO).ToListAsync();
         if (filas.Count == 0)
             throw new ReglaDeNegocioException("reporte_sin_datos", "No hay registros con esos filtros: no hay nada que exportar.");
+        return filas;
+    }
+
+    public async Task<(byte[] Contenido, string NombreArchivo)> ExcelAsync(FiltrosBitacoraDTO filtros)
+    {
+        var filas = await ParaExportarAsync(filtros);
 
         using var libro = new XLWorkbook();
         var hoja = libro.Worksheets.Add("Bitácora");
@@ -62,6 +72,26 @@ public class BitacoraService(AppDbContext db, TimeProvider reloj)
         using var salida = new MemoryStream();
         libro.SaveAs(salida);
         return (salida.ToArray(), $"bitacora_{HoraBolivia.Hoy(reloj):yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>El PDF (tarea 33): los mismos registros que el Excel, en una hoja de costado.</summary>
+    public async Task<(byte[] Contenido, string NombreArchivo)> PdfAsync(FiltrosBitacoraDTO filtros)
+    {
+        var filas = await ParaExportarAsync(filtros);
+
+        var elegidos = new List<FiltroPdf>();
+        if (!string.IsNullOrEmpty(filtros.UsuarioId)) elegidos.Agregar("Usuario", await db.NombreDeUsuarioAsync(filtros.UsuarioId));
+        elegidos.Agregar("Módulo", filtros.Modulo);
+        elegidos.Agregar("Fecha", TextosDelPdf.Periodo(filtros.Desde, filtros.Hasta));
+
+        var reporte = new ReportePdf("Bitácora", elegidos,
+        [
+            new SeccionPdf("Registros",
+                [new("Fecha y hora", 1.3f), new("Usuario", 1.8f), new("Módulo", 2.4f), new("Acción", 3.6f), new("Dirección IP", 1.2f)],
+                filas.Select(r => TextosDelPdf.Fila(TextosDelPdf.FechaHora(r.Fecha), TextosDelPdf.Texto(r.Usuario?.NombreCompleto),
+                    r.Modulo, r.Accion, TextosDelPdf.Texto(r.DireccionIp))).ToList())
+        ], Horizontal: true);
+        return (pdf.Generar(reporte), $"bitacora_{HoraBolivia.Hoy(reloj):yyyyMMdd}.pdf");
     }
 
     private IQueryable<AuditoriaLog> Filtrar(FiltrosBitacoraDTO filtros)

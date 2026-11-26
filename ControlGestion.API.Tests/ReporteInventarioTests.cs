@@ -131,5 +131,33 @@ public class ReporteInventarioTests(ApiDePrueba api)
         using var promotor = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Promotor)).Token);
         Assert.Equal(HttpStatusCode.Forbidden, (await promotor.GetAsync("/api/reportes/inventario")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await promotor.GetAsync("/api/reportes/inventario/excel")).StatusCode);
+        await (await promotor.GetAsync("/api/reportes/inventario/pdf")).ProblemaAsync(403, "sin_permiso");
+    }
+
+    [Fact]
+    public async Task El_PDF_trae_el_stock_los_que_estan_bajo_el_minimo_y_los_movimientos_y_dice_si_una_parte_esta_vacia()
+    {
+        using var operador = await api.OperadorAsync();
+        var escenario = await CategoriaAsync(operador);
+        using var secretaria = api.ClienteCon((await api.CrearUsuarioAsync(Roles.Secretaria)).Token);
+
+        var texto = await (await secretaria.GetAsync($"/api/reportes/inventario/pdf?categoriaId={escenario.CategoriaId}"))
+            .TextoDelPdfAsync("inventario");
+
+        Assert.Contains("Reporte de inventario", texto);
+        Assert.Contains($"Categoría: {escenario.Categoria}", texto);
+        Assert.Contains("Bajo el mínimo", texto);
+        // El que está debajo: stock 3, mínimo 10, le faltan 7.
+        Assert.Matches(@"C falta P-\w+ " + escenario.Categoria + " 3 10 7", texto);
+        // El inactivo no está en el stock, pero su ingreso sí es un movimiento.
+        var stock = texto[..texto.IndexOf("Bajo el mínimo", StringComparison.Ordinal)];
+        Assert.DoesNotContain("D inactivo", stock);
+        Assert.Contains("Entrada", texto);
+
+        // Este reporte no tiene la regla de "sin datos": una parte vacía lo dice (7.3.25, ext. 4).
+        var sinMovimientos = await (await secretaria.GetAsync(
+            $"/api/reportes/inventario/pdf?categoriaId={escenario.CategoriaId}&desde=2001-01-01&hasta=2001-01-01")).TextoDelPdfAsync("inventario");
+        Assert.Contains("No hay movimientos en el período.", sinMovimientos);
+        Assert.Contains("Movimientos: 01/01/2001 al 01/01/2001", sinMovimientos);
     }
 }
