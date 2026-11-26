@@ -8,9 +8,9 @@ import {
 import { useAuth } from '../context/auth';
 import { PANTALLAS } from '../context/permisos';
 
-// Los módulos siguen el orden de la tesis (docs/alcance.md). Cada pantalla se ve si el usuario tiene uno de sus
-// permisos. Un módulo con una sola pantalla visible se muestra como enlace directo; con dos o más, como un grupo que
-// se abre y se cierra.
+// Los módulos siguen el orden de la tesis (docs/alcance.md), salvo Clientes: es de Ventas (2.2), pero va en Parámetros
+// (tarea 34, pedido de Cristopher). Cada pantalla se ve si el usuario tiene uno de sus permisos. Un módulo con una sola
+// pantalla visible se muestra como enlace directo; con dos o más, como un grupo que se abre y se cierra.
 const modulos = [
   { id: 'inicio', seccion: 'inicio', items: [{ to: '/dashboard', label: 'Inicio', icon: House }] },
   { id: 'pedidos', seccion: 'operacion', nombre: 'Pedidos', icon: Package, items: [
@@ -18,7 +18,6 @@ const modulos = [
     { to: '/pedidos/entregas', label: 'Entregas de hoy', icon: Truck, permisos: PANTALLAS.entregas },
   ] },
   { id: 'ventas', seccion: 'operacion', nombre: 'Ventas', icon: ShoppingCart, items: [
-    { to: '/clientes', label: 'Clientes', icon: Store, permisos: PANTALLAS.clientes },
     { to: '/hojas-pedido', label: 'Hojas de pedido', icon: ClipboardList, permisos: PANTALLAS.hojasPedido },
     { to: '/inventario', label: 'Inventario', icon: Boxes, permisos: PANTALLAS.inventario },
   ] },
@@ -41,6 +40,7 @@ const modulos = [
     { to: '/reportes/eventos', label: 'Reporte de incidencias', icon: FileWarning, permisos: PANTALLAS.reporteEventos },
   ] },
   { id: 'parametros', seccion: 'administracion', nombre: 'Parámetros', icon: SlidersHorizontal, items: [
+    { to: '/clientes', label: 'Clientes', icon: Store, permisos: PANTALLAS.clientes },
     { to: '/zonas', label: 'Zonas', icon: Mapa, permisos: PANTALLAS.zonas },
     { to: '/productos', label: 'Productos', icon: Tag, permisos: PANTALLAS.productos },
     { to: '/categorias', label: 'Categorías', icon: Shapes, permisos: PANTALLAS.categorias },
